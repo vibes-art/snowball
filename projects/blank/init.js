@@ -1,0 +1,1 @@
+var blankCanvas = new BlankCanvas({});
