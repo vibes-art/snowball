@@ -79,13 +79,17 @@ class _XClock {
 
     var count = this.onNextTickListeners.length;
     for (var i = count - 1; i >= 0; i--) {
-      this.onNextTickListeners[i](dt, dtReal);
-      this.onNextTickListeners.splice(i, 1);
+      var listener = this.onNextTickListeners[i];
+      if (listener) {
+        listener(dt, dtReal);
+        this.onNextTickListeners.splice(i, 1);
+      }
     }
 
     var count = this.onTickListeners.length;
     for (var i = count - 1; i >= 0; i--) {
-      this.onTickListeners[i](dt, dtReal);
+      var listener = this.onTickListeners[i];
+      if (listener) listener(dt, dtReal);
     }
 
     this.lastTimestamp = timestamp;

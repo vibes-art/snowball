@@ -1,6 +1,6 @@
 # Snowball
 
-v0.1.0
+v0.1.1
 
 ## Context
 
@@ -21,7 +21,7 @@ The code for specific projects and artworks built with this engine, like Proscen
 ln -f -s projects/my_project_name/index.html index.html
 ```
 
-2. Once a symlink has been created, you can serve the project:
+2. Once a symlink has been created, you can serve the project (may need to use `python3`):
 ```
 python -m http.server
 ```
