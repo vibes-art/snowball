@@ -1,0 +1,116 @@
+<!doctype html>
+<html>
+<head>
+  <script src="../src/core/constants.js"></script>
+  <script src="../src/tools/simplex.js"></script>
+  <script src="../src/tools/XMultiNoise.js"></script>
+  <script>
+    var windowWidth = 0;
+    var windowHeight = 0;
+    var visCanvasWidth = 100;
+    var visCanvasHeight = 100;
+    var paletteCanvas = null;
+    var paletteCtx = null;
+
+    var NOISE_CONFIG = {
+      id: "noise",
+      baseValue: 0,
+      noiseList: [
+        { scale: 0.05, exponent: 4, amplitude: 0.47 },
+        { scale: 0.03, exponent: 2, amplitude: 0.47 },
+        { scale: 0.2, exponent: 1, amplitude: 0.06 },
+      ]
+    };
+
+    var NOISE = new XMultiNoise(NOISE_CONFIG);
+    var VALUE_SCALE = 0;
+    for (var i = 0; i < NOISE_CONFIG.noiseList.length; i++) {
+      VALUE_SCALE += NOISE_CONFIG.noiseList[i].amplitude;
+    }
+
+    function renderNoise () {
+      var startTime = Date.now();
+      for (var x = 0; x < visCanvasWidth; x++) {
+        for (var y = 0; y < visCanvasHeight; y++) {
+          var i = x;
+          var j = y;
+          var noise = NOISE.getValue(i, j) / VALUE_SCALE;
+          var hex = noiseToHex(noise);
+          paletteCtx.fillStyle = '#' + hex + hex + hex;
+          paletteCtx.fillRect(x, y, 1, 1);
+        }
+      }
+      var elapsed = Date.now() - startTime;
+      console.log(`noise render time: ${elapsed}`);
+    };
+
+    function noiseToHex (noise) {
+      var value = floor(noise * 256);
+      var firstChar = floor(value / 16).toString(16);
+      var secondChar = floor(value % 16).toString(16);
+      return firstChar + secondChar;
+    };
+
+    window.onload = function () { initialize(); };
+
+    function initialize () {
+      setRenderOptions();
+      createElements();
+      startRender();
+      setResizeHandler();
+    };
+
+    function setRenderOptions () {
+      var body = document.body;
+      body.style.overflow = 'hidden';
+
+      windowWidth = max(body.clientWidth, window.innerWidth);
+      windowHeight = max(body.clientHeight, window.innerHeight);
+
+      var isLandscape = windowWidth > windowHeight;
+      var windowSize = isLandscape ? windowHeight : windowWidth;
+      visCanvasSize = windowSize;
+    };
+
+    function createElements () {
+      paletteCanvas = document.createElement("canvas");
+      paletteCanvas.style.position = "absolute";
+      document.body.appendChild(paletteCanvas);
+      paletteCtx = paletteCanvas.getContext("2d");
+    };
+
+    function startRender () {
+      resizeVisibleCanvas();
+      renderNoise();
+    };
+
+    var resizeCallback = null;
+    function setResizeHandler () {
+      window.removeEventListener('resize', resizeCallback, true);
+
+      resizeCallback = function () {
+        setRenderOptions();
+        resizeVisibleCanvas(true);
+      };
+
+      window.addEventListener('resize', resizeCallback, true);
+    };
+
+    var _logTimeout = 0;
+    function resizeVisibleCanvas (skipDims) {
+      var x = floor((windowWidth - visCanvasWidth) / 2);
+      var y = floor((windowHeight - visCanvasHeight) / 2);
+
+      paletteCanvas.style.left = x + "px";
+      paletteCanvas.style.top = y + "px";
+      if (!skipDims) {
+        paletteCanvas.width = visCanvasWidth;
+        paletteCanvas.height = visCanvasHeight;
+      }
+      paletteCanvas.style.scale = windowHeight / visCanvasHeight;
+    };
+  </script>
+</head>
+<body>
+</body>
+</html>

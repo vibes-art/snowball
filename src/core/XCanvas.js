@@ -93,6 +93,7 @@ class XCanvas {
     this.scene = null;
 
     XClock.reset();
+    XTimeline.reset();
     this.onTickListener = null;
 
     setTimeout(() => this.init(), 0);

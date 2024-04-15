@@ -2,6 +2,10 @@
 class _XTimeline {
 
   constructor () {
+    this.reset();
+  }
+
+  reset () {
     this.animations = [];
 
     XClock.onTick((dt) => this.tick(dt));
