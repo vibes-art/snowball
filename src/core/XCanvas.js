@@ -8,9 +8,12 @@ class XCanvas {
     this.width = opts.width || 0;
     this.height = opts.height || 0;
 
+    this.canvas = null;
+    this.ctx = null;
     this.onTickListener = null;
     this.keysDown = {};
     this.isInitialized = false;
+    this.hasSavedOutput = false;
     this.isLiveRendering = true;
     this.skipFlush = false;
     this.acceptInput = false;
@@ -21,23 +24,30 @@ class XCanvas {
     window.onload = () => this.init();
   }
 
-  init () {
-    this.hasSavedOutput = false;
+  get gl () {
+    return this.type === CANVAS_WEBGL ? this.ctx : null;
+  }
 
+  init () {
     this.setDimensions();
 
-    var hasWorkingGL = true;
+    var isWebGL = this.type === CANVAS_WEBGL;
+    var hasWorkingGL = isWebGL;
     if (!this.isInitialized) {
       this.createElements();
       this.listenForInput();
-      hasWorkingGL = this.checkGL();
+      hasWorkingGL = hasWorkingGL && this.checkGL();
     }
 
-    if (hasWorkingGL) {
-      this.resizeCanvas();
-      this.initScene();
-      this.isInitialized = true;
+    this.resizeCanvas();
+
+    if (isWebGL) {
+      hasWorkingGL && this.initScene();
+    } else {
+      this.prepareRenderLoop();
     }
+
+    this.isInitialized = true;
   }
 
   initScene (opts) {
@@ -79,7 +89,7 @@ class XCanvas {
   }
 
   prepareRenderLoop () {
-    this.skipFlush = false;
+    this.skipFlush = this.type === CANVAS_2D;
     this.acceptInput = true;
 
     this.onTickListener = (dt, dtReal) => this.draw(dt, dtReal);
@@ -88,6 +98,7 @@ class XCanvas {
 
   reset (isError) {
     this.skipFlush = true;
+    this.hasSavedOutput = false;
 
     this.scene && this.scene.remove();
     this.scene = null;
@@ -127,14 +138,8 @@ class XCanvas {
     this.canvas = document.createElement('canvas');
     this.canvas.width = this.width;
     this.canvas.height = this.height;
-    this.gl = this.canvas.getContext(this.type);
+    this.ctx = this.canvas.getContext(this.type);
     document.body.appendChild(this.canvas);
-
-    this.canvas.addEventListener('webglcontextlost', (evt) => {
-      evt.preventDefault();
-      console.error("WebGL context lost!");
-      this.reset(true);
-    }, false);
 
     this.setResizeHandler();
   }
@@ -158,6 +163,12 @@ class XCanvas {
     if (!colorBufferFloatExt) {
       console.error('EXT_color_buffer_float is not supported!');
     };
+
+    this.canvas.addEventListener('webglcontextlost', (evt) => {
+      evt.preventDefault();
+      console.error("WebGL context lost!");
+      this.reset(true);
+    }, false);
 
     return true;
   }
@@ -188,7 +199,7 @@ class XCanvas {
     canvas.style.margin = 'auto';
     canvas.style.position = 'absolute';
 
-    if (canvas === this.canvas) {
+    if (canvas === this.canvas && this.gl) {
       this.gl.viewport(0, 0, width, height);
       this.scene && (this.scene.matrices.projection.data = this.getProjectionMatrix());
     }
@@ -282,8 +293,10 @@ class XCanvas {
     var name = opts.name || 'output';
     var callback = opts.callback || null;
 
-    this.gl.flush();
-    this.gl.finish();
+    if (this.gl) {
+      this.gl.flush();
+      this.gl.finish();
+    }
 
     var renderCanvas = document.createElement('canvas');
     var renderCtx = renderCanvas.getContext(CANVAS_2D);
@@ -327,8 +340,10 @@ class XCanvas {
   }
 
   draw (dt, dtReal) {
-    this.updateCamera(dtReal);
-    this.scene.draw(dt);
+    if (this.gl) {
+      this.updateCamera(dtReal);
+      this.scene.draw(dt);
+    }
   }
 
 }

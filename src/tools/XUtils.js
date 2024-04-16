@@ -132,6 +132,13 @@ XUtils.enableArtBlocksPRNG = function () {
   random = () => abr.random_dec();
 };
 
+XUtils.floatToHex = function (normalized) {
+  var value = floor(normalized * 256);
+  var firstChar = floor(value / 16).toString(16);
+  var secondChar = floor(value % 16).toString(16);
+  return firstChar + secondChar;
+};
+
 XUtils.recurseValues = function (values, start, end, amplitude, exponent) {
   var delta = end - start;
   var half = floor(start + delta / 2);
