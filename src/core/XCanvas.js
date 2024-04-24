@@ -5,6 +5,7 @@ class XCanvas {
 
   constructor (opts) {
     this.type = opts.type || CANVAS_WEBGL;
+    this.canvasOpts = opts.canvasOpts || {};
     this.width = opts.width || 0;
     this.height = opts.height || 0;
 
@@ -138,7 +139,7 @@ class XCanvas {
     this.canvas = document.createElement('canvas');
     this.canvas.width = this.width;
     this.canvas.height = this.height;
-    this.ctx = this.canvas.getContext(this.type);
+    this.ctx = this.canvas.getContext(this.type, this.canvasOpts);
     document.body.appendChild(this.canvas);
 
     this.setResizeHandler();
