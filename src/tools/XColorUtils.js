@@ -21,7 +21,7 @@ XColorUtils.getNormalColor = function (normal) {
   ];
 };
 
-XColorUtils.smashColors = function (c1, c2, pct) {
+XColorUtils.smashColorsHSL = function (c1, c2, pct) {
   var c1HSL = XColorUtils.RGBtoHSL(c1[0], c1[1], c1[2]);
   var c2HSL = XColorUtils.RGBtoHSL(c2[0], c2[1], c2[2]);
   var dh = c2HSL[0] - c1HSL[0];

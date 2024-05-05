@@ -310,7 +310,7 @@ class XCanvas {
     XUtils.processImage(renderCanvas, destWidth, destHeight, (outputCanvas) => {
       if (!IS_HEADLESS) {
         var outputName = `${name}.png`;
-        XUtils.downloadCanvas(outputCanvas, outputName, (blob) => callback(blob));
+        XUtils.downloadCanvas(outputCanvas, outputName, (blob) => callback && callback(blob));
       } else {
         document.body.removeChild(this.canvas);
         document.body.appendChild(outputCanvas);
