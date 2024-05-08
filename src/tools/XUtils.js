@@ -83,6 +83,18 @@ XUtils.chooseByWeight = function (data) {
   return choice;
 };
 
+XUtils.chooseByWeightLimited = function (data, validIDs) {
+  var validChoices = [];
+  var length = data.length;
+  for (var i = 0; i < length; i++) {
+    var item = data[i];
+    if (validIDs.indexOf(item.id) >= 0) {
+      validChoices.push(item);
+    }
+  }
+  return XUtils.chooseByWeight(validChoices);
+};
+
 XUtils.chooseByID = function (data, id) {
   var choice = null;
   var length = data.length;
