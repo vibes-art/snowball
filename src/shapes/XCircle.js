@@ -18,4 +18,13 @@ class XCircle extends XShape {
     return circle.getSignedDistance(this.x, this.z) <= this.radius;
   }
 
+  getRandomPoint () {
+    var theta = TAU * random();
+    var radius = this.radius * random();
+    return {
+      x: this.x + radius * cos(theta),
+      z: this.z + radius * sin(theta)
+    };
+  }
+
 }

@@ -26,4 +26,8 @@ class XShape {
     return atan2(dz, dx);
   }
 
+  getRandomPoint () {
+    return { x: this.x, z: this.z };
+  }
+
 }

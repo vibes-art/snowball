@@ -81,4 +81,15 @@ class XRect extends XShape {
     }};
   }
 
+  getRandomPoint () {
+    var localX = this._halfWidth - random() * this.width;
+    var localZ = this._halfDepth - random() * this.depth;
+    var rotatedX = localX * this._cosTheta - localZ * this._sinTheta;
+    var rotatedZ = localX * this._sinTheta + localZ * this._cosTheta;
+    return {
+      x: this.x + rotatedX,
+      z: this.z + rotatedZ
+    };
+  }
+
 }
