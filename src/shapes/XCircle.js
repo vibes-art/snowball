@@ -27,4 +27,12 @@ class XCircle extends XShape {
     };
   }
 
+  getRandomEdgePoint () {
+    var theta = TAU * random();
+    return {
+      x: this.x + this.radius * cos(theta),
+      z: this.z + this.radius * sin(theta)
+    };
+  }
+
 }

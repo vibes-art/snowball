@@ -30,4 +30,8 @@ class XShape {
     return { x: this.x, z: this.z };
   }
 
+  getRandomEdgePoint () {
+    return { x: this.x, z: this.z };
+  }
+
 }
