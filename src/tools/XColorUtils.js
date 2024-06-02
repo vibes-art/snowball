@@ -21,18 +21,6 @@ XColorUtils.getNormalColor = function (normal) {
   ];
 };
 
-XColorUtils.smashColorsHSL = function (c1, c2, pct) {
-  var c1HSL = XColorUtils.RGBtoHSL(c1[0], c1[1], c1[2]);
-  var c2HSL = XColorUtils.RGBtoHSL(c2[0], c2[1], c2[2]);
-  var dh = c2HSL[0] - c1HSL[0];
-  var ds = c2HSL[1] - c1HSL[1];
-  var dl = c2HSL[2] - c1HSL[2];
-  var da = (c2[3] || 1.0) - (c1[3] || 1.0);
-  var color = XColorUtils.HSLtoRGB(c1HSL[0] + pct * dh, c1HSL[1] + pct * ds, c1HSL[2] + pct * dl);
-  color[3] = c1[3] + pct * da;
-  return color;
-};
-
 function SRGBtoRGB (val) {
   return val <= 0.04045 ? val / 12.92 : pow((val + 0.055) / 1.055, 2.4);
 };
@@ -77,6 +65,18 @@ XColorUtils.smashColorsRGB = function (c1, c2, pct) {
   return XColorUtils.RGBtoSRGB(result);
 };
 
+XColorUtils.smashColorsHSL = function (c1, c2, pct) {
+  var c1HSL = XColorUtils.RGBtoHSL(c1[0], c1[1], c1[2]);
+  var c2HSL = XColorUtils.RGBtoHSL(c2[0], c2[1], c2[2]);
+  var dh = c2HSL[0] - c1HSL[0];
+  var ds = c2HSL[1] - c1HSL[1];
+  var dl = c2HSL[2] - c1HSL[2];
+  var da = (c2[3] || 1.0) - (c1[3] || 1.0);
+  var color = XColorUtils.HSLtoRGB(c1HSL[0] + pct * dh, c1HSL[1] + pct * ds, c1HSL[2] + pct * dl);
+  color[3] = c1[3] + pct * da;
+  return color;
+};
+
 XColorUtils.smashColorsLCH = function (c1, c2, pct) {
   var c1LCH = XColorUtils.RGBtoLCH(c1[0], c1[1], c1[2]);
   var c2LCH = XColorUtils.RGBtoLCH(c2[0], c2[1], c2[2]);
@@ -87,6 +87,21 @@ XColorUtils.smashColorsLCH = function (c1, c2, pct) {
   var color = XColorUtils.LCHtoRGB(c1LCH[0] + pct * dl, c1LCH[1] + pct * dc, c1LCH[2] + pct * dh);
   color[3] = c1[3] + pct * da;
   return color;
+};
+
+XColorUtils.smashColorsSpectral = function (c1, c2, pct) {
+  var str1 = `rgb(${floor(c1[0] * 255)}, ${floor(c1[1] * 255)}, ${floor(c1[2] * 255)})`;
+  var str2 = `rgb(${floor(c2[0] * 255)}, ${floor(c2[1] * 255)}, ${floor(c2[2] * 255)})`;
+  var newColorStr = spectral.mix(str1, str2, pct, spectral.RGB);
+  newColorStr = newColorStr.replace('rgb(', '');
+  newColorStr = newColorStr.replace(')', '');
+  newColorStr = newColorStr.replace(' ', '');
+  var newColorValues = newColorStr.split(',');
+  return [
+    +newColorValues[0] / 255,
+    +newColorValues[1] / 255,
+    +newColorValues[2] / 255
+  ];
 };
 
 XColorUtils.HSVtoRGB = function (h, s, v) {
@@ -231,43 +246,90 @@ XColorUtils.XYZtoRGB = function (x, y, z) {
   return [r, g, b];
 };
 
-XColorUtils.sortByRed = function (a, b) { return a[0] - b[0]; };
-XColorUtils.sortByGreen = function (a, b) { return a[1] - b[1]; };
-XColorUtils.sortByBlue = function (a, b) { return a[2] - b[2]; };
+XColorUtils.sortByRed = function (a, b) {
+  if (a.length) return a[0] - b[0];
+  return a.r - b.r;
+};
+
+XColorUtils.sortByGreen = function (a, b) {
+  if (a.length) return a[1] - b[1];
+  return a.g - b.g;
+};
+
+XColorUtils.sortByBlue = function (a, b) {
+  if (a.length) return a[2] - b[2];
+  return a.b - b.b;
+};
 
 XColorUtils.sortRGBByHue = function (a, b) {
-  var aHSL = XColorUtils.RGBtoHSL(a[0] / 255, a[1] / 255, a[2] / 255);
-  var bHSL = XColorUtils.RGBtoHSL(b[0] / 255, b[1] / 255, b[2] / 255);
+  var aHSL, bHSL;
+  if (a.length) {
+    aHSL = XColorUtils.RGBtoHSL(a[0] / 255, a[1] / 255, a[2] / 255);
+    bHSL = XColorUtils.RGBtoHSL(b[0] / 255, b[1] / 255, b[2] / 255);
+  } else {
+    aHSL = XColorUtils.RGBtoHSL(a.r / 255, a.g / 255, a.b / 255);
+    bHSL = XColorUtils.RGBtoHSL(b.r / 255, b.g / 255, b.b / 255);
+  }
   return aHSL[0] - bHSL[0];
 };
 
 XColorUtils.sortRGBBySaturation = function (a, b) {
-  var aHSL = XColorUtils.RGBtoHSL(a[0] / 255, a[1] / 255, a[2] / 255);
-  var bHSL = XColorUtils.RGBtoHSL(b[0] / 255, b[1] / 255, b[2] / 255);
+  var aHSL, bHSL;
+  if (a.length) {
+    aHSL = XColorUtils.RGBtoHSL(a[0] / 255, a[1] / 255, a[2] / 255);
+    bHSL = XColorUtils.RGBtoHSL(b[0] / 255, b[1] / 255, b[2] / 255);
+  } else {
+    aHSL = XColorUtils.RGBtoHSL(a.r / 255, a.g / 255, a.b / 255);
+    bHSL = XColorUtils.RGBtoHSL(b.r / 255, b.g / 255, b.b / 255);
+  }
   return aHSL[1] - bHSL[1];
 };
 
 XColorUtils.sortRGBByLightness = function (a, b) {
-  var aHSL = XColorUtils.RGBtoHSL(a[0] / 255, a[1] / 255, a[2] / 255);
-  var bHSL = XColorUtils.RGBtoHSL(b[0] / 255, b[1] / 255, b[2] / 255);
+  var aHSL, bHSL;
+  if (a.length) {
+    aHSL = XColorUtils.RGBtoHSL(a[0] / 255, a[1] / 255, a[2] / 255);
+    bHSL = XColorUtils.RGBtoHSL(b[0] / 255, b[1] / 255, b[2] / 255);
+  } else {
+    aHSL = XColorUtils.RGBtoHSL(a.r / 255, a.g / 255, a.b / 255);
+    bHSL = XColorUtils.RGBtoHSL(b.r / 255, b.g / 255, b.b / 255);
+  }
   return aHSL[2] - bHSL[2];
 };
 
 XColorUtils.sortRGBByLCHLightness = function (a, b) {
-  var aLCH = XColorUtils.RGBtoLCH(a[0] / 255, a[1] / 255, a[2] / 255);
-  var bLCH = XColorUtils.RGBtoLCH(b[0] / 255, b[1] / 255, b[2] / 255);
+  var aLCH, bLCH;
+  if (a.length) {
+    aLCH = XColorUtils.RGBtoLCH(a[0] / 255, a[1] / 255, a[2] / 255);
+    bLCH = XColorUtils.RGBtoLCH(b[0] / 255, b[1] / 255, b[2] / 255);
+  } else {
+    aLCH = XColorUtils.RGBtoLCH(a.r / 255, a.g / 255, a.b / 255);
+    bLCH = XColorUtils.RGBtoLCH(b.r / 255, b.g / 255, b.b / 255);
+  }
   return aLCH[0] - bLCH[0];
 };
 
 XColorUtils.sortRGBByLCHChroma = function (a, b) {
-  var aLCH = XColorUtils.RGBtoLCH(a[0] / 255, a[1] / 255, a[2] / 255);
-  var bLCH = XColorUtils.RGBtoLCH(b[0] / 255, b[1] / 255, b[2] / 255);
+  var aLCH, bLCH;
+  if (a.length) {
+    aLCH = XColorUtils.RGBtoLCH(a[0] / 255, a[1] / 255, a[2] / 255);
+    bLCH = XColorUtils.RGBtoLCH(b[0] / 255, b[1] / 255, b[2] / 255);
+  } else {
+    aLCH = XColorUtils.RGBtoLCH(a.r / 255, a.g / 255, a.b / 255);
+    bLCH = XColorUtils.RGBtoLCH(b.r / 255, b.g / 255, b.b / 255);
+  }
   return aLCH[1] - bLCH[1];
 };
 
 XColorUtils.sortRGBByLCHHue = function (a, b) {
-  var aLCH = XColorUtils.RGBtoLCH(a[0] / 255, a[1] / 255, a[2] / 255);
-  var bLCH = XColorUtils.RGBtoLCH(b[0] / 255, b[1] / 255, b[2] / 255);
+  var aLCH, bLCH;
+  if (a.length) {
+    aLCH = XColorUtils.RGBtoLCH(a[0] / 255, a[1] / 255, a[2] / 255);
+    bLCH = XColorUtils.RGBtoLCH(b[0] / 255, b[1] / 255, b[2] / 255);
+  } else {
+    aLCH = XColorUtils.RGBtoLCH(a.r / 255, a.g / 255, a.b / 255);
+    bLCH = XColorUtils.RGBtoLCH(b.r / 255, b.g / 255, b.b / 255);
+  }
   return aLCH[2] - bLCH[2];
 };
 
