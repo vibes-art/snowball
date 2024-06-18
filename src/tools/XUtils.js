@@ -111,6 +111,12 @@ XUtils.chooseByID = function (data, id) {
   return choice;
 };
 
+XUtils.getRandomRange = function (limits) {
+  var base = limits[0];
+  var range = limits[1] - base;
+  return base + range * random();
+};
+
 XUtils.gaussianRandom = function (scale) {
   scale = scale || 10;
 
