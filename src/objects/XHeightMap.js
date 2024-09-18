@@ -204,15 +204,7 @@ class XHeightMap extends XObject {
     if (this.useNormalColors) {
       var index = this.getVertexIndex(x, z);
       var normal = this.getAttribute(ATTR_KEY_NORMALS, index);
-      var xn = normal[0];
-      var yn = normal[1];
-      var zn = normal[2];
-      return [
-        (xn + 1) / 2,
-        (zn + 1) / 2,
-        (yn + 1) / 2,
-        1.0
-      ];
+      return XColorUtils.getNormalColor(normal);
     } else if (this.useRandomColors) {
       return XColorUtils.getRandomColor();
     }
