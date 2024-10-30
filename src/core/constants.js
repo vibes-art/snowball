@@ -40,7 +40,7 @@ var MAX_LIGHTS = 9;
 var DIM_X = 0;
 var DIM_Z = 1;
 
-var NO_SHADER_LOCATION = null;
+var NO_SHADER_LOCATION = -1;
 
 var ATTR_KEY_POSITIONS = 'positions';
 var ATTR_KEY_NORMALS = 'normals';

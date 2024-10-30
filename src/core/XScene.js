@@ -201,7 +201,7 @@ class XScene {
     if (!isNewShader && !uniform.isDirty) return;
 
     var location = shader.uniformLocations[uniform.key];
-    if (location === NO_SHADER_LOCATION) return;
+    if (location === NO_SHADER_LOCATION || location === null) return;
 
     uniform.apply(this.gl, location);
   }
@@ -219,7 +219,7 @@ class XScene {
       gl.bindBuffer(target, attribute.buffer);
 
       var location = shader.attributeLocations[key];
-      if (location === NO_SHADER_LOCATION) continue;
+      if (location === NO_SHADER_LOCATION || location === null) continue;
 
       var num = attribute.components;
       var type = gl.FLOAT;

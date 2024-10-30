@@ -37,6 +37,24 @@ class XShapeField {
     return results;
   }
 
+  getClosestShape (x, z) {
+    var shapes = this.shapes;
+    var count = shapes.length;
+    var closestDist = MAX_SAFE_INTEGER;
+    var result = null;
+
+    for (var i = 0; i < count; i++) {
+      var shape = shapes[i];
+      var dist = shape.getSignedDistance(x, z);
+      if (dist >= 0 && dist < closestDist) {
+        closestDist = dist;
+        result = shape;
+      }
+    }
+
+    return result;
+  }
+
   getSignedDistance (x, z) {
     var count = this.shapes.length;
     if (!count) return 0;

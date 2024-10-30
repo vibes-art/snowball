@@ -8,6 +8,7 @@ class XCanvas {
     this.canvasOpts = opts.canvasOpts || {};
     this.width = opts.width || 0;
     this.height = opts.height || 0;
+    this.scale = opts.scale || 0;
 
     this.canvas = null;
     this.ctx = null;
@@ -191,7 +192,7 @@ class XCanvas {
       canvas.height = height;
     }
 
-    var scale = this.windowHeight / height;
+    var scale = this.scale || this.windowHeight / height;
     canvas.style.scale = scale;
     canvas.style.top = '0';
     canvas.style.left = floor((this.windowWidth - width) / 2) + 'px';

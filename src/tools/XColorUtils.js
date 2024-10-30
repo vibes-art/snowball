@@ -1,5 +1,7 @@
 var XColorUtils = {};
 
+var spectralCache = {};
+
 XColorUtils.getRandomColor = function () {
   return [
     Math.random(),
@@ -92,15 +94,26 @@ XColorUtils.smashColorsLCH = function (c1, c2, pct) {
 XColorUtils.smashColorsSpectral = function (c1, c2, pct) {
   var str1 = `rgb(${floor(c1[0] * 255)}, ${floor(c1[1] * 255)}, ${floor(c1[2] * 255)})`;
   var str2 = `rgb(${floor(c2[0] * 255)}, ${floor(c2[1] * 255)}, ${floor(c2[2] * 255)})`;
-  var newColorStr = spectral.mix(str1, str2, pct, spectral.RGB);
-  newColorStr = newColorStr.replace('rgb(', '');
-  newColorStr = newColorStr.replace(')', '');
-  newColorStr = newColorStr.replace(' ', '');
-  var newColorValues = newColorStr.split(',');
+  var cacheStr = str1 + str2 + `_${floor(100 * pct)}`;
+  var spectralColor = spectralCache[cacheStr];
+
+  if (!spectralColor) {
+    var newColorStr = spectral.mix(str1, str2, pct, spectral.RGB);
+    newColorStr = newColorStr.replace('rgb(', '');
+    newColorStr = newColorStr.replace(')', '');
+    newColorStr = newColorStr.replace(' ', '');
+    var newColorValues = newColorStr.split(',');
+    spectralColor = spectralCache[cacheStr] = [
+      +newColorValues[0],
+      +newColorValues[1],
+      +newColorValues[2]
+    ];
+  };
+
   return [
-    +newColorValues[0] / 255,
-    +newColorValues[1] / 255,
-    +newColorValues[2] / 255
+    spectralColor[0] / 255,
+    spectralColor[1] / 255,
+    spectralColor[2] / 255,
   ];
 };
 
