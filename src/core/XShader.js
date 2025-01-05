@@ -62,6 +62,14 @@ class XShader {
       uniform vec3 lightDirections[MAX_LIGHTS];
       uniform vec3 lightColors[MAX_LIGHTS];
 
+      const int MAX_POINT_LIGHTS = ${MAX_POINT_LIGHTS};
+      uniform int pointLightCount;
+      uniform vec3 pointLightPositions[MAX_POINT_LIGHTS];
+      uniform vec3 pointLightColors[MAX_POINT_LIGHTS];
+
+      uniform vec3 fogColor;
+      uniform float fogDensity;
+
       float fresnelSchlick(float cosTheta, float refIndex) {
         float r0 = (1.0 - refIndex) / (1.0 + refIndex);
         r0 = r0 * r0;
@@ -69,27 +77,54 @@ class XShader {
       }
 
       void main(void) {
-        float specularShininess = 2048.0;
-        float specularStrength = 0.75;
+        float specularShininess = 256.0;
+        float specularStrength = 0.05;
 
         vec3 ambient = color.rgb * ambientColor;
         vec4 transformedNormal = normalMatrix * vec4(normal, 1.0);
+        vec3 normalDir = normalize(transformedNormal.xyz);
         vec3 viewDir = normalize(position.xyz - viewPosition);
-        float cosTheta = dot(viewDir, normalize(transformedNormal.xyz));
+        float cosTheta = dot(viewDir, normalDir);
         float fresnel = fresnelSchlick(cosTheta, 0.05);
 
         vec3 finalColor = ambient;
         for (int i = 0; i < lightCount; ++i) {
-          vec3 directionalVector = lightDirections[i];
+          vec3 lightDir = -lightDirections[i];
           vec3 lightColor = lightColors[i];
-          float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
-          vec3 reflectDir = reflect(directionalVector, normalize(transformedNormal.xyz));
+
+          float diffuseFactor = max(dot(normalDir, lightDir), 0.0);
+          vec3 diffuse = color.rgb * lightColor * diffuseFactor;
+
+          vec3 reflectDir = reflect(lightDir, normalDir);
           float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularShininess);
           vec3 specular = specularStrength * spec * lightColor * fresnel;
-          vec3 diffuse = color.rgb * (lightColor * directional);
+
           finalColor += diffuse + specular;
         }
 
+        for (int i = 0; i < pointLightCount; ++i) {
+          vec3 pointLightPos = pointLightPositions[i];
+          vec3 pointLightColor = pointLightColors[i];
+
+          vec3 toLight = pointLightPos - position.xyz;
+          vec3 lightDir = -normalize(toLight);
+          float distance = length(toLight);
+          float attenuation = 1.0 / (distance * distance);
+
+          float diffuseFactor = max(dot(normalDir, lightDir), 0.0);
+          vec3 diffuse = color.rgb * pointLightColor * diffuseFactor;
+
+          vec3 reflectDir = reflect(lightDir, normalDir);
+          float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularShininess);
+          vec3 specular = specularStrength * spec * pointLightColor * fresnel;
+
+          vec3 pointLightContrib = attenuation * (diffuse + specular);
+          finalColor += pointLightContrib;
+        }
+
+        float distFromView = length(position.xyz - viewPosition);
+        float fogFactor = 1.0 - exp(-fogDensity * distFromView * distFromView);
+        finalColor = mix(finalColor, fogColor, clamp(fogFactor, 0.0, 1.0));
         fragColor = vec4(finalColor, color.a);
       }
     `;
@@ -104,7 +139,10 @@ class XShader {
   connect () {
     this.locateGlobalUniforms(this.scene.matrices);
     this.locateGlobalUniforms(this.scene.lights);
+    this.locateGlobalUniforms(this.scene.fog);
+
     this.setUniformLocation(this.scene.lightCount.key);
+    this.setUniformLocation(this.scene.pointLightCount.key);
   }
 
   connectObject (obj) {

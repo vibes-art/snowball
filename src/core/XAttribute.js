@@ -67,6 +67,11 @@ class XAttribute {
     gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, gl.FLOAT, data, 0);
   }
 
+  bindExternalTexture (texture) {
+    XGLUtils.bindTexture(this.gl, this.textureUnit, texture);
+    this.texture = texture;
+  }
+
   getValue (vertexIndex, componentIndex) {
     var index = this.components * vertexIndex;
     return this.data[index + componentIndex];

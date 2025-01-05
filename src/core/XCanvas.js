@@ -5,7 +5,12 @@ class XCanvas {
 
   constructor (opts) {
     this.type = opts.type || CANVAS_WEBGL;
-    this.canvasOpts = opts.canvasOpts || {};
+    this.canvasOpts = opts.canvasOpts || {
+      antialias: USE_MSAA,
+      depth: true,
+      alpha: false
+    };
+
     this.width = opts.width || 0;
     this.height = opts.height || 0;
     this.scale = opts.scale || 0;
@@ -61,6 +66,7 @@ class XCanvas {
     this.initLights(opts);
     this.initShader(opts);
     this.initCamera(opts);
+    this.initFullscreenQuad(opts);
 
     this.onNextFrame(() => this.initObjects());
   }
@@ -134,6 +140,11 @@ class XCanvas {
     this.width = this.isWindowFit ? this.windowWidth : this.width;
     this.height = this.isWindowFit ? this.windowHeight : this.height;
     this.dragSensitivity = PI / this.width;
+
+    if (!USE_MSAA && this.type === CANVAS_WEBGL) {
+      this.width *= AA_SUPERSAMPLE;
+      this.height *= AA_SUPERSAMPLE;
+    }
   }
 
   createElements () {
@@ -202,9 +213,69 @@ class XCanvas {
     canvas.style.position = 'absolute';
 
     if (canvas === this.canvas && this.gl) {
-      this.gl.viewport(0, 0, width, height);
-      this.scene && (this.scene.matrices.projection.data = this.getProjectionMatrix());
+      this.onGLResize(width, height);
     }
+  }
+
+  onGLResize (width, height) {
+    this.gl.viewport(0, 0, width, height);
+    this.scene && (this.scene.matrices.projection.data = this.getProjectionMatrix());
+
+    if (this.type === CANVAS_WEBGL && !this.canvasOpts.antialias) {
+      this.onFBOResize(width, height);
+    }
+  }
+
+  onFBOResize (width, height) {
+    if (this.offscreenFBO) {
+      this.gl.deleteFramebuffer(this.offscreenFBO.framebuffer);
+      this.gl.deleteTexture(this.offscreenFBO.colorsTexture);
+      this.gl.deleteRenderbuffer(this.offscreenFBO.depthBuffer);
+    }
+
+    this.offscreenFBO = XGLUtils.createFramebuffer(this.gl, width, height);
+
+    this.onFullscreenQuadResize(width, height);
+  }
+
+  initFullscreenQuad (opts) {
+    if (!this.offscreenFBO) return;
+
+    this.scene.resolution = new XUniform({
+      key: 'resolution',
+      components: 2
+    });
+
+    this.fullscreenQuad = new XQuad({
+      gl: this.gl,
+      scene: this.scene,
+      shader: new XPassthroughShader({ scene: this.scene }),
+      vertices: [
+        { position: [-1, -1, 0], color: [1, 1, 1, 1] },
+        { position: [ 1, -1, 0], color: [1, 1, 1, 1] },
+        { position: [ 1,  1, 0], color: [1, 1, 1, 1] },
+        { position: [-1,  1, 0], color: [1, 1, 1, 1] }
+      ]
+    });
+
+    this.scene.removeObject(this.fullscreenQuad);
+    this.scene.secondPassObjects = [this.fullscreenQuad];
+
+    this.onFullscreenQuadResize(this.canvas.width, this.canvas.height);
+  }
+
+  onFullscreenQuadResize (width, height) {
+    if (!this.offscreenFBO || !this.fullscreenQuad) return;
+
+    this.fullscreenQuad.addAttribute('colors', {
+      useTexture: true,
+      textureWidth: width,
+      textureHeight: height
+    });
+
+    this.fullscreenQuad.attributes['colors'].bindExternalTexture(this.offscreenFBO.colorsTexture);
+
+    this.scene.resolution.data = [width, height];
   }
 
   getProjectionMatrix () {
@@ -344,7 +415,11 @@ class XCanvas {
   draw (dt, dtReal) {
     if (this.gl) {
       this.updateCamera(dtReal);
-      this.scene.draw(dt);
+
+      this.scene.draw(dt, this.offscreenFBO, false);
+      if (this.offscreenFBO) {
+        this.scene.draw(dt, this.offscreenFBO, true);
+      }
     }
   }
 

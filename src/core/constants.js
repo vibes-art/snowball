@@ -35,7 +35,10 @@ var CAMERA_FOV = 45 * PI / 180;
 var CAMERA_Z_NEAR = 0.1;
 var CAMERA_Z_FAR = 1000000.0;
 var USE_FLOATING_POINT_TEXTURES = false;
+var USE_MSAA = false;
+var AA_SUPERSAMPLE = 4;
 var MAX_LIGHTS = 9;
+var MAX_POINT_LIGHTS = 9;
 
 var DIM_X = 0;
 var DIM_Z = 1;

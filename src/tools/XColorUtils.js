@@ -346,6 +346,10 @@ XColorUtils.sortRGBByLCHHue = function (a, b) {
   return aLCH[2] - bLCH[2];
 };
 
+XColorUtils.sortByWeight = function (a, b) {
+  return b.weight - a.weight;
+};
+
 XColorUtils.getRGBDistance = function (a, b) {
   var dr = b[0] - a[0];
   var dg = b[1] - a[1];

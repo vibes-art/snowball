@@ -8,21 +8,26 @@ class XLight {
 
     var colorKey = `${this.key}Color`;
     var directionKey = `${this.key}Direction`;
+    var positionKey = `${this.key}Position`
+
     if (opts.index !== undefined) {
       this.index = opts.index;
       colorKey = `${this.key}Colors[${this.index}]`;
       directionKey = `${this.key}Directions[${this.index}]`;
+      positionKey = `${this.key}Positions[${this.index}]`;
     }
 
     this.color = new XUniform({ key: colorKey, components: 3 });
     this.direction = new XUniform({ key: directionKey, components: 3 });
+    this.position = new XUniform({ key: positionKey, components: 3 });
 
     this.updateColor();
     this.setDirection(opts.direction);
+    this.setPosition(opts.position);
   }
 
   getUniforms () {
-    return [this.color, this.direction];
+    return [this.color, this.direction, this.position];
   }
 
   getDirection () {
@@ -31,6 +36,14 @@ class XLight {
 
   setDirection (direction) {
     this.direction.data = direction || [0, -1, 0];
+  }
+
+  getPosition () {
+    return this.position.data;
+  }
+
+  setPosition (position) {
+    this.position.data = position || [0, 0, 0];
   }
 
   getBrightness () {
