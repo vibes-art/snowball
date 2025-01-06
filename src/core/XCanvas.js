@@ -11,9 +11,11 @@ class XCanvas {
       alpha: false
     };
 
-    this.width = opts.width || 0;
-    this.height = opts.height || 0;
-    this.scale = opts.scale || 0;
+    this.useSupersampleAA = this.type === CANVAS_WEBGL && !this.canvasOpts.antialias;
+    this.scaleAA = this.useSupersampleAA ? AA_SUPERSAMPLE : 1;
+    this.width = this.scaleAA * (opts.width || 0);
+    this.height = this.scaleAA * (opts.height || 0);
+    this.isWindowFit = this.width === 0;
 
     this.canvas = null;
     this.ctx = null;
@@ -26,7 +28,6 @@ class XCanvas {
     this.acceptInput = false;
     this.isDragging = false;
     this.dragLast = { x: 0, y: 0 };
-    this.isWindowFit = this.width === 0;
 
     window.onload = () => this.init();
   }
@@ -66,7 +67,10 @@ class XCanvas {
     this.initLights(opts);
     this.initShader(opts);
     this.initCamera(opts);
-    this.initFullscreenQuad(opts);
+
+    if (this.useSupersampleAA) {
+      this.initFullscreenQuad(opts);
+    }
 
     this.onNextFrame(() => this.initObjects());
   }
@@ -90,6 +94,25 @@ class XCanvas {
       velocityMax: opts.cameraVelocityMax,
       accelTime: opts.cameraAccelTime
     });
+  }
+
+  initFullscreenQuad (opts) {
+    this.fullscreenQuad = new XQuad({
+      gl: this.gl,
+      scene: this.scene,
+      shader: new XPassthroughShader({ scene: this.scene }),
+      vertices: [
+        { position: [-1, -1, 0], color: [1, 1, 1, 1] },
+        { position: [ 1, -1, 0], color: [1, 1, 1, 1] },
+        { position: [ 1,  1, 0], color: [1, 1, 1, 1] },
+        { position: [-1,  1, 0], color: [1, 1, 1, 1] }
+      ]
+    });
+
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_MAIN, false);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_ANTIALIAS, true);
+
+    this.resizeCanvas();
   }
 
   initObjects () {
@@ -137,14 +160,9 @@ class XCanvas {
   setDimensions () {
     this.windowWidth = window.innerWidth;
     this.windowHeight = window.innerHeight;
-    this.width = this.isWindowFit ? this.windowWidth : this.width;
-    this.height = this.isWindowFit ? this.windowHeight : this.height;
-    this.dragSensitivity = PI / this.width;
-
-    if (!USE_MSAA && this.type === CANVAS_WEBGL) {
-      this.width *= AA_SUPERSAMPLE;
-      this.height *= AA_SUPERSAMPLE;
-    }
+    this.width = this.isWindowFit ? this.scaleAA * this.windowWidth : this.width;
+    this.height = this.isWindowFit ? this.scaleAA * this.windowHeight : this.height;
+    this.dragSensitivity = PI / this.windowWidth;
   }
 
   createElements () {
@@ -203,77 +221,62 @@ class XCanvas {
       canvas.height = height;
     }
 
-    var scale = this.scale || this.windowHeight / height;
-    canvas.style.scale = scale;
-    canvas.style.top = '0';
-    canvas.style.left = floor((this.windowWidth - width) / 2) + 'px';
-    canvas.style.bottom = '0';
-    canvas.style.right = '0';
-    canvas.style.margin = 'auto';
-    canvas.style.position = 'absolute';
+    if (canvas === this.canvas) {
+      var scaledWidth = width / this.scaleAA;
+      var scaledHeight = height / this.scaleAA;
+      var x = (this.windowWidth - scaledWidth) / 2;
+      var y = (this.windowHeight - scaledHeight) / 2;
+      canvas.style.left = x + 'px';
+      canvas.style.top = y + 'px';
+      canvas.style.width = scaledWidth + 'px';
+      canvas.style.height = scaledHeight + 'px';
+      canvas.style.margin = 'none';
+      canvas.style.position = 'absolute';
 
-    if (canvas === this.canvas && this.gl) {
-      this.onGLResize(width, height);
+      this.gl && this.onGLResize(width, height);
     }
   }
 
   onGLResize (width, height) {
     this.gl.viewport(0, 0, width, height);
-    this.scene && (this.scene.matrices.projection.data = this.getProjectionMatrix());
 
-    if (this.type === CANVAS_WEBGL && !this.canvasOpts.antialias) {
-      this.onFBOResize(width, height);
+    if (this.scene) {
+      this.scene.matrices.projection.data = this.getProjectionMatrix();
+
+      if (this.useSupersampleAA) {
+        this.onFBOResize(width, height);
+      }
     }
   }
 
   onFBOResize (width, height) {
     if (this.offscreenFBO) {
+      this.scene.removeRenderPass(RENDER_PASS_MAIN, this.offscreenFBO.framebuffer);
+      this.scene.removeRenderPass(RENDER_PASS_ANTIALIAS, null);
+
       this.gl.deleteFramebuffer(this.offscreenFBO.framebuffer);
       this.gl.deleteTexture(this.offscreenFBO.colorsTexture);
       this.gl.deleteRenderbuffer(this.offscreenFBO.depthBuffer);
+    } else {
+      this.scene.removeRenderPass(RENDER_PASS_MAIN, null);
     }
 
     this.offscreenFBO = XGLUtils.createFramebuffer(this.gl, width, height);
-
+    this.scene.addRenderPass(RENDER_PASS_MAIN, this.offscreenFBO.framebuffer, false);
+    this.scene.addRenderPass(RENDER_PASS_ANTIALIAS, null, false);
     this.onFullscreenQuadResize(width, height);
   }
 
-  initFullscreenQuad (opts) {
-    if (!this.offscreenFBO) return;
-
-    this.scene.resolution = new XUniform({
-      key: 'resolution',
-      components: 2
-    });
-
-    this.fullscreenQuad = new XQuad({
-      gl: this.gl,
-      scene: this.scene,
-      shader: new XPassthroughShader({ scene: this.scene }),
-      vertices: [
-        { position: [-1, -1, 0], color: [1, 1, 1, 1] },
-        { position: [ 1, -1, 0], color: [1, 1, 1, 1] },
-        { position: [ 1,  1, 0], color: [1, 1, 1, 1] },
-        { position: [-1,  1, 0], color: [1, 1, 1, 1] }
-      ]
-    });
-
-    this.scene.removeObject(this.fullscreenQuad);
-    this.scene.secondPassObjects = [this.fullscreenQuad];
-
-    this.onFullscreenQuadResize(this.canvas.width, this.canvas.height);
-  }
-
   onFullscreenQuadResize (width, height) {
-    if (!this.offscreenFBO || !this.fullscreenQuad) return;
-
-    this.fullscreenQuad.addAttribute('colors', {
+    this.fullscreenQuad.textureUnitIndex = 0;
+    this.fullscreenQuad.attributes[ATTR_KEY_COLORS].remove();
+    this.fullscreenQuad.addAttribute(ATTR_KEY_COLORS, {
       useTexture: true,
       textureWidth: width,
       textureHeight: height
     });
 
-    this.fullscreenQuad.attributes['colors'].bindExternalTexture(this.offscreenFBO.colorsTexture);
+    this.fullscreenQuad.attributes[ATTR_KEY_COLORS].bindExternalTexture(this.offscreenFBO.colorsTexture);
 
     this.scene.resolution.data = [width, height];
   }
@@ -415,11 +418,7 @@ class XCanvas {
   draw (dt, dtReal) {
     if (this.gl) {
       this.updateCamera(dtReal);
-
-      this.scene.draw(dt, this.offscreenFBO, false);
-      if (this.offscreenFBO) {
-        this.scene.draw(dt, this.offscreenFBO, true);
-      }
+      this.scene.draw(dt);
     }
   }
 

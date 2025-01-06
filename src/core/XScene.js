@@ -9,11 +9,15 @@ class XScene {
     this.onDrawListeners = [];
     this.lastAttribs = [];
     this.lastShader = null;
-    this.lastObject = null;
-    this.lastObjectCount = 0;
+    this.haveObjectsChanged = false;
     this.isFirstDraw = true;
     this.needsShaderConnect = false;
     this.isDrawing = LIVE_RENDER;
+
+    this.renderPasses = [];
+    this.addRenderPass(RENDER_PASS_MAIN, null, false);
+
+    this.resolution = new XUniform({ key: 'resolution', components: 2 });
 
     this.initializeLights(opts);
     this.initializeMatrices(opts);
@@ -64,10 +68,31 @@ class XScene {
     this.matrices.normal.data = XMatrix4.transpose(this.matrices.normal.data);
   }
 
+  addRenderPass (type, framebuffer, isBeforeMain) {
+    var pass = { type, framebuffer, isFirstDraw: true };
+    if (isBeforeMain) {
+      this.renderPasses.shift(pass);
+    } else {
+      this.renderPasses.push(pass);
+    }
+  }
+
+  removeRenderPass (type, framebuffer) {
+    for (var i = this.renderPasses.length - 1; i >= 0; i--) {
+      var pass = this.renderPasses[i];
+      if (pass.type === type) {
+        if (!framebuffer || framebuffer === pass.framebuffer) {
+          this.renderPasses.splice(i, 1);
+        }
+      }
+    }
+  }
+
   addObject (object) {
     this.objects.push(object);
     object.onDraw && this.onDraw(object, (dt) => object.onDraw(dt));
     object.isActive = true;
+    this.haveObjectsChanged = true;
   };
 
   removeObject (object) {
@@ -86,6 +111,7 @@ class XScene {
     }
 
     object.isActive = false;
+    this.haveObjectsChanged = true;
   }
 
   addLight (opts) {
@@ -137,7 +163,7 @@ class XScene {
     this.onDrawListeners.push(cb);
   }
 
-  draw (dt, offscreenFBO, isSecondPass) {
+  draw (dt) {
     var logDetails = VERBOSE && Math.random() < 0.01;
     var len = this.onDrawListeners.length;
     logDetails && console.log("draw listeners: ", len);
@@ -148,82 +174,74 @@ class XScene {
     if (!this.isDrawing) return;
 
     var gl = this.gl;
-
-    if (offscreenFBO && !isSecondPass) {
-      gl.bindFramebuffer(gl.FRAMEBUFFER, offscreenFBO.framebuffer);
-    }
-
-    var bgc = this.lights.background.getColor();
-    gl.clearColor(bgc[0], bgc[1], bgc[2], 1.0);
-
-    if (this.isFirstDraw) {
-      this.isFirstDraw = false;
-      gl.clearDepth(1.0);
-      gl.enable(gl.BLEND);
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      gl.enable(gl.DEPTH_TEST);
-      gl.depthFunc(gl.LEQUAL);
-
-      gl.enable(gl.CULL_FACE);
-      gl.cullFace(gl.BACK);
-    }
-
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-    var objects = this.objects;
-    if (isSecondPass) {
-      objects = this.secondPassObjects;
-    }
-
-    var objectCount = objects.length;
-    var hasObjectDiff = objectCount !== this.lastObjectCount;
-    var needsShaderConnect = this.needsShaderConnect;
-
-    this.needsShaderConnect = false;
-    this.lastObjectCount = objectCount;
-    logDetails && console.log("obj count: ", objectCount);
-
-    for (var i = 0; i < objectCount; i++) {
-      var obj = objects[i];
-      var shader = obj.shader;
-      var shouldRefresh = i === 0 && hasObjectDiff;
-      var shouldBindBuffers = shouldRefresh;
-      var isNewShader = this.lastShader !== shader;
-
-      if (needsShaderConnect && (i === 0 || isNewShader)) {
-        shader.connect();
+    for (var passIndex = 0; passIndex < this.renderPasses.length; passIndex++) {
+      var pass = this.renderPasses[passIndex];
+      if (pass.framebuffer) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, pass.framebuffer);
       }
 
-      if (isNewShader || shouldRefresh) {
-        gl.useProgram(shader.getProgram());
-        this.lastShader = shader;
-        shouldBindBuffers = true;
+      var bgc = this.lights.background.getColor();
+      gl.clearColor(bgc[0], bgc[1], bgc[2], 1.0);
+
+      if (pass.isFirstDraw) {
+        pass.isFirstDraw = false;
+        gl.clearDepth(1.0);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.enable(gl.DEPTH_TEST);
+        gl.depthFunc(gl.LEQUAL);
       }
 
-      this.applyMatrixUniforms(obj, shader, isNewShader);
-      this.applyLightUniforms(shader, isNewShader);
-      this.applyFogUniforms(shader, isNewShader);
-      this.applyObjectUniforms(obj, shader, isNewShader);
-      if (isSecondPass) {
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+      var objects = this.objects.slice();
+      for (var o = objects.length - 1; o >= 0; o--) {
+        var obj = objects[o];
+        if (!obj.renderPasses[pass.type]) {
+          objects.splice(o, 1);
+        }
+      }
+
+      logDetails && console.log("obj count: ", objects.length, pass);
+
+      for (var i = 0; i < objects.length; i++) {
+        var obj = objects[i];
+        var shader = obj.shader;
+        var shouldRefresh = i === 0 && this.haveObjectsChanged;
+        var isNewShader = this.lastShader !== shader;
+
+        if (this.needsShaderConnect && (i === 0 || isNewShader)) {
+          shader.connect();
+        }
+
+        if (isNewShader || shouldRefresh) {
+          gl.useProgram(shader.getProgram());
+          this.lastShader = shader;
+        }
+
         this.applyUniform(this.resolution, shader, isNewShader);
-      }
+        this.applyMatrixUniforms(obj, shader, isNewShader);
+        this.applyLightUniforms(shader, isNewShader);
+        this.applyFogUniforms(shader, isNewShader);
+        this.applyObjectUniforms(obj, shader, isNewShader);
 
-      if (shouldBindBuffers || this.lastObject !== obj || obj.isDirty) {
         this.bindBuffers(obj, shader);
-        this.lastObject = obj;
+
+        obj.draw();
       }
 
-      obj.draw();
+      if (pass.framebuffer) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      }
     }
 
     this.onDrawFinish();
-
-    if (offscreenFBO && !isSecondPass) {
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    }
   }
 
   onDrawFinish () {
+    this.needsShaderConnect = false;
+    this.haveObjectsChanged = false;
+
     var objects = this.objects;
     var objectCount = objects.length;
     for (var i = objectCount - 1; i >= 0; i--) {

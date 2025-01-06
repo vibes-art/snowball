@@ -23,6 +23,8 @@ class XObject {
     this.indexBuffer = null;
     this.indicesDirty = false;
 
+    this.renderPasses = {};
+
     this.initialize(opts);
   }
 
@@ -33,6 +35,7 @@ class XObject {
     this.generate(opts);
     this.bindBuffers();
     this.scene.addObject(this);
+    this.enableRenderPass(RENDER_PASS_MAIN, true);
   }
 
   defineAttributes (opts) {
@@ -52,6 +55,10 @@ class XObject {
   }
 
   generate (opts) { /* override */ }
+
+  enableRenderPass (type, isEnabled) {
+    this.renderPasses[type] = isEnabled !== undefined ? isEnabled : true;
+  }
 
   addAttribute (key, opts) {
     opts = opts || {};
