@@ -2,13 +2,14 @@ class XUniform {
 
   constructor (opts) {
     this.key = opts.key;
-    this.type = opts.type || UNIFORM_TYPE_FLOAT;
+    this.type = opts.type || UNI_TYPE_FLOAT;
     this.components = opts.components || 4;
 
     this.fvData = null;
     this.ivData = null;
     this.uivData = null;
     this.matrixData = null;
+    this.texture = null;
     this.isDirty = true;
 
     this.initializeData();
@@ -21,10 +22,10 @@ class XUniform {
 
   initializeData () {
     switch (this.type) {
-      case UNIFORM_TYPE_FLOAT: this.fvData = new Float32Array(this.components); break;
-      case UNIFORM_TYPE_INT: this.ivData = new Int32Array(this.components); break;
-      case UNIFORM_TYPE_UINT: this.uivData = new Uint32Array(this.components); break;
-      case UNIFORM_TYPE_MATRIX: this.matrixData = XMatrix4.get(); break;
+      case UNI_TYPE_FLOAT: this.fvData = new Float32Array(this.components); break;
+      case UNI_TYPE_INT: this.ivData = new Int32Array(this.components); break;
+      case UNI_TYPE_UINT: this.uivData = new Uint32Array(this.components); break;
+      case UNI_TYPE_MATRIX: this.matrixData = XMatrix4.get(); break;
     }
   }
 
@@ -33,7 +34,7 @@ class XUniform {
       console.error(`Invalid Uniform components: ${this.components}`);
     }
 
-    if (this.type === UNIFORM_TYPE_MATRIX) {
+    if (this.type === UNI_TYPE_MATRIX) {
       if (this.components !== 4) { // TODO: support other matrices
         console.error(`Unsupported Matrix dimensions, must be 4x4: ${this.components}`);
       }
@@ -43,10 +44,10 @@ class XUniform {
   get data () {
     var data;
     switch (this.type) {
-      case UNIFORM_TYPE_FLOAT: data = this.fvData; break;
-      case UNIFORM_TYPE_INT: data = this.ivData; break;
-      case UNIFORM_TYPE_UINT: data = this.uivData; break;
-      case UNIFORM_TYPE_MATRIX: data = this.matrixData; break;
+      case UNI_TYPE_FLOAT: data = this.fvData; break;
+      case UNI_TYPE_INT: data = this.ivData; break;
+      case UNI_TYPE_UINT: data = this.uivData; break;
+      case UNI_TYPE_MATRIX: data = this.matrixData; break;
     }
     return this.components === 1 ? data[0] : data;
   }
@@ -57,10 +58,10 @@ class XUniform {
     }
 
     switch (this.type) {
-      case UNIFORM_TYPE_FLOAT: this.fvData.set(data); break;
-      case UNIFORM_TYPE_INT: this.ivData.set(data); break;
-      case UNIFORM_TYPE_UINT: this.uivData.set(data); break;
-      case UNIFORM_TYPE_MATRIX: this.matrixData.set(data); break;
+      case UNI_TYPE_FLOAT: this.fvData.set(data); break;
+      case UNI_TYPE_INT: this.ivData.set(data); break;
+      case UNI_TYPE_UINT: this.uivData.set(data); break;
+      case UNI_TYPE_MATRIX: this.matrixData.set(data); break;
     }
 
     this.isDirty = true;
@@ -68,10 +69,10 @@ class XUniform {
 
   setValue (componentIndex, value) {
     switch (this.type) {
-      case UNIFORM_TYPE_FLOAT: this.fvData[componentIndex] = value; break;
-      case UNIFORM_TYPE_INT: this.ivData[componentIndex] = value; break;
-      case UNIFORM_TYPE_UINT: this.uivData[componentIndex] = value; break;
-      case UNIFORM_TYPE_MATRIX: this.matrixData[componentIndex] = value; break;
+      case UNI_TYPE_FLOAT: this.fvData[componentIndex] = value; break;
+      case UNI_TYPE_INT: this.ivData[componentIndex] = value; break;
+      case UNI_TYPE_UINT: this.uivData[componentIndex] = value; break;
+      case UNI_TYPE_MATRIX: this.matrixData[componentIndex] = value; break;
     }
 
     this.isDirty = true;
@@ -79,10 +80,15 @@ class XUniform {
 
   apply (gl, location) {
     switch (this.type) {
-      case UNIFORM_TYPE_FLOAT: this.applyFloats(gl, location); break;
-      case UNIFORM_TYPE_INT: this.applyInts(gl, location); break;
-      case UNIFORM_TYPE_UINT: this.applyUnsignedInts(gl, location); break;
-      case UNIFORM_TYPE_MATRIX: this.applyMatrices(gl, location); break;
+      case UNI_TYPE_FLOAT: this.applyFloats(gl, location); break;
+      case UNI_TYPE_INT: this.applyInts(gl, location); break;
+      case UNI_TYPE_UINT: this.applyUnsignedInts(gl, location); break;
+      case UNI_TYPE_MATRIX: this.applyMatrices(gl, location); break;
+    }
+
+    if (this.texture) {
+      gl.activeTexture(gl.TEXTURE0 + this.data);
+      gl.bindTexture(gl.TEXTURE_2D, this.texture);
     }
 
     this.isDirty = false;

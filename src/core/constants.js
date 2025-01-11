@@ -39,6 +39,7 @@ var USE_MSAA = false;
 var AA_SUPERSAMPLE = 4;
 var MAX_LIGHTS = 9;
 var MAX_POINT_LIGHTS = 9;
+var SHADOW_MAP_SIZE = 4096;
 
 var DIM_X = 0;
 var DIM_Z = 1;
@@ -54,10 +55,25 @@ var ATTR_KEY_NORMALS = 'normals';
 var ATTR_KEY_COLORS = 'colors';
 var ATTR_KEY_TEX_COORDS = 'texCoords';
 
-var UNIFORM_TYPE_FLOAT = 0;
-var UNIFORM_TYPE_INT = 1;
-var UNIFORM_TYPE_UINT = 2;
-var UNIFORM_TYPE_MATRIX = 3;
+var UNI_TYPE_FLOAT = 0;
+var UNI_TYPE_INT = 1;
+var UNI_TYPE_UINT = 2;
+var UNI_TYPE_MATRIX = 3;
+var UNI_TYPE_TEXTURE = 4;
+
+var UNI_KEY_PROJ_MATRIX = 'projectionMatrix';
+var UNI_KEY_MODEL_MATRIX = 'modelMatrix';
+var UNI_KEY_VIEW_MATRIX = 'viewMatrix';
+var UNI_KEY_NORMAL_MATRIX = 'normalMatrix';
+var UNI_KEY_RESOLUTION = 'resolution';
+var UNI_KEY_AMBIENT_LIGHT = 'ambient';
+var UNI_KEY_BACKGROUND_LIGHT = 'background';
+var UNI_KEY_DIRECTIONAL_LIGHT = 'light';
+var UNI_KEY_POINT_LIGHT = 'pointLight';
+var UNI_KEY_DIRECTIONAL_LIGHT_COUNT = 'lightCount';
+var UNI_KEY_POINT_LIGHT_COUNT = 'pointLightCount';
+var UNI_KEY_FOG_COLOR = 'fogColor';
+var UNI_KEY_FOG_DENSITY = 'fogDensity';
 
 var NOISE_TYPE_HEIGHT = 'height';
 var NOISE_TYPE_COLOR_HEIGHT_OFFSET = 'colorHeightOffset';

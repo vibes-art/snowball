@@ -1,9 +1,10 @@
-var BOX_VERTEX_SIGNS = [[-1,1,1],[ 1,1,1],[ 1,1,-1],[-1,1,-1],[-1,-1,1],[ 1,-1,1],[ 1,-1,-1],[-1,-1,-1]];
-var BOX_VERTEX_INDICES = [[1,0,3,2],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7],[4,5,6,7]];
+var BOX_VERTEX_SIGNS = [[-1,1,1],[1,1,1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,-1,-1],[-1,-1,-1]];
+var BOX_VERTEX_INDICES = [[0,1,2,3],[0,1,5,4],[2,1,5,6],[2,3,7,6],[0,3,7,4],[5,4,7,6]];
 
 class XQuadBox {
 
   constructor (opts) {
+    this.gl = opts.gl;
     this.centerPoint = opts.centerPoint;
     this.size = opts.size;
     this.faces = opts.faces || [];
@@ -50,7 +51,8 @@ class XQuadBox {
         });
       }
 
-      this.quads.push(new XQuad({ ...quadOpts, vertices }));
+      var frontFace = (f === 1 || f === 3) ? this.gl.CCW : this.gl.CW;
+      this.quads.push(new XQuad({ ...quadOpts, vertices, frontFace }));
     }
   }
 

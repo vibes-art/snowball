@@ -1,3 +1,5 @@
+var frameIndex = 0;
+
 class XScene {
 
   constructor (opts) {
@@ -6,57 +8,60 @@ class XScene {
     this.objects = [];
     this.lights = {};
     this.matrices = {};
+
     this.onDrawListeners = [];
+    this.isDrawing = LIVE_RENDER;
+
+    this.textureUnitIndex = 0;
     this.lastAttribs = [];
     this.lastShader = null;
     this.haveObjectsChanged = false;
-    this.isFirstDraw = true;
     this.needsShaderConnect = false;
-    this.isDrawing = LIVE_RENDER;
 
     this.renderPasses = [];
-    this.addRenderPass(RENDER_PASS_MAIN, null, false);
+    this.addRenderPass(RENDER_PASS_MAIN);
 
-    this.resolution = new XUniform({ key: 'resolution', components: 2 });
+    this.viewport = {};
+    this.resolution = new XUniform({ key: UNI_KEY_RESOLUTION, components: 2 });
 
-    this.initializeLights(opts);
-    this.initializeMatrices(opts);
+    this.initLights(opts);
+    this.initMatrices(opts);
   };
 
-  initializeLights (opts) {
+  initLights (opts) {
     var ambientLightColor = (!SHOW_NORMAL_MAPS && opts.ambientLightColor) || AMBIENT_LIGHT;
     var backgroundColor = opts.backgroundColor || BG_COLOR;
 
-    this.lights.ambient = new XLight({ key: 'ambient', color: ambientLightColor });
-    this.lights.background = new XLight({ key: 'background', color: backgroundColor });
+    this.lights.ambient = new XLight({ key: UNI_KEY_AMBIENT_LIGHT, color: ambientLightColor });
+    this.lights.background = new XLight({ key: UNI_KEY_BACKGROUND_LIGHT, color: backgroundColor });
     this.lights.directional = [];
     this.lights.point = [];
 
     this.lightCount = new XUniform({
-      key: 'lightCount',
-      type: UNIFORM_TYPE_INT,
+      key: UNI_KEY_DIRECTIONAL_LIGHT_COUNT,
+      type: UNI_TYPE_INT,
       components: 1
     });
 
     this.pointLightCount = new XUniform({
-      key: 'pointLightCount',
-      type: UNIFORM_TYPE_INT,
+      key: UNI_KEY_POINT_LIGHT_COUNT,
+      type: UNI_TYPE_INT,
       components: 1
     });
 
     var fogColor = opts.fogColor || backgroundColor;
     var fogDensity = opts.fogDensity || 0.0001;
     this.fog = {
-      color: new XUniform({ key: 'fogColor', components: 3, data: fogColor }),
-      density: new XUniform({ key: 'fogDensity', components: 1, data: fogDensity })
+      color: new XUniform({ key: UNI_KEY_FOG_COLOR, components: 3, data: fogColor }),
+      density: new XUniform({ key: UNI_KEY_FOG_DENSITY, components: 1, data: fogDensity })
     };
   }
 
-  initializeMatrices (opts) {
-    this.matrices.projection = new XUniform({ key: 'projectionMatrix', type: UNIFORM_TYPE_MATRIX });
-    this.matrices.model = new XUniform({ key: 'modelMatrix', type: UNIFORM_TYPE_MATRIX });
-    this.matrices.view = new XUniform({ key: 'viewMatrix', type: UNIFORM_TYPE_MATRIX });
-    this.matrices.normal = new XUniform({ key: 'normalMatrix', type: UNIFORM_TYPE_MATRIX });
+  initMatrices (opts) {
+    this.matrices.projection = new XUniform({ key: UNI_KEY_PROJ_MATRIX, type: UNI_TYPE_MATRIX });
+    this.matrices.model = new XUniform({ key: UNI_KEY_MODEL_MATRIX, type: UNI_TYPE_MATRIX });
+    this.matrices.view = new XUniform({ key: UNI_KEY_VIEW_MATRIX, type: UNI_TYPE_MATRIX });
+    this.matrices.normal = new XUniform({ key: UNI_KEY_NORMAL_MATRIX, type: UNI_TYPE_MATRIX });
 
     this.matrices.projection.data = opts.projectionMatrix || XMatrix4.get();
 
@@ -68,10 +73,13 @@ class XScene {
     this.matrices.normal.data = XMatrix4.transpose(this.matrices.normal.data);
   }
 
-  addRenderPass (type, framebuffer, isBeforeMain) {
-    var pass = { type, framebuffer, isFirstDraw: true };
+  addRenderPass (type, opts) {
+    opts = opts || {};
+    var isBeforeMain = opts.isBeforeMain || false;
+    var pass = { type, ...opts, isFirstDraw: true };
+
     if (isBeforeMain) {
-      this.renderPasses.shift(pass);
+      this.renderPasses.unshift(pass);
     } else {
       this.renderPasses.push(pass);
     }
@@ -122,12 +130,33 @@ class XScene {
     }
 
     opts = opts || {};
-    opts.key = `light`;
+    opts.key = UNI_KEY_DIRECTIONAL_LIGHT;
     opts.index = lights.length;
-    opts.direction = XUtils.normalize(opts.direction);
-    lights.push(new XLight(opts));
-    this.lightCount.data = lights.length;
 
+    var dir = opts.direction || [0, 1, 0];
+    dir[0] *= this.modelScaleX;
+    dir[1] *= this.modelScaleY;
+    dir[2] *= this.modelScaleZ;
+    opts.direction = XUtils.normalize(dir);
+
+    var light = new XLight(opts);
+    var shadowFBO = XGLUtils.createDepthFramebuffer(this.gl, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+    light.addShadowMapTexture(shadowFBO.depthTexture, this.textureUnitIndex++);
+
+    if (!this.shadowShader) {
+      this.shadowShader = new XShadowShader({ scene: this })
+    };
+
+    this.addRenderPass(RENDER_PASS_LIGHTS, {
+      framebuffer: shadowFBO.framebuffer,
+      shader: this.shadowShader,
+      uniforms: [light.index],
+      viewport: { width: SHADOW_MAP_SIZE, height: SHADOW_MAP_SIZE },
+      isBeforeMain: true
+    });
+
+    lights.push(light);
+    this.lightCount.data = lights.length;
     this.needsShaderConnect = true;
   }
 
@@ -139,7 +168,7 @@ class XScene {
     }
 
     opts = opts || {};
-    opts.key = `pointLight`;
+    opts.key = UNI_KEY_POINT_LIGHT;
     opts.index = pointLights.length;
 
     var pos = opts.position || [0, 0, 0];
@@ -150,7 +179,6 @@ class XScene {
 
     pointLights.push(new XLight(opts));
     this.pointLightCount.data = pointLights.length;
-
     this.needsShaderConnect = true;
   }
 
@@ -164,9 +192,7 @@ class XScene {
   }
 
   draw (dt) {
-    var logDetails = VERBOSE && Math.random() < 0.01;
     var len = this.onDrawListeners.length;
-    logDetails && console.log("draw listeners: ", len);
     for (var i = len - 1; i >= 0; i--) {
       this.onDrawListeners[i](dt);
     }
@@ -180,6 +206,9 @@ class XScene {
         gl.bindFramebuffer(gl.FRAMEBUFFER, pass.framebuffer);
       }
 
+      var viewport = pass.viewport || this.viewport;
+      gl.viewport(0, 0, viewport.width, viewport.height);
+
       var bgc = this.lights.background.getColor();
       gl.clearColor(bgc[0], bgc[1], bgc[2], 1.0);
 
@@ -192,6 +221,13 @@ class XScene {
         gl.depthFunc(gl.LEQUAL);
       }
 
+      if (pass.type === RENDER_PASS_MAIN) {
+        gl.enable(gl.CULL_FACE);
+        gl.cullFace(gl.BACK);
+      } else {
+        gl.disable(gl.CULL_FACE);
+      }
+
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
       var objects = this.objects.slice();
@@ -202,19 +238,44 @@ class XScene {
         }
       }
 
-      logDetails && console.log("obj count: ", objects.length, pass);
+      if (VERBOSE) {
+        console.log(` `);
+        console.log(`frameIndex ${frameIndex} passIndex ${passIndex} passType ${pass.type}`);
+        console.log(`... objects ${objects.length}`);
+
+        var shader = pass.shader;
+        if (shader) {
+          console.log(`... shader attributes`);
+          var attr = shader.attributeLocations;
+          for (var key in attr) {
+            if (attr[key] === undefined || attr[key] === null) continue;
+            console.log(`... ... ${key} ${attr[key]}`);
+          }
+
+          console.log(`... shader uniforms`);
+          var uni = shader.uniformLocations;
+          for (var key in uni) {
+            if (uni[key] === undefined || uni[key] === null) continue;
+            console.log(`... ... ${key} ${uni[key]}`);
+          }
+        }
+      }
 
       for (var i = 0; i < objects.length; i++) {
         var obj = objects[i];
-        var shader = obj.shader;
-        var shouldRefresh = i === 0 && this.haveObjectsChanged;
+        var shader = pass.shader || obj.shader;
         var isNewShader = this.lastShader !== shader;
 
-        if (this.needsShaderConnect && (i === 0 || isNewShader)) {
+        gl.frontFace(obj.frontFace);
+
+        if ((this.needsShaderConnect || this.haveObjectsChanged) && isNewShader) {
           shader.connect();
+          if (obj.shader !== shader) {
+            shader.connectObject(obj);
+          };
         }
 
-        if (isNewShader || shouldRefresh) {
+        if (isNewShader || this.haveObjectsChanged) {
           gl.useProgram(shader.getProgram());
           this.lastShader = shader;
         }
@@ -224,6 +285,10 @@ class XScene {
         this.applyLightUniforms(shader, isNewShader);
         this.applyFogUniforms(shader, isNewShader);
         this.applyObjectUniforms(obj, shader, isNewShader);
+        // render pass uniforms applied last to override any defaults
+        if (pass.uniforms) {
+          pass.uniforms.forEach((uniform) => this.applyUniform(uniform, shader, isNewShader));
+        }
 
         this.bindBuffers(obj, shader);
 
@@ -233,7 +298,19 @@ class XScene {
       if (pass.framebuffer) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       }
+
+      // if (pass.type === RENDER_PASS_LIGHTS) {
+      //   gl.bindFramebuffer(gl.READ_FRAMEBUFFER, pass.framebuffer);
+      //   gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+      //   gl.blitFramebuffer(
+      //     0, 0, viewport.width, viewport.height,
+      //     0, 0, this.viewport.width, this.viewport.height,
+      //     gl.COLOR_BUFFER_BIT, gl.NEAREST
+      //   );
+      // }
     }
+
+    frameIndex++;
 
     this.onDrawFinish();
   }
@@ -262,31 +339,12 @@ class XScene {
     for (var key in this.lights) {
       var lightType = this.lights[key];
       if (lightType.length !== undefined) {
-        switch (key) {
-          case 'point': this.applyPointLightUniforms(lightType, shader, isNewShader); break;
-          default: this.applyDirectionalLightUniforms(lightType, shader, isNewShader); break;
-        }
+        var count = key === 'point' ? this.pointLightCount : this.lightCount;
+        this.applyUniform(count, shader, isNewShader);
+        this.applyLightListUniforms(lightType, shader, isNewShader);
       } else {
         this.applyUniform(lightType.color, shader, isNewShader);
       }
-    }
-  }
-
-  applyDirectionalLightUniforms (directionalLights, shader, isNewShader) {
-    this.applyUniform(this.lightCount, shader, isNewShader);
-
-    for (var i = 0; i < directionalLights.length; i++) {
-      this.applyUniform(directionalLights[i].direction, shader, isNewShader);
-      this.applyUniform(directionalLights[i].color, shader, isNewShader);
-    }
-  }
-
-  applyPointLightUniforms (pointLights, shader, isNewShader) {
-    this.applyUniform(this.pointLightCount, shader, isNewShader);
-
-    for (var i = 0; i < pointLights.length; i++) {
-      this.applyUniform(pointLights[i].position, shader, isNewShader);
-      this.applyUniform(pointLights[i].color, shader, isNewShader);
     }
   }
 
@@ -300,6 +358,13 @@ class XScene {
   applyObjectUniforms (obj, shader, isNewShader) {
     for (var key in obj.uniforms) {
       this.applyUniform(obj.uniforms[key], shader, isNewShader);
+    }
+  }
+
+  applyLightListUniforms (lights, shader, isNewShader) {
+    for (var i = 0; i < lights.length; i++) {
+      var uniforms = lights[i].getUniforms();
+      uniforms.forEach((uniform) => this.applyUniform(uniform, shader, isNewShader));
     }
   }
 

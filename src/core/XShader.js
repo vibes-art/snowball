@@ -47,6 +47,7 @@ class XShader {
 
     this.fragmentShaderSource = `#version 300 es
       precision highp float;
+      precision mediump sampler2DShadow;
 
       uniform mat4 normalMatrix;
       uniform vec3 ambientColor;
@@ -61,6 +62,15 @@ class XShader {
       uniform int lightCount;
       uniform vec3 lightDirections[MAX_LIGHTS];
       uniform vec3 lightColors[MAX_LIGHTS];
+    `;
+
+    for (var i = 0; i < MAX_LIGHTS; i++) {
+      this.fragmentShaderSource += `
+        uniform sampler2DShadow lightShadowMap${i};`;
+    }
+
+    this.fragmentShaderSource += `
+      uniform mat4 lightViewProjMatrices[MAX_LIGHTS];
 
       const int MAX_POINT_LIGHTS = ${MAX_POINT_LIGHTS};
       uniform int pointLightCount;
@@ -74,6 +84,42 @@ class XShader {
         float r0 = (1.0 - refIndex) / (1.0 + refIndex);
         r0 = r0 * r0;
         return r0 + (1.0 - r0) * pow(1.0 - cosTheta, 5.0);
+      }
+
+      float textureShadowMap(int i, vec3 uvw) {
+    `;
+
+    for (var i = 0; i < MAX_LIGHTS; i++) {
+      this.fragmentShaderSource += `
+        if (i == ${i}) return texture(lightShadowMap${i}, uvw);`;
+    }
+
+    this.fragmentShaderSource += `
+      }
+
+      float computeShadow(int i, vec4 worldPos) {
+        vec4 lightPos = lightViewProjMatrices[i] * worldPos;
+        vec3 ndc = lightPos.xyz / lightPos.w;
+        vec3 shadowUVdepth = ndc * 0.5 + 0.5;
+
+        float bias = 0.001;
+        float currentDepth = shadowUVdepth.z - bias;
+
+        float texelSize = 0.5 / ${SHADOW_MAP_SIZE}.0;
+        float shadowSum = 0.0;
+        int samples = 0;
+
+        for (int x = -2; x <= 2; x++) {
+          for (int y = -2; y <= 2; y++) {
+            vec2 offset = vec2(float(x), float(y)) * texelSize;
+            float shadowSample = textureShadowMap(i, vec3(shadowUVdepth.xy + offset, currentDepth));
+            shadowSum += shadowSample;
+            samples++;
+          }
+        }
+
+        float avgShadow = shadowSum / float(samples);
+        return 1.0 - avgShadow;
       }
 
       void main(void) {
@@ -92,14 +138,15 @@ class XShader {
           vec3 lightDir = -lightDirections[i];
           vec3 lightColor = lightColors[i];
 
-          float diffuseFactor = max(dot(normalDir, lightDir), 0.0);
+          float diffuseFactor = max(abs(dot(normalDir, lightDir)), 0.0);
           vec3 diffuse = color.rgb * lightColor * diffuseFactor;
 
           vec3 reflectDir = reflect(lightDir, normalDir);
           float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularShininess);
           vec3 specular = specularStrength * spec * lightColor * fresnel;
 
-          finalColor += diffuse + specular;
+          float shadowFactor = computeShadow(i, position);
+          finalColor += (1.0 - shadowFactor) * (diffuse + specular);
         }
 
         for (int i = 0; i < pointLightCount; ++i) {
@@ -107,7 +154,7 @@ class XShader {
           vec3 pointLightColor = pointLightColors[i];
 
           vec3 toLight = pointLightPos - position.xyz;
-          vec3 lightDir = -normalize(toLight);
+          vec3 lightDir = normalize(toLight);
           float distance = length(toLight);
           float attenuation = 1.0 / (distance * distance);
 

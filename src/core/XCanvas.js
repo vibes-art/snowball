@@ -109,6 +109,7 @@ class XCanvas {
       ]
     });
 
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_LIGHTS, false);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_MAIN, false);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_ANTIALIAS, true);
 
@@ -241,6 +242,10 @@ class XCanvas {
     this.gl.viewport(0, 0, width, height);
 
     if (this.scene) {
+      this.scene.viewport.width = width;
+      this.scene.viewport.height = height;
+      this.scene.resolution.data = [width, height];
+
       this.scene.matrices.projection.data = this.getProjectionMatrix();
 
       if (this.useSupersampleAA) {
@@ -262,8 +267,8 @@ class XCanvas {
     }
 
     this.offscreenFBO = XGLUtils.createFramebuffer(this.gl, width, height);
-    this.scene.addRenderPass(RENDER_PASS_MAIN, this.offscreenFBO.framebuffer, false);
-    this.scene.addRenderPass(RENDER_PASS_ANTIALIAS, null, false);
+    this.scene.addRenderPass(RENDER_PASS_MAIN, { framebuffer: this.offscreenFBO.framebuffer });
+    this.scene.addRenderPass(RENDER_PASS_ANTIALIAS);
     this.onFullscreenQuadResize(width, height);
   }
 
@@ -277,8 +282,6 @@ class XCanvas {
     });
 
     this.fullscreenQuad.attributes[ATTR_KEY_COLORS].bindExternalTexture(this.offscreenFBO.colorsTexture);
-
-    this.scene.resolution.data = [width, height];
   }
 
   getProjectionMatrix () {

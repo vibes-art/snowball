@@ -12,6 +12,7 @@ class XObject {
     this.useNormalColors = opts.useNormalColors || false;
     this.useRandomColors = opts.useRandomColors || false;
     this.positionOffset = opts.positionOffset || [0, 0, 0];
+    this.frontFace = opts.frontFace || opts.gl.CCW;
 
     this.attributes = {};
     this.uniforms = {};
@@ -35,6 +36,8 @@ class XObject {
     this.generate(opts);
     this.bindBuffers();
     this.scene.addObject(this);
+
+    this.enableRenderPass(RENDER_PASS_LIGHTS, true);
     this.enableRenderPass(RENDER_PASS_MAIN, true);
   }
 
@@ -67,11 +70,11 @@ class XObject {
     opts.count = this.vertexCount;
 
     if (opts.useTexture) {
-      opts.textureUnit = this.textureUnitIndex++;
+      opts.textureUnit = this.scene.textureUnitIndex + this.textureUnitIndex++;
 
       var uniformKey = `${key}Texture`;
       var uniformOpts = {};
-      uniformOpts.type = UNIFORM_TYPE_INT;
+      uniformOpts.type = UNI_TYPE_INT;
       uniformOpts.components = 1;
       uniformOpts.data = opts.textureUnit;
       this.addUniform(uniformKey, uniformOpts);
@@ -92,8 +95,8 @@ class XObject {
 
     this.matrices = {};
 
-    this.matrices.model = new XUniform({ key: 'modelMatrix', type: UNIFORM_TYPE_MATRIX });
-    this.matrices.normal = new XUniform({ key: 'normalMatrix', type: UNIFORM_TYPE_MATRIX });
+    this.matrices.model = new XUniform({ key: 'modelMatrix', type: UNI_TYPE_MATRIX });
+    this.matrices.normal = new XUniform({ key: 'normalMatrix', type: UNI_TYPE_MATRIX });
 
     this.matrices.model.data = modelMatrix;
     this.matrices.model.data = XMatrix4.scale(this.matrices.model.data, -1, 1, 1);

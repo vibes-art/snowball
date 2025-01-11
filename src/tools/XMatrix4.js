@@ -212,3 +212,56 @@ XMatrix4.frustum = function (left, right, bottom, top, near, far) {
     0, 0, (far * near * 2) * nf, 0
   ]);
 };
+
+XMatrix4.ortho = function (left, right, bottom, top, near, far) {
+  var rl = 1 / (right - left);
+  var tb = 1 / (top - bottom);
+  var fn = 1 / (near - far);
+  return new Float32Array([
+    2 * rl, 0, 0, 0,
+    0, 2 * tb, 0, 0,
+    0, 0, -2 * fn, 0,
+    -(right + left) * rl, -(top + bottom) * tb, -(far + near) * fn, 1
+  ]);
+};
+
+XMatrix4.lookAt = function (eye, center, up) {
+  // TODO: refactor, XVector3?
+  function subtract (a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+  function cross (a, b) { return [
+      a[1] * b[2] - a[2] * b[1],
+      a[2] * b[0] - a[0] * b[2],
+      a[0] * b[1] - a[1] * b[0]
+    ];
+  }
+  function dot (a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+  function length (v) { return sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]); }
+  function normalize(v) {
+    var len = length(v);
+    if (len < 1e-10) return [0, 0, 0];
+    return [v[0] / len, v[1] / len, v[2] / len];
+  }
+
+  var f = normalize(subtract(center, eye));
+  var s = normalize(cross(f, up));
+  var u = cross(s, f);
+
+  var out = new Float32Array(16);
+  out[0] =  s[0];
+  out[1] =  u[0];
+  out[2] = -f[0];
+  out[3] =  0.0;
+  out[4] =  s[1];
+  out[5] =  u[1];
+  out[6] = -f[1];
+  out[7] =  0.0;
+  out[8] =  s[2];
+  out[9] =  u[2];
+  out[10] = -f[2];
+  out[11] = 0.0;
+  out[12] = -dot(s, eye);
+  out[13] = -dot(u, eye);
+  out[14] =  dot(f, eye);
+  out[15] =  1.0;
+  return out;
+};
