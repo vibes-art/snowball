@@ -26,13 +26,29 @@ class XLight {
       }
     }
 
+    this.position = new XUniform({ key: positionKey, components: 3 });
     this.color = new XUniform({ key: colorKey, components: 3 });
     this.direction = new XUniform({ key: directionKey, components: 3 });
-    this.position = new XUniform({ key: positionKey, components: 3 });
 
     this.updateColor();
-    this.setDirection(opts.direction);
     this.setPosition(opts.position);
+    this.lookAt(opts.lookAtPoint);
+  }
+
+  lookAt (lookAtPoint) {
+    if (!lookAtPoint) return;
+
+    this.lookAtPoint = lookAtPoint.slice();
+
+    var pos = this.getPosition();
+    var dir = XUtils.normalize([
+      this.lookAtPoint[0] - pos[0],
+      this.lookAtPoint[1] - pos[1],
+      this.lookAtPoint[2] - pos[2],
+    ]);
+
+    this.lookAtMatrix = XMatrix4.lookAt(pos, this.lookAtPoint, UP_VECTOR);
+    this.setDirection(dir);
   }
 
   addShadowMapTexture (depthTexture, textureUnit) {
@@ -40,24 +56,32 @@ class XLight {
     this.shadowMap.texture = depthTexture;
 
     var boundingBox = CAMERA_Z_FAR / 2;
-    var orthoMatrix = XMatrix4.ortho(
-      -boundingBox, boundingBox,
-      -boundingBox, boundingBox,
-      -boundingBox, boundingBox);
-
-    var dir = this.direction.data;
-    var center = [0, 0, 0];
-    var distance = 0.001 * boundingBox;
-
-    var pos = [
-      center[0] - dir[0] * distance,
-      center[1] - dir[1] * distance,
-      center[2] - dir[2] * distance
+    var corners = [
+      [-boundingBox, -boundingBox, -boundingBox],
+      [-boundingBox, -boundingBox,  boundingBox],
+      [-boundingBox,  boundingBox, -boundingBox],
+      [-boundingBox,  boundingBox,  boundingBox],
+      [ boundingBox, -boundingBox, -boundingBox],
+      [ boundingBox, -boundingBox,  boundingBox],
+      [ boundingBox,  boundingBox, -boundingBox],
+      [ boundingBox,  boundingBox,  boundingBox]
     ];
 
-    var up = [0, 1, 0];
-    var viewMatrix = XMatrix4.lookAt(pos, center, up);
-    this.viewProjMatrix.data = XMatrix4.multiply(orthoMatrix, viewMatrix);
+    var minX = Infinity, maxX = -Infinity;
+    var minY = Infinity, maxY = -Infinity;
+    var minZ = Infinity, maxZ = -Infinity;
+    for (var i = 0; i < corners.length; i++) {
+      var cLight = XMatrix4.transformPoint(this.lookAtMatrix, corners[i]);
+      if (cLight[0] < minX) minX = cLight[0];
+      if (cLight[0] > maxX) maxX = cLight[0];
+      if (cLight[1] < minY) minY = cLight[1];
+      if (cLight[1] > maxY) maxY = cLight[1];
+      if (cLight[2] < minZ) minZ = cLight[2];
+      if (cLight[2] > maxZ) maxZ = cLight[2];
+    }
+
+    var orthoMatrix = XMatrix4.ortho(minX, maxX, minY, maxY, -maxZ, -minZ);
+    this.viewProjMatrix.data = XMatrix4.multiply(orthoMatrix, this.lookAtMatrix);
   }
 
   getUniforms () {

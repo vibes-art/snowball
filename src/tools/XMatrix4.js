@@ -1,3 +1,4 @@
+// column-major matrix library
 var XMatrix4 = {};
 
 XMatrix4.get = function () {
@@ -216,7 +217,7 @@ XMatrix4.frustum = function (left, right, bottom, top, near, far) {
 XMatrix4.ortho = function (left, right, bottom, top, near, far) {
   var rl = 1 / (right - left);
   var tb = 1 / (top - bottom);
-  var fn = 1 / (near - far);
+  var fn = 1 / (far - near);
   return new Float32Array([
     2 * rl, 0, 0, 0,
     0, 2 * tb, 0, 0,
@@ -264,4 +265,21 @@ XMatrix4.lookAt = function (eye, center, up) {
   out[14] =  dot(f, eye);
   out[15] =  1.0;
   return out;
+};
+
+XMatrix4.transformPoint = function (m, p) {
+  var x = p[0], y = p[1], z = p[2];
+
+  var xPrime = m[0] * x + m[4] * y + m[8]  * z + m[12];
+  var yPrime = m[1] * x + m[5] * y + m[9]  * z + m[13];
+  var zPrime = m[2] * x + m[6] * y + m[10] * z + m[14];
+  var wPrime = m[3] * x + m[7] * y + m[11] * z + m[15];
+
+  if (abs(wPrime) > 1e-8) {
+    xPrime /= wPrime;
+    yPrime /= wPrime;
+    zPrime /= wPrime;
+  }
+
+  return [xPrime, yPrime, zPrime];
 };

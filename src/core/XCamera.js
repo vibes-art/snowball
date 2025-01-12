@@ -1,4 +1,3 @@
-var UP_VECTOR = [0, 1, 0];
 var DEFAULT_SENSITIVITY = 0.0005;
 
 class XCamera extends XMovableModel {
@@ -41,9 +40,9 @@ class XCamera extends XMovableModel {
     this.rotation = this.getRotationFromMatrix(XMatrix4.invert(this.lookAtMatrix));
   }
 
-  getRotationFromMatrix (lookAtMatrix) {
-    var yaw = atan2(-lookAtMatrix[8], lookAtMatrix[10]);
-    var pitch = asin(lookAtMatrix[6]);
+  getRotationFromMatrix (m) {
+    var yaw = atan2(-m[2], m[10]);
+    var pitch = -asin(m[9]);
     return [yaw, pitch, 0];
   }
 

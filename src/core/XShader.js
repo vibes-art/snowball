@@ -102,7 +102,7 @@ class XShader {
         vec3 ndc = lightPos.xyz / lightPos.w;
         vec3 shadowUVdepth = ndc * 0.5 + 0.5;
 
-        float bias = 0.001;
+        float bias = 0.0008;
         float currentDepth = shadowUVdepth.z - bias;
 
         float texelSize = 0.5 / ${SHADOW_MAP_SIZE}.0;
@@ -124,7 +124,7 @@ class XShader {
 
       void main(void) {
         float specularShininess = 128.0;
-        float specularStrength = 0.2;
+        float specularStrength = 0.5;
 
         vec3 ambient = color.rgb * ambientColor;
         vec4 transformedNormal = normalMatrix * vec4(normal, 1.0);

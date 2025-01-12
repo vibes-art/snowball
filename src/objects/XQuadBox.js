@@ -1,5 +1,5 @@
-var BOX_VERTEX_SIGNS = [[-1,1,1],[1,1,1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,-1,-1],[-1,-1,-1]];
-var BOX_VERTEX_INDICES = [[0,1,2,3],[0,1,5,4],[2,1,5,6],[2,3,7,6],[0,3,7,4],[5,4,7,6]];
+var BOX_VERTEX_SIGNS = [[-1,1,1],[ 1,1,1],[ 1,1,-1],[-1,1,-1],[-1,-1,1],[ 1,-1,1],[ 1,-1,-1],[-1,-1,-1]];
+var BOX_VERTEX_INDICES = [[0,1,2,3],[1,0,4,5],[2,1,5,6],[3,2,6,7],[0,3,7,4],[5,4,7,6]];
 
 class XQuadBox {
 
@@ -51,8 +51,7 @@ class XQuadBox {
         });
       }
 
-      var frontFace = (f === 1 || f === 3) ? this.gl.CCW : this.gl.CW;
-      this.quads.push(new XQuad({ ...quadOpts, vertices, frontFace }));
+      this.quads.push(new XQuad({ ...quadOpts, vertices }));
     }
   }
 
