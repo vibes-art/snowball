@@ -26,6 +26,10 @@ class XFlyingCamera extends XCamera {
     if (keysDown['V']) { movement[1] -= 1; }
     if (keysDown[' ']) { movement[1] += 1; }
 
+    if (this.lookAtMatrix && (movement[0] || movement[1] || movement[2])) {
+      this.setRotation(this.rotation);
+    }
+
     this.accelerate(dt, movement);
 
     super.onTick(dt, keysDown);
