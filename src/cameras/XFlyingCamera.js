@@ -9,8 +9,11 @@ class XFlyingCamera extends XCamera {
   }
 
   onMouseMove (evt, dx, dy) {
-    this.rotation[0] -= this.sensitivity * dx;
-    this.rotation[1] -= this.sensitivity * dy;
+    var r = this.rotation;
+    this.setRotation([
+      r[0] - this.sensitivity * dx,
+      r[1] - this.sensitivity * dy,
+      r[2]]);
   }
 
   onTick (dt, keysDown) {

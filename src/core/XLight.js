@@ -39,7 +39,7 @@ class XLight {
     this.shadowMap.data = textureUnit;
     this.shadowMap.texture = depthTexture;
 
-    var boundingBox = CAMERA_Z_FAR;
+    var boundingBox = CAMERA_Z_FAR / 2;
     var orthoMatrix = XMatrix4.ortho(
       -boundingBox, boundingBox,
       -boundingBox, boundingBox,

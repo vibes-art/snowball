@@ -123,25 +123,26 @@ class XShader {
       }
 
       void main(void) {
-        float specularShininess = 256.0;
-        float specularStrength = 0.05;
+        float specularShininess = 128.0;
+        float specularStrength = 0.2;
 
         vec3 ambient = color.rgb * ambientColor;
         vec4 transformedNormal = normalMatrix * vec4(normal, 1.0);
         vec3 normalDir = normalize(transformedNormal.xyz);
-        vec3 viewDir = normalize(position.xyz - viewPosition);
+        vec3 viewDir = normalize(viewPosition - position.xyz); // frag to camera
+
         float cosTheta = dot(viewDir, normalDir);
         float fresnel = fresnelSchlick(cosTheta, 0.05);
 
         vec3 finalColor = ambient;
         for (int i = 0; i < lightCount; ++i) {
-          vec3 lightDir = -lightDirections[i];
+          vec3 lightDir = -lightDirections[i]; // frag to light
           vec3 lightColor = lightColors[i];
 
-          float diffuseFactor = max(abs(dot(normalDir, lightDir)), 0.0);
+          float diffuseFactor = max(dot(normalDir, lightDir), 0.0);
           vec3 diffuse = color.rgb * lightColor * diffuseFactor;
 
-          vec3 reflectDir = reflect(lightDir, normalDir);
+          vec3 reflectDir = reflect(-lightDir, normalDir);
           float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularShininess);
           vec3 specular = specularStrength * spec * lightColor * fresnel;
 
@@ -161,7 +162,7 @@ class XShader {
           float diffuseFactor = max(dot(normalDir, lightDir), 0.0);
           vec3 diffuse = color.rgb * pointLightColor * diffuseFactor;
 
-          vec3 reflectDir = reflect(lightDir, normalDir);
+          vec3 reflectDir = reflect(-lightDir, normalDir);
           float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularShininess);
           vec3 specular = specularStrength * spec * pointLightColor * fresnel;
 

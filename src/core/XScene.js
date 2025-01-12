@@ -133,7 +133,7 @@ class XScene {
     opts.key = UNI_KEY_DIRECTIONAL_LIGHT;
     opts.index = lights.length;
 
-    var dir = opts.direction || [0, 1, 0];
+    var dir = opts.direction || [0, -1, 0];
     dir[0] *= this.modelScaleX;
     dir[1] *= this.modelScaleY;
     dir[2] *= this.modelScaleZ;
