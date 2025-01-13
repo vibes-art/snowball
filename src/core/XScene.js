@@ -285,9 +285,11 @@ class XScene {
         this.applyLightUniforms(shader, isNewShader);
         this.applyFogUniforms(shader, isNewShader);
         this.applyObjectUniforms(obj, shader, isNewShader);
+
         // render pass uniforms applied last to override any defaults
         if (pass.uniforms) {
-          pass.uniforms.forEach((uniform) => this.applyUniform(uniform, shader, isNewShader));
+          // pass true here to always apply render pass specific uniforms
+          pass.uniforms.forEach((uniform) => this.applyUniform(uniform, shader, true));
         }
 
         this.bindBuffers(obj, shader);
@@ -369,12 +371,10 @@ class XScene {
   }
 
   applyUniform (uniform, shader, isNewShader) {
-    if (!isNewShader && !uniform.isDirty) return;
-
     var location = shader.uniformLocations[uniform.key];
     if (location === NO_SHADER_LOCATION || location === null) return;
 
-    uniform.apply(this.gl, location);
+    uniform.apply(this.gl, location, isNewShader);
   }
 
   bindBuffers (obj, shader) {
