@@ -5,8 +5,12 @@ class XQuadBox {
 
   constructor (opts) {
     this.gl = opts.gl;
-    this.centerPoint = opts.centerPoint;
-    this.size = opts.size;
+
+    this.centerPoint = opts.centerPoint || [0, 0, 0];
+    this.dimensions = opts.dimensions || [0, 0, 0];
+    this.size = opts.size || 1;
+    this.color = opts.color || [0.5, 0.5, 0.5, 1];
+
     this.faces = opts.faces || [];
     this.vertices = opts.vertices || [];
 
@@ -17,8 +21,10 @@ class XQuadBox {
 
   initialize (opts) {
     var cp = this.centerPoint;
-    var half = this.size / 2;
-    var defaultColor = [0.5, 0.5, 0.5, 1];
+    var halfWidth = (this.dimensions[0] || this.size) / 2;
+    var halfHeight = (this.dimensions[1] || this.size) / 2;
+    var halfDepth = (this.dimensions[2] || this.size) / 2;
+    var defaultColor = this.color;
     var quadOpts = { ...opts };
 
     for (var f = 0; f < 6; f++) {
@@ -31,9 +37,9 @@ class XQuadBox {
         var vertexSigns = BOX_VERTEX_SIGNS[vertexIndex];
         var color = defaultColor;
         var position = [
-          cp[0] + half * vertexSigns[0],
-          cp[1] + half * vertexSigns[1],
-          cp[2] + half * vertexSigns[2]
+          cp[0] + halfWidth * vertexSigns[0],
+          cp[1] + halfHeight * vertexSigns[1],
+          cp[2] + halfDepth * vertexSigns[2]
         ];
 
         if (this.vertices.length) {

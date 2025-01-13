@@ -12,6 +12,8 @@ class XQuad extends XObject {
 
   initialize (opts) {
     this.vertices = opts.vertices;
+    this.color = opts.color || [0.5, 0.5, 0.5, 1];
+
     this.generatedNormals = [];
 
     super.initialize(opts);
@@ -108,7 +110,7 @@ class XQuad extends XObject {
     }
 
     var vertex = this.vertices[i];
-    var color = vertex.color || [0.5, 0.5, 0.5, 1];
+    var color = vertex.color || this.color;
     return [
       color[0] || 0.5,
       color[1] || 0.5,
