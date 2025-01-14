@@ -8,12 +8,14 @@ class XLight {
     var colorKey = `${this.key}Color`;
     var directionKey = `${this.key}Direction`;
     var positionKey = `${this.key}Position`;
+    var fixedAxesKey = `${this.key}FixedAxes`;
 
     var index = opts.index;
     if (index !== undefined) {
       colorKey = `${this.key}Colors[${index}]`;
       directionKey = `${this.key}Directions[${index}]`;
       positionKey = `${this.key}Positions[${index}]`;
+      fixedAxesKey = `${this.key}FixedAxes[${index}]`
 
       if (this.key === UNI_KEY_DIRECTIONAL_LIGHT) {
         var indexKey = `${this.key}Index`;
@@ -29,10 +31,20 @@ class XLight {
     this.position = new XUniform({ key: positionKey, components: 3 });
     this.color = new XUniform({ key: colorKey, components: 3 });
     this.direction = new XUniform({ key: directionKey, components: 3 });
+    this.fixedAxes = new XUniform({ key: fixedAxesKey, components: 3 });
 
     this.updateColor();
     this.setPosition(opts.position);
+    this.setFixedAxes(opts.fixedAxes);
     this.lookAt(opts.lookAtPoint);
+  }
+
+  getUniforms () {
+    var uniforms = [this.position, this.color, this.direction, this.fixedAxes];
+    if (this.key === UNI_KEY_DIRECTIONAL_LIGHT) {
+      uniforms = uniforms.concat([this.index, this.viewProjMatrix, this.shadowMap]);
+    }
+    return uniforms;
   }
 
   lookAt (lookAtPoint) {
@@ -82,14 +94,6 @@ class XLight {
 
     var orthoMatrix = XMatrix4.ortho(minX, maxX, minY, maxY, -maxZ, -minZ);
     this.viewProjMatrix.data = XMatrix4.multiply(orthoMatrix, this.lookAtMatrix);
-  }
-
-  getUniforms () {
-    var uniforms = [this.color, this.direction, this.position];
-    if (this.key === UNI_KEY_DIRECTIONAL_LIGHT) {
-      uniforms = uniforms.concat([this.index, this.viewProjMatrix, this.shadowMap]);
-    }
-    return uniforms;
   }
 
   getDirection () {
@@ -142,6 +146,10 @@ class XLight {
 
   updateColor () {
     this.color.data = this.getColor();
+  }
+
+  setFixedAxes (fixedAxes) {
+    this.fixedAxes.data = fixedAxes || [0, 0, 0];
   }
 
 }

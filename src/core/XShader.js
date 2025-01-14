@@ -76,6 +76,7 @@ class XShader {
       uniform int pointLightCount;
       uniform vec3 pointLightPositions[MAX_POINT_LIGHTS];
       uniform vec3 pointLightColors[MAX_POINT_LIGHTS];
+      uniform vec3 pointLightFixedAxes[MAX_POINT_LIGHTS];
 
       uniform vec3 fogColor;
       uniform float fogDensity;
@@ -153,9 +154,16 @@ class XShader {
         for (int i = 0; i < pointLightCount; ++i) {
           vec3 pointLightPos = pointLightPositions[i];
           vec3 pointLightColor = pointLightColors[i];
+          vec3 pointLightFixedAxes = pointLightFixedAxes[i];
 
-          vec3 toLight = pointLightPos - position.xyz;
+          float toLightX = pointLightFixedAxes[0] != 0.0 ? pointLightFixedAxes[0] : pointLightPos.x - position.x;
+          float toLightY = pointLightFixedAxes[1] != 0.0 ? pointLightFixedAxes[1] : pointLightPos.y - position.y;
+          float toLightZ = pointLightFixedAxes[2] != 0.0 ? pointLightFixedAxes[2] : pointLightPos.z - position.z;
+          vec3 toLight = vec3(toLightX, toLightY, toLightZ);
+
+          // vec3 toLight = pointLightPos - position.xyz;
           vec3 lightDir = normalize(toLight);
+
           float distance = length(toLight);
           float attenuation = 1.0 / (distance * distance);
 
