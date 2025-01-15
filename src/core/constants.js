@@ -51,6 +51,10 @@ var RENDER_PASS_LIGHTS = 'lights';
 var RENDER_PASS_MAIN = 'main';
 var RENDER_PASS_ANTIALIAS = 'antialias';
 
+var LIGHT_DIRECTIONAL = 'directional';
+var LIGHT_POINT = 'point';
+var LIGHT_SPOT = 'spot';
+
 var ATTR_KEY_POSITIONS = 'positions';
 var ATTR_KEY_NORMALS = 'normals';
 var ATTR_KEY_COLORS = 'colors';

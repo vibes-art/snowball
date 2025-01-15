@@ -2,6 +2,7 @@ class XLight {
 
   constructor (opts) {
     this.key = opts.key;
+    this.type = opts.type || LIGHT_DIRECTIONAL;
     this.baseColor = opts.color;
     this.brightness = opts.brightness !== undefined ? opts.brightness : 1;
 
@@ -66,7 +67,10 @@ class XLight {
   addShadowMapTexture (depthTexture, textureUnit) {
     this.shadowMap.data = textureUnit;
     this.shadowMap.texture = depthTexture;
+    this.calculateViewMatrix();
+  }
 
+  calculateViewMatrix () {
     var boundingBox = CAMERA_Z_FAR / 2;
     var corners = [
       [-boundingBox, -boundingBox, -boundingBox],

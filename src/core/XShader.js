@@ -60,8 +60,11 @@ class XShader {
 
       const int MAX_LIGHTS = ${MAX_LIGHTS};
       uniform int lightCount;
-      uniform vec3 lightDirections[MAX_LIGHTS];
+      uniform vec3 lightPositions[MAX_LIGHTS];
       uniform vec3 lightColors[MAX_LIGHTS];
+      uniform vec3 lightDirections[MAX_LIGHTS];
+      uniform float lightInnerAngles[MAX_LIGHTS];
+      uniform float lightOuterAngles[MAX_LIGHTS];
     `;
 
     for (var i = 0; i < MAX_LIGHTS; i++) {
@@ -137,18 +140,44 @@ class XShader {
 
         vec3 finalColor = ambient;
         for (int i = 0; i < lightCount; ++i) {
-          vec3 lightDir = -lightDirections[i]; // frag to light
+          vec3 lightPos = lightPositions[i];
+          vec3 lightDir = lightDirections[i]; // from light to lookAtPoint
           vec3 lightColor = lightColors[i];
 
-          float diffuseFactor = max(dot(normalDir, lightDir), 0.0);
+          vec3 toFrag = position.xyz - lightPos; // from light to frag
+          float toFragDist = length(toFrag);
+          vec3 toFragDir = normalize(toFrag);
+
+          float cosAngle = dot(lightDir, toFragDir);
+          float cosInner = cos(lightInnerAngles[i]);
+          float cosOuter = cos(lightOuterAngles[i]);
+
+          float spotFactor = 1.0;
+          if (lightInnerAngles[i] > 0.0) {
+            if (cosAngle > cosInner) {
+              spotFactor = 1.0;
+            } else if (cosAngle < cosOuter) {
+              spotFactor = 0.0;
+            } else {
+              spotFactor = smoothstep(cosOuter, cosInner, cosAngle);
+            }
+          }
+
+          // float attenuation = 100000.0 / (toFragDist * toFragDist);
+          // float attenuation = 1.0;
+          float attenuation = 1.0 / (0.76 + 0.0001 * toFragDist + 0.00003 * toFragDist * toFragDist);
+
+
+
+          float diffuseFactor = max(dot(normalDir, -lightDir), 0.0);
           vec3 diffuse = color.rgb * lightColor * diffuseFactor;
 
-          vec3 reflectDir = reflect(-lightDir, normalDir);
+          vec3 reflectDir = reflect(lightDir, normalDir);
           float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularShininess);
           vec3 specular = specularStrength * spec * lightColor * fresnel;
 
           float shadowFactor = computeShadow(i, position);
-          finalColor += (1.0 - shadowFactor) * (diffuse + specular);
+          finalColor += spotFactor * (1.0 - shadowFactor) * (diffuse + specular) * attenuation;
         }
 
         for (int i = 0; i < pointLightCount; ++i) {

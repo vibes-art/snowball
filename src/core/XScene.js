@@ -133,13 +133,13 @@ class XScene {
     opts.key = UNI_KEY_DIRECTIONAL_LIGHT;
     opts.index = lights.length;
 
-    var dir = opts.direction || [0, -1, 0];
-    dir[0] *= this.modelScaleX;
-    dir[1] *= this.modelScaleY;
-    dir[2] *= this.modelScaleZ;
-    opts.direction = XUtils.normalize(dir);
+    var light;
+    if (opts.type === LIGHT_SPOT) {
+      light = new XSpotLight(opts);
+    } else {
+      light = new XLight(opts);
+    }
 
-    var light = new XLight(opts);
     var shadowFBO = XGLUtils.createDepthFramebuffer(this.gl, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
     light.addShadowMapTexture(shadowFBO.depthTexture, this.textureUnitIndex++);
 
@@ -202,6 +202,7 @@ class XScene {
     var gl = this.gl;
     for (var passIndex = 0; passIndex < this.renderPasses.length; passIndex++) {
       var pass = this.renderPasses[passIndex];
+      // if (passIndex > 0) continue;
       if (pass.framebuffer) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, pass.framebuffer);
       }
@@ -297,19 +298,19 @@ class XScene {
         obj.draw();
       }
 
+      // if (pass.type === RENDER_PASS_LIGHTS) {
+        // gl.bindFramebuffer(gl.READ_FRAMEBUFFER, pass.framebuffer);
+        // gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+        // gl.blitFramebuffer(
+        //   0, 0, viewport.width, viewport.height,
+        //   0, 0, this.viewport.width, this.viewport.height,
+        //   gl.COLOR_BUFFER_BIT, gl.NEAREST
+        // );
+      // }
+
       if (pass.framebuffer) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       }
-
-      // if (pass.type === RENDER_PASS_LIGHTS) {
-      //   gl.bindFramebuffer(gl.READ_FRAMEBUFFER, pass.framebuffer);
-      //   gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
-      //   gl.blitFramebuffer(
-      //     0, 0, viewport.width, viewport.height,
-      //     0, 0, this.viewport.width, this.viewport.height,
-      //     gl.COLOR_BUFFER_BIT, gl.NEAREST
-      //   );
-      // }
     }
 
     frameIndex++;
