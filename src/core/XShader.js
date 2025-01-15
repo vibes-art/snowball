@@ -65,6 +65,7 @@ class XShader {
       uniform vec3 lightDirections[MAX_LIGHTS];
       uniform float lightInnerAngles[MAX_LIGHTS];
       uniform float lightOuterAngles[MAX_LIGHTS];
+      uniform float lightPowers[MAX_LIGHTS];
     `;
 
     for (var i = 0; i < MAX_LIGHTS; i++) {
@@ -80,9 +81,13 @@ class XShader {
       uniform vec3 pointLightPositions[MAX_POINT_LIGHTS];
       uniform vec3 pointLightColors[MAX_POINT_LIGHTS];
       uniform vec3 pointLightFixedAxes[MAX_POINT_LIGHTS];
+      uniform float pointLightPowers[MAX_POINT_LIGHTS];
 
       uniform vec3 fogColor;
       uniform float fogDensity;
+      uniform float attenConst;
+      uniform float attenLinear;
+      uniform float attenQuad;
 
       float fresnelSchlick(float cosTheta, float refIndex) {
         float r0 = (1.0 - refIndex) / (1.0 + refIndex);
@@ -143,6 +148,7 @@ class XShader {
           vec3 lightPos = lightPositions[i];
           vec3 lightDir = lightDirections[i]; // from light to lookAtPoint
           vec3 lightColor = lightColors[i];
+          float lightPower = lightPowers[i];
 
           vec3 toFrag = position.xyz - lightPos; // from light to frag
           float toFragDist = length(toFrag);
@@ -163,11 +169,8 @@ class XShader {
             }
           }
 
-          // float attenuation = 100000.0 / (toFragDist * toFragDist);
-          // float attenuation = 1.0;
-          float attenuation = 1.0 / (0.76 + 0.0001 * toFragDist + 0.00003 * toFragDist * toFragDist);
-
-
+          float attenDenom = attenConst + attenLinear * toFragDist + attenQuad * toFragDist * toFragDist;
+          float attenuation = lightPower / attenDenom;
 
           float diffuseFactor = max(dot(normalDir, -lightDir), 0.0);
           vec3 diffuse = color.rgb * lightColor * diffuseFactor;
@@ -177,13 +180,14 @@ class XShader {
           vec3 specular = specularStrength * spec * lightColor * fresnel;
 
           float shadowFactor = computeShadow(i, position);
-          finalColor += spotFactor * (1.0 - shadowFactor) * (diffuse + specular) * attenuation;
+          finalColor += spotFactor * attenuation * (1.0 - shadowFactor) * (diffuse + specular);
         }
 
         for (int i = 0; i < pointLightCount; ++i) {
           vec3 pointLightPos = pointLightPositions[i];
           vec3 pointLightColor = pointLightColors[i];
           vec3 pointLightFixedAxes = pointLightFixedAxes[i];
+          float pointLightPower = pointLightPowers[i];
 
           float toLightX = pointLightFixedAxes[0] != 0.0 ? pointLightFixedAxes[0] : pointLightPos.x - position.x;
           float toLightY = pointLightFixedAxes[1] != 0.0 ? pointLightFixedAxes[1] : pointLightPos.y - position.y;
@@ -194,7 +198,7 @@ class XShader {
           vec3 lightDir = normalize(toLight);
 
           float distance = length(toLight);
-          float attenuation = 1.0 / (distance * distance);
+          float attenuation = pointLightPower / (distance * distance);
 
           float diffuseFactor = max(dot(normalDir, lightDir), 0.0);
           vec3 diffuse = color.rgb * pointLightColor * diffuseFactor;
@@ -225,6 +229,7 @@ class XShader {
     this.locateGlobalUniforms(this.scene.matrices);
     this.locateGlobalUniforms(this.scene.lights);
     this.locateGlobalUniforms(this.scene.fog);
+    this.locateGlobalUniforms(this.scene.attenuation);
 
     this.setUniformLocation(this.scene.lightCount.key);
     this.setUniformLocation(this.scene.pointLightCount.key);

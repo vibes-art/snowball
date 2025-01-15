@@ -28,6 +28,7 @@ var QUILT_RECURSION_DECREMENT = 0.1;
 
 var ENABLE_LOGS = true;
 var DEBUG_LOGS = ENABLE_LOGS && false;
+var DEBUG_LIGHTS = false;
 var VERBOSE = false;
 var LIVE_RENDER = false;
 var SHOW_NORMAL_MAPS = false;
@@ -41,6 +42,9 @@ var AA_SUPERSAMPLE = 4;
 var MAX_LIGHTS = 9;
 var MAX_POINT_LIGHTS = 9;
 var SHADOW_MAP_SIZE = 4096;
+var ATTEN_CONST = 1.0;
+var ATTEN_LINEAR = 0.09;
+var ATTEN_QUAD = 0.032;
 
 var DIM_X = 0;
 var DIM_Z = 1;
@@ -79,6 +83,9 @@ var UNI_KEY_DIRECTIONAL_LIGHT_COUNT = 'lightCount';
 var UNI_KEY_POINT_LIGHT_COUNT = 'pointLightCount';
 var UNI_KEY_FOG_COLOR = 'fogColor';
 var UNI_KEY_FOG_DENSITY = 'fogDensity';
+var UNI_KEY_ATTEN_CONST = 'attenConst';
+var UNI_KEY_ATTEN_LINEAR = 'attenLinear';
+var UNI_KEY_ATTEN_QUAD = 'attenQuad';
 
 var NOISE_TYPE_HEIGHT = 'height';
 var NOISE_TYPE_COLOR_HEIGHT_OFFSET = 'colorHeightOffset';

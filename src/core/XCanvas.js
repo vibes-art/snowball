@@ -47,13 +47,13 @@ class XCanvas {
       hasWorkingGL = hasWorkingGL && this.checkGL();
     }
 
-    this.resizeCanvas();
-
     if (isWebGL) {
       hasWorkingGL && this.initScene();
     } else {
       this.prepareRenderLoop();
     }
+
+    this.resizeCanvas();
 
     this.isInitialized = true;
   }

@@ -1,6 +1,40 @@
 class XShadowShader extends XShader {
 
   setShaderSource (opts) {
+    var vertexVars = DEBUG_LIGHTS
+      ? `
+        in vec4 positions;
+        in vec3 normals;
+        in vec4 colors;
+        out vec4 position;
+        out vec3 normal;
+        out vec4 color;
+      `
+      : `
+        in vec4 positions;
+        out vec4 position;
+      `;
+
+    var vertexMain = DEBUG_LIGHTS
+      ? `
+        normal = normals;
+        color = colors;
+      `
+      : ``;
+
+    var fragMain = DEBUG_LIGHTS
+      ? `
+        in vec4 color;
+        layout(location = 0) out vec4 debugColor;
+
+        void main(void) {
+          debugColor = color;
+        }
+      `
+      : `
+        void main(void) {}
+      `;
+
     this.vertexShaderSource = `#version 300 es
       precision highp float;
 
@@ -8,17 +42,11 @@ class XShadowShader extends XShader {
       uniform int lightIndex;
       uniform mat4 lightViewProjMatrices[${MAX_LIGHTS}];
 
-      in vec4 positions;
-      in vec3 normals;
-      in vec4 colors;
-      out vec4 position;
-      out vec3 normal;
-      out vec4 color;
+      ${vertexVars}
 
       void main(void) {
         position = modelMatrix * positions;
-        // normal = normals;
-        // color = colors;
+        ${vertexMain}
 
         gl_Position = lightViewProjMatrices[lightIndex] * position;
       }
@@ -27,12 +55,7 @@ class XShadowShader extends XShader {
     this.fragmentShaderSource = `#version 300 es
       precision highp float;
 
-      // in vec4 color;
-      // layout(location = 0) out vec4 debugColor;
-
-      void main(void) {
-        // debugColor = color;
-      }
+      ${fragMain}
     `;
   }
 

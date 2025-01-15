@@ -78,8 +78,8 @@ class XUniform {
     this.isDirty = true;
   }
 
-  apply (gl, location, isNewShader) {
-    if (!isNewShader && !this.isDirty) {
+  apply (gl, location, force) {
+    if (!force && !this.isDirty) {
       VERBOSE && console.log(`uniform SKIPPED: ${this.key}, ${location}, ${this.data}`);
       return;
     }

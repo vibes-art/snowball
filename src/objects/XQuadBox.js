@@ -14,6 +14,7 @@ class XQuadBox {
     this.isInverted = opts.isInverted || false;
 
     this.faces = opts.faces || [];
+    this.skipFaces = opts.skipFaces || [];
     this.vertices = opts.vertices || [];
 
     this.quads = [];
@@ -31,6 +32,8 @@ class XQuadBox {
     var quadOpts = { ...opts };
 
     for (var f = 0; f < 6; f++) {
+      if (this.skipFaces.indexOf(f) !== -1) continue;
+
       var face = this.faces[f];
       var indices = vertexIndices[f];
       var vertices = [];
@@ -65,11 +68,11 @@ class XQuadBox {
   }
 
   updateVertices (vertices) {
-
+    // TODO
   }
 
   updateFace (index, vertices) {
-
+    // TODO
   }
 
 }
