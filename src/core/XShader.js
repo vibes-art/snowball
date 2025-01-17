@@ -23,25 +23,26 @@ class XShader {
     this.vertexShaderSource = `#version 300 es
       precision highp float;
 
-      uniform mat4 modelMatrix;
       uniform mat4 viewMatrix;
+      uniform mat4 modelMatrix;
+      uniform mat4 normalMatrix;
       uniform mat4 projectionMatrix;
 
       in vec4 positions;
       in vec3 normals;
       in vec4 colors;
-      out vec4 position;
-      out vec3 normal;
-      out vec4 color;
-      out vec3 viewPosition;
+      out vec3 vViewPos;
+      out vec4 vWorldPos;
+      out vec4 vNormal;
+      out vec4 vColor;
 
       void main(void) {
-        position = modelMatrix * positions;
-        normal = normals;
-        color = colors;
-        viewPosition = inverse(viewMatrix)[3].xyz;
+        vViewPos = inverse(viewMatrix)[3].xyz;
+        vWorldPos = modelMatrix * positions;
+        vNormal = normalMatrix * vec4(normals, 1.0);
+        vColor = colors;
 
-        gl_Position = projectionMatrix * (viewMatrix * position);
+        gl_Position = projectionMatrix * (viewMatrix * vWorldPos);
       }
     `;
 
@@ -49,13 +50,10 @@ class XShader {
       precision highp float;
       precision mediump sampler2DShadow;
 
-      uniform mat4 normalMatrix;
-      uniform vec3 ambientColor;
-
-      in vec4 position;
-      in vec3 normal;
-      in vec4 color;
-      in vec3 viewPosition;
+      in vec3 vViewPos;
+      in vec4 vWorldPos;
+      in vec4 vNormal;
+      in vec4 vColor;
       out vec4 fragColor;
 
       const int MAX_LIGHTS = ${MAX_LIGHTS};
@@ -83,6 +81,7 @@ class XShader {
       uniform vec3 pointLightFixedAxes[MAX_POINT_LIGHTS];
       uniform float pointLightPowers[MAX_POINT_LIGHTS];
 
+      uniform vec3 ambientColor;
       uniform vec3 fogColor;
       uniform float fogDensity;
       uniform float attenConst;
@@ -106,8 +105,8 @@ class XShader {
     this.fragmentShaderSource += `
       }
 
-      float computeShadow(int i, vec4 worldPos) {
-        vec4 lightPos = lightViewProjMatrices[i] * worldPos;
+      float computeShadow(int i, vec4 vWorldPos) {
+        vec4 lightPos = lightViewProjMatrices[i] * vWorldPos;
         vec3 ndc = lightPos.xyz / lightPos.w;
         vec3 shadowUVdepth = ndc * 0.5 + 0.5;
 
@@ -135,22 +134,21 @@ class XShader {
         float specularShininess = 128.0;
         float specularStrength = 0.5;
 
-        vec3 ambient = color.rgb * ambientColor;
-        vec4 transformedNormal = normalMatrix * vec4(normal, 1.0);
-        vec3 normalDir = normalize(transformedNormal.xyz);
-        vec3 viewDir = normalize(viewPosition - position.xyz); // frag to camera
+        vec3 ambient = vColor.rgb * ambientColor;
+        vec3 normalDir = normalize(vNormal.xyz);
+        vec3 viewDir = normalize(vViewPos - vWorldPos.xyz); // frag to camera
 
         float cosTheta = dot(viewDir, normalDir);
         float fresnel = fresnelSchlick(cosTheta, 0.05);
 
         vec3 finalColor = ambient;
-        for (int i = 0; i < lightCount; ++i) {
+        for (int i = 0; i < lightCount; i++) {
           vec3 lightPos = lightPositions[i];
           vec3 lightDir = lightDirections[i]; // from light to lookAtPoint
           vec3 lightColor = lightColors[i];
           float lightPower = lightPowers[i];
 
-          vec3 toFrag = position.xyz - lightPos; // from light to frag
+          vec3 toFrag = vWorldPos.xyz - lightPos; // from light to frag
           float toFragDist = length(toFrag);
           vec3 toFragDir = normalize(toFrag);
 
@@ -173,35 +171,35 @@ class XShader {
           float attenuation = lightPower / attenDenom;
 
           float diffuseFactor = max(dot(normalDir, -lightDir), 0.0);
-          vec3 diffuse = color.rgb * lightColor * diffuseFactor;
+          vec3 diffuse = vColor.rgb * lightColor * diffuseFactor;
 
           vec3 reflectDir = reflect(lightDir, normalDir);
           float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularShininess);
           vec3 specular = specularStrength * spec * lightColor * fresnel;
 
-          float shadowFactor = computeShadow(i, position);
+          float shadowFactor = computeShadow(i, vWorldPos);
           finalColor += spotFactor * attenuation * (1.0 - shadowFactor) * (diffuse + specular);
         }
 
-        for (int i = 0; i < pointLightCount; ++i) {
+        for (int i = 0; i < pointLightCount; i++) {
           vec3 pointLightPos = pointLightPositions[i];
           vec3 pointLightColor = pointLightColors[i];
           vec3 pointLightFixedAxes = pointLightFixedAxes[i];
           float pointLightPower = pointLightPowers[i];
 
-          float toLightX = pointLightFixedAxes[0] != 0.0 ? pointLightFixedAxes[0] : pointLightPos.x - position.x;
-          float toLightY = pointLightFixedAxes[1] != 0.0 ? pointLightFixedAxes[1] : pointLightPos.y - position.y;
-          float toLightZ = pointLightFixedAxes[2] != 0.0 ? pointLightFixedAxes[2] : pointLightPos.z - position.z;
+          float toLightX = pointLightFixedAxes[0] != 0.0 ? pointLightFixedAxes[0] : pointLightPos.x - vWorldPos.x;
+          float toLightY = pointLightFixedAxes[1] != 0.0 ? pointLightFixedAxes[1] : pointLightPos.y - vWorldPos.y;
+          float toLightZ = pointLightFixedAxes[2] != 0.0 ? pointLightFixedAxes[2] : pointLightPos.z - vWorldPos.z;
           vec3 toLight = vec3(toLightX, toLightY, toLightZ);
 
-          // vec3 toLight = pointLightPos - position.xyz;
+          // vec3 toLight = pointLightPos - vWorldPos.xyz;
           vec3 lightDir = normalize(toLight);
 
           float distance = length(toLight);
           float attenuation = pointLightPower / (distance * distance);
 
           float diffuseFactor = max(dot(normalDir, lightDir), 0.0);
-          vec3 diffuse = color.rgb * pointLightColor * diffuseFactor;
+          vec3 diffuse = vColor.rgb * pointLightColor * diffuseFactor;
 
           vec3 reflectDir = reflect(-lightDir, normalDir);
           float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularShininess);
@@ -211,10 +209,10 @@ class XShader {
           finalColor += pointLightContrib;
         }
 
-        float distFromView = length(position.xyz - viewPosition);
+        float distFromView = length(vWorldPos.xyz - vViewPos);
         float fogFactor = 1.0 - exp(-fogDensity * distFromView * distFromView);
         finalColor = mix(finalColor, fogColor, clamp(fogFactor, 0.0, 1.0));
-        fragColor = vec4(finalColor, color.a);
+        fragColor = vec4(finalColor, vColor.a);
       }
     `;
   }
@@ -251,6 +249,10 @@ class XShader {
   locateUniforms (obj) {
     for (var key in obj.uniforms) {
       this.setUniformLocation(key);
+    }
+
+    if (obj.material) {
+      this.locateUniforms(obj.material);
     }
   }
 

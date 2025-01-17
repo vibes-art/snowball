@@ -13,6 +13,7 @@ class XObject {
     this.useRandomColors = opts.useRandomColors || false;
     this.positionOffset = opts.positionOffset || [0, 0, 0];
     this.frontFace = opts.frontFace || opts.gl.CCW;
+    this.material = opts.material || null;
 
     this.attributes = {};
     this.uniforms = {};
@@ -175,6 +176,10 @@ class XObject {
     position[1] += offset[1];
     position[2] += offset[2];
     this.setAttribute(ATTR_KEY_POSITIONS, vertexIndex, position);
+  }
+
+  getUniforms () {
+    return this.uniforms;
   }
 
   remove () {

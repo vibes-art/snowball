@@ -39,6 +39,7 @@ var UP_VECTOR = [0, 1, 0];
 var USE_FLOATING_POINT_TEXTURES = false;
 var USE_MSAA = false;
 var AA_SUPERSAMPLE = 4;
+var AMBIENT_LIGHT = [0.8, 0.8, 0.8];
 var MAX_LIGHTS = 9;
 var MAX_POINT_LIGHTS = 9;
 var SHADOW_MAP_SIZE = 4096;
@@ -70,6 +71,7 @@ var UNI_TYPE_UINT = 2;
 var UNI_TYPE_MATRIX = 3;
 var UNI_TYPE_TEXTURE = 4;
 
+// XShader
 var UNI_KEY_PROJ_MATRIX = 'projectionMatrix';
 var UNI_KEY_MODEL_MATRIX = 'modelMatrix';
 var UNI_KEY_VIEW_MATRIX = 'viewMatrix';
@@ -86,6 +88,11 @@ var UNI_KEY_FOG_DENSITY = 'fogDensity';
 var UNI_KEY_ATTEN_CONST = 'attenConst';
 var UNI_KEY_ATTEN_LINEAR = 'attenLinear';
 var UNI_KEY_ATTEN_QUAD = 'attenQuad';
+
+// PBRShader
+var UNI_KEY_BASE_COLOR = 'baseColor';
+var UNI_KEY_METALLIC = 'metallic';
+var UNI_KEY_ROUGHNESS = 'roughness';
 
 var NOISE_TYPE_HEIGHT = 'height';
 var NOISE_TYPE_COLOR_HEIGHT_OFFSET = 'colorHeightOffset';

@@ -299,7 +299,8 @@ class XScene {
         this.applyUniform(this.resolution, shader, isNewShader);
         this.applyUniforms(this.fog, shader, isNewShader);
         this.applyUniforms(this.attenuation, shader, isNewShader);
-        this.applyUniforms(obj.uniforms, shader, isNewShader);
+        this.applyUniforms(obj, shader, true);
+        this.applyUniforms(obj.material, shader, true);
         // render pass uniforms applied last to override any defaults
         // pass true here to always apply render pass specific uniforms
         this.applyUniforms(pass.uniforms, shader, true);
@@ -370,6 +371,11 @@ class XScene {
   }
 
   applyUniforms (dictionary, shader, force) {
+    if (!dictionary) return;
+    if (dictionary.getUniforms) {
+      return this.applyUniforms(dictionary.getUniforms(), shader, force);
+    }
+
     for (var key in dictionary) {
       this.applyUniform(dictionary[key], shader, force);
     }
