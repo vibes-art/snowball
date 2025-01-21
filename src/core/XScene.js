@@ -4,22 +4,15 @@ class XScene {
 
   constructor (opts) {
     this.gl = opts.gl;
-
-    this.objects = [];
     this.shader = null;
     this.textureShader = null;
+
+    this.objects = [];
+    this.uniforms = {};
     this.lights = {};
     this.matrices = {};
-    this.uniforms = {
-      resolution: new XUniform({ key: UNI_KEY_RESOLUTION, components: 2 }),
-      hasAlbedoMap: new XUniform({ key: UNI_KEY_HAS_ALBEDO_MAP, components: 1, type: UNI_TYPE_INT }),
-      lightCount: new XUniform({ key: UNI_KEY_DIRECTIONAL_LIGHT_COUNT, components: 1, type: UNI_TYPE_INT }),
-      pointLightCount: new XUniform({ key: UNI_KEY_POINT_LIGHT_COUNT, components: 1, type: UNI_TYPE_INT })
-    };
-
     this.viewport = {};
     this.renderPasses = [];
-    this.addRenderPass(RENDER_PASS_MAIN);
 
     this.onDrawListeners = [];
     this.isDrawing = LIVE_RENDER;
@@ -30,9 +23,19 @@ class XScene {
     this.haveObjectsChanged = false;
     this.needsShaderConnect = false;
 
+    this.addRenderPass(RENDER_PASS_MAIN);
+    this.initUniforms(opts);
     this.initLights(opts);
     this.initMatrices(opts);
   };
+
+  initUniforms (opts) {
+    var u = this.uniforms;
+    u.resolution = new XUniform({ key: UNI_KEY_RESOLUTION, components: 2 });
+    u.lightCount = new XUniform({ key: UNI_KEY_DIRECTIONAL_LIGHT_COUNT, components: 1, type: UNI_TYPE_INT });
+    u.pointLightCount = new XUniform({ key: UNI_KEY_POINT_LIGHT_COUNT, components: 1, type: UNI_TYPE_INT });
+    MATERIAL_TEXTURE_BOOLS.forEach((key) => u[key] = new XUniform({ key, components: 1, type: UNI_TYPE_INT }));
+  }
 
   initLights (opts) {
     var ambientLightColor = (!SHOW_NORMAL_MAPS && opts.ambientLightColor) || AMBIENT_LIGHT;
@@ -330,7 +333,11 @@ class XScene {
         this.applyUniforms(obj, shader, true);
         if (obj.material) {
           this.applyUniforms(obj.material, shader, true);
-          this.uniforms.hasAlbedoMap.data = obj.material.albedoMap.texture ? 1 : 0;
+
+          MATERIAL_TEXTURE_BOOLS.forEach((key, idx) => {
+            var matKey = MATERIAL_TEXTURE_MAPS[idx];
+            this.uniforms[key].data = obj.material[matKey].texture ? 1 : 0;
+          });
         }
 
         // apply global scene uniforms

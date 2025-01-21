@@ -1,7 +1,45 @@
 class XPBRTexShader extends XShader {
 
   setShaderSource (opts) {
-    super.setShaderSource(opts);
+    this.vertexShaderSource = `#version 300 es
+      precision highp float;
+
+      uniform mat4 viewMatrix;
+      uniform mat4 modelMatrix;
+      uniform mat4 normalMatrix;
+      uniform mat4 projectionMatrix;
+
+      in vec4 positions;
+      in vec3 normals;
+      in vec4 colors;
+      in vec2 texCoords;
+      in vec3 tangents;
+
+      out vec3 vViewPos;
+      out vec4 vWorldPos;
+      out vec4 vNormal;
+      out vec4 vColor;
+      out vec2 vUV;
+      out mat3 vTBN;
+
+      void main(void) {
+        vViewPos = inverse(viewMatrix)[3].xyz;
+        vWorldPos = modelMatrix * positions;
+        vNormal = normalMatrix * vec4(normals, 1.0);
+        vColor = colors;
+        vUV = texCoords;
+
+        // TBN for tangent-space normal maps, assuming tangents, normals, are in model space
+        vec3 N = normalize((modelMatrix * vec4(normals, 0.0)).xyz);
+        vec3 T = normalize((modelMatrix * vec4(tangents, 0.0)).xyz);
+        // Re-orthonormalize T if needed
+        T = normalize(T - dot(T, N) * N);
+        vec3 B = cross(N, T);
+        vTBN = mat3(T, B, N);
+
+        gl_Position = projectionMatrix * (viewMatrix * vWorldPos);
+      }
+    `;
 
     this.fragmentShaderSource = `#version 300 es
       precision highp float;
@@ -12,6 +50,8 @@ class XPBRTexShader extends XShader {
       in vec4 vNormal;
       in vec4 vColor;
       in vec2 vUV;
+      in mat3 vTBN;
+
       out vec4 fragColor;
 
       const int MAX_LIGHTS = ${MAX_LIGHTS};
@@ -49,7 +89,11 @@ class XPBRTexShader extends XShader {
       uniform float metallic;
       uniform float roughness;
       uniform int hasAlbedoMap;
+      uniform int hasNormalMap;
+      uniform int hasRoughnessMap;
       uniform sampler2D albedoMap;
+      uniform sampler2D normalMap;
+      uniform sampler2D roughnessMap;
 
       float DistributionGGX(vec3 N, vec3 H, float roughness) {
         float a = roughness * roughness;
@@ -119,15 +163,35 @@ class XPBRTexShader extends XShader {
         vec3 viewDir = normalize(vViewPos - vWorldPos.xyz);
 
         vec4 texColor = baseColor;
+        float alpha = baseColor.a;
+
         if (hasAlbedoMap > 0) {
           texColor = texture(albedoMap, vUV);
+          alpha = texColor.a;
         }
 
         vec3 tintColor = texColor.rgb * vColor.rgb;
-        vec3 finalColor = tintColor;
-        float alpha = baseColor.a;
-        float roughnessClamped = clamp(roughness, 0.04, 1.0);
-        vec3 F0 = mix(vec3(0.04), tintColor, metallic);
+        // vec3 finalColor = tintColor;
+        vec3 finalColor = vec3(0.0);
+
+        vec3 N = normalize(vTBN[2]);
+        if (hasNormalMap > 0) {
+          vec3 normalSample = texture(normalMap, vUV).rgb;
+          normalSample = normalSample * 2.0 - 1.0;
+          N = normalize(vTBN * normalSample);
+          normalDir = N;
+        }
+
+        float roughVal = roughness;
+        float metalVal = metallic;
+        if (hasRoughnessMap > 0) {
+          vec3 rmSample = texture(roughnessMap, vUV).rgb;
+          roughVal = rmSample.g;
+          metalVal = rmSample.b;
+        }
+
+        float roughnessClamped = clamp(roughVal, 0.04, 1.0);
+        vec3 F0 = mix(vec3(0.04), tintColor, metalVal);
 
         for (int i = 0; i < lightCount; i++) {
           vec3 lightPos = lightPositions[i];
@@ -158,7 +222,7 @@ class XPBRTexShader extends XShader {
 
           vec3 kS = F;
           vec3 kD = vec3(1.0) - kS;
-          kD *= (1.0 - metallic);
+          kD *= (1.0 - metalVal);
 
           vec3 diffuse = kD * tintColor.rgb / 3.14159265359; 
 
@@ -207,7 +271,7 @@ class XPBRTexShader extends XShader {
 
           vec3 kS = F;
           vec3 kD = vec3(1.0) - kS;
-          kD *= (1.0 - metallic);
+          kD *= (1.0 - metalVal);
 
           vec3 diffuse = kD * tintColor.rgb / 3.14159265359; 
 

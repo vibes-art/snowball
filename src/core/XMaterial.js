@@ -7,23 +7,25 @@ class XMaterial {
     this.metallic = new XUniform({ key: UNI_KEY_METALLIC, components: 1, data: opts.metallic || 0 });
     this.roughness = new XUniform({ key: UNI_KEY_ROUGHNESS, components: 1, data: opts.roughness || 0 });
 
-    this.albedoMap = new XUniform({ key: UNI_KEY_ALBEDO_MAP, components: 1, type: UNI_TYPE_INT });
-
     this.uniforms = {
       baseColor: this.baseColor,
       metallic: this.metallic,
-      roughness: this.roughness,
-      albedoMap: this.albedoMap
+      roughness: this.roughness
     };
 
-    if (opts.albedoMap) {
-      this.setAlbedoMapTexture(opts.albedoMap);
-    }
+    MATERIAL_TEXTURE_MAPS.forEach((key) => {
+      this[key] = new XUniform({ key, components: 1, type: UNI_TYPE_INT });
+      this.uniforms[key] = this[key];
+      opts[key] && this.setMaterialTexture(key, opts[key]);
+    });
   }
 
-  setAlbedoMapTexture (texture) {
+  setMaterialTexture (key, texture) {
+    var uniform = this[key];
+    if (!uniform) return console.error(`Missing XMaterial texture for key: ${key}`);
+
     this.useTextures = true;
-    this.albedoMap.texture = texture;
+    uniform.texture = texture;
   }
 
   getUniforms () {
@@ -31,7 +33,7 @@ class XMaterial {
   }
 
   remove (gl) {
-    this.albedoMap.remove(gl);
+    MATERIAL_TEXTURE_MAPS.forEach((key) => this[key].remove(gl));
   }
 
 }

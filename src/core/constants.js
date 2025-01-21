@@ -67,6 +67,8 @@ var ATTR_KEY_POSITIONS = 'positions';
 var ATTR_KEY_NORMALS = 'normals';
 var ATTR_KEY_COLORS = 'colors';
 var ATTR_KEY_TEX_COORDS = 'texCoords';
+var ATTR_KEY_TANGENTS = 'tangents';
+var ATTR_KEY_BITANGENTS = 'bitangents';
 
 var UNI_TYPE_FLOAT = 0;
 var UNI_TYPE_INT = 1;
@@ -97,7 +99,15 @@ var UNI_KEY_BASE_COLOR = 'baseColor';
 var UNI_KEY_METALLIC = 'metallic';
 var UNI_KEY_ROUGHNESS = 'roughness';
 var UNI_KEY_ALBEDO_MAP = 'albedoMap';
+var UNI_KEY_NORMAL_MAP = 'normalMap';
+var UNI_KEY_ROUGHNESS_MAP = 'roughnessMap';
 var UNI_KEY_HAS_ALBEDO_MAP = 'hasAlbedoMap';
+var UNI_KEY_HAS_NORMAL_MAP = 'hasNormalMap';
+var UNI_KEY_HAS_ROUGHNESS_MAP = 'hasRoughnessMap';
+
+// PBRTexShader
+var MATERIAL_TEXTURE_BOOLS = [UNI_KEY_HAS_ALBEDO_MAP, UNI_KEY_HAS_NORMAL_MAP, UNI_KEY_HAS_ROUGHNESS_MAP];
+var MATERIAL_TEXTURE_MAPS = [UNI_KEY_ALBEDO_MAP, UNI_KEY_NORMAL_MAP, UNI_KEY_ROUGHNESS_MAP];
 
 var NOISE_TYPE_HEIGHT = 'height';
 var NOISE_TYPE_COLOR_HEIGHT_OFFSET = 'colorHeightOffset';
