@@ -36,7 +36,8 @@ var CAMERA_FOV = 45 * PI / 180;
 var CAMERA_Z_NEAR = 0.1;
 var CAMERA_Z_FAR = 100.0;
 var UP_VECTOR = [0, 1, 0];
-var USE_FLOATING_POINT_TEXTURES = false;
+var USE_FLOATING_POINT_TEXTURES = true;
+var USE_PBR = true;
 var USE_MSAA = false;
 var AA_SUPERSAMPLE = 4;
 var AMBIENT_LIGHT = [0.8, 0.8, 0.8];
@@ -46,6 +47,8 @@ var SHADOW_MAP_SIZE = 4096;
 var ATTEN_CONST = 1.0;
 var ATTEN_LINEAR = 0.09;
 var ATTEN_QUAD = 0.032;
+var SHARED_TEXTURE_UNIT = 0;
+var BASE_SCENE_TEXTURE_UNIT = 1;
 
 var DIM_X = 0;
 var DIM_Z = 1;
@@ -93,6 +96,8 @@ var UNI_KEY_ATTEN_QUAD = 'attenQuad';
 var UNI_KEY_BASE_COLOR = 'baseColor';
 var UNI_KEY_METALLIC = 'metallic';
 var UNI_KEY_ROUGHNESS = 'roughness';
+var UNI_KEY_ALBEDO_MAP = 'albedoMap';
+var UNI_KEY_HAS_ALBEDO_MAP = 'hasAlbedoMap';
 
 var NOISE_TYPE_HEIGHT = 'height';
 var NOISE_TYPE_COLOR_HEIGHT_OFFSET = 'colorHeightOffset';

@@ -24,6 +24,7 @@ class XQuad extends XObject {
 
     this.addAttribute(ATTR_KEY_NORMALS);
     this.addAttribute(ATTR_KEY_COLORS, { components: 4 });
+    this.addAttribute(ATTR_KEY_TEX_COORDS, { components: 2 });
   }
 
   generate (opts) {
@@ -47,9 +48,13 @@ class XQuad extends XObject {
       this.setAttribute(ATTR_KEY_NORMALS, i, this.calculateNormal(i));
     }
 
-    // set colors last
+    // set colors after normals
     for (var i = 0; i < vertices.length; i++) {
       this.setAttribute(ATTR_KEY_COLORS, i, this.calculateColor(i));
+    }
+
+    for (var i = 0; i < vertices.length; i++) {
+      this.setAttribute(ATTR_KEY_TEX_COORDS, i, this.calculateTextureCoord(i));
     }
   }
 
@@ -117,6 +122,15 @@ class XQuad extends XObject {
       color[2] || 0.5,
       color[3] !== undefined ? color[3] : 1.0
     ];
+  }
+
+  calculateTextureCoord (i) {
+    switch (i) {
+      case 0: return [1.0, 1.0];
+      case 1: return [1.0, 0.0];
+      case 2: return [0.0, 0.0];
+      case 3: return [0.0, 1.0];
+    }
   }
 
 }

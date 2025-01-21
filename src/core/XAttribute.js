@@ -8,17 +8,17 @@ class XAttribute {
     this.defaultValues = opts.defaultValues || [];
     this.bufferTarget = opts.bufferTarget || 0;
 
-    this.useTexture = opts.useTexture || false;
-    this.textureUnit = opts.textureUnit || 0;
+    this.useTexture = (opts.useTexture || !!opts.texture) || false;
+    this.texture = opts.texture || null;
     this.textureWidth = opts.textureWidth || 0;
     this.textureHeight = opts.textureHeight || 0;
+    this.uniform = opts.uniform || null;
 
     this.data = new Float32Array(this.components * this.count);
     this.bufferOffset = 0;
     this.bufferLength = 0;
     this.isDirty = true;
     this.buffer = null;
-    this.texture = null;
   }
 
   bindBuffer () {
@@ -49,6 +49,10 @@ class XAttribute {
 
     if (!this.texture) {
       this.texture = XGLUtils.createTexture(gl, data, width, height, components);
+
+      if (this.uniform) {
+        this.uniform.texture = this.texture;
+      }
     }
 
     var internalFormat, format;
@@ -63,13 +67,8 @@ class XAttribute {
       console.error("Data size does not match texture dimensions.");
     }
 
-    XGLUtils.bindTexture(gl, this.textureUnit, this.texture);
+    XGLUtils.bindTexture(gl, SHARED_TEXTURE_UNIT, this.texture);
     gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, gl.FLOAT, data, 0);
-  }
-
-  bindExternalTexture (texture) {
-    XGLUtils.bindTexture(this.gl, this.textureUnit, texture);
-    this.texture = texture;
   }
 
   getValue (vertexIndex, componentIndex) {

@@ -31,16 +31,19 @@ class XShader {
       in vec4 positions;
       in vec3 normals;
       in vec4 colors;
+      in vec2 texCoords;
       out vec3 vViewPos;
       out vec4 vWorldPos;
       out vec4 vNormal;
       out vec4 vColor;
+      out vec2 vUV;
 
       void main(void) {
         vViewPos = inverse(viewMatrix)[3].xyz;
         vWorldPos = modelMatrix * positions;
         vNormal = normalMatrix * vec4(normals, 1.0);
         vColor = colors;
+        vUV = texCoords;
 
         gl_Position = projectionMatrix * (viewMatrix * vWorldPos);
       }
@@ -226,11 +229,7 @@ class XShader {
   connect () {
     this.locateGlobalUniforms(this.scene.matrices);
     this.locateGlobalUniforms(this.scene.lights);
-    this.locateGlobalUniforms(this.scene.fog);
-    this.locateGlobalUniforms(this.scene.attenuation);
-
-    this.setUniformLocation(this.scene.lightCount.key);
-    this.setUniformLocation(this.scene.pointLightCount.key);
+    this.locateGlobalUniforms(this.scene.uniforms);
   }
 
   connectObject (obj) {

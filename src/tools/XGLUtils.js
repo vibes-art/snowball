@@ -77,7 +77,7 @@ XGLUtils.bindTexture = function (gl, textureUnit, texture) {
 
 XGLUtils.loadTexture = function (gl, url) {
   var texture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, texture);
+  XGLUtils.bindTexture(gl, SHARED_TEXTURE_UNIT, texture);
 
   // temp pixel while image loads
   var level = 0;
@@ -92,7 +92,7 @@ XGLUtils.loadTexture = function (gl, url) {
 
   var image = new Image();
   image.onload = function () {
-    gl.bindTexture(gl.TEXTURE_2D, texture);
+    XGLUtils.bindTexture(gl, SHARED_TEXTURE_UNIT, texture);
     gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, srcFormat, srcType, image);
 
     // WebGL1 has different requirements for power of 2 images
@@ -105,10 +105,14 @@ XGLUtils.loadTexture = function (gl, url) {
        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     }
+
+    gl.bindTexture(gl.TEXTURE_2D, null);
   };
 
   image.crossOrigin = 'anonymous';
   image.src = url;
+
+  gl.bindTexture(gl.TEXTURE_2D, null);
 
   return texture;
 };

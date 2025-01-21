@@ -4,12 +4,13 @@ class XUniform {
     this.key = opts.key;
     this.type = opts.type || UNI_TYPE_FLOAT;
     this.components = opts.components || 4;
+    this.texture = opts.texture || null;
+    this.isReservedTextureUnit = false;
 
     this.fvData = null;
     this.ivData = null;
     this.uivData = null;
     this.matrixData = null;
-    this.texture = null;
     this.isDirty = true;
 
     this.initializeData();
@@ -92,8 +93,7 @@ class XUniform {
     }
 
     if (this.texture) {
-      gl.activeTexture(gl.TEXTURE0 + this.data);
-      gl.bindTexture(gl.TEXTURE_2D, this.texture);
+      XGLUtils.bindTexture(gl, this.data, this.texture);
     }
 
     this.isDirty = false;
@@ -133,6 +133,13 @@ class XUniform {
       case 2: gl.uniformMatrix2fv(location, false, this.data); break;
       case 3: gl.uniformMatrix3fv(location, false, this.data); break;
       case 4: gl.uniformMatrix4fv(location, false, this.data); break;
+    }
+  }
+
+  remove (gl) {
+    if (this.texture) {
+      gl.deleteTexture(this.texture);
+      this.texture = null;
     }
   }
 

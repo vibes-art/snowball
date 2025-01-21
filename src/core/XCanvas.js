@@ -83,7 +83,17 @@ class XCanvas {
   }
 
   initShader (opts) {
-    this.shader = new XShader({ scene: this.scene });
+    if (!this.shader) {
+      if (USE_PBR) {
+        this.shader = new XPBRShader({ scene: this.scene });
+        this.textureShader = new XPBRTexShader({ scene: this.scene });
+      } else {
+        this.shader = new XShader({ scene: this.scene });
+        this.textureShader = null;
+      }
+    }
+
+    this.scene.setPrimaryShaders(this.shader, this.textureShader);
   }
 
   initCamera (opts) {
@@ -244,8 +254,7 @@ class XCanvas {
     if (this.scene) {
       this.scene.viewport.width = width;
       this.scene.viewport.height = height;
-      this.scene.resolution.data = [width, height];
-
+      this.scene.uniforms.resolution.data = [width, height];
       this.scene.matrices.projection.data = this.getProjectionMatrix();
 
       if (this.useSupersampleAA) {
@@ -273,15 +282,12 @@ class XCanvas {
   }
 
   onFullscreenQuadResize (width, height) {
-    this.fullscreenQuad.textureUnitIndex = 0;
     this.fullscreenQuad.attributes[ATTR_KEY_COLORS].remove();
     this.fullscreenQuad.addAttribute(ATTR_KEY_COLORS, {
-      useTexture: true,
+      texture: this.offscreenFBO.colorsTexture,
       textureWidth: width,
       textureHeight: height
     });
-
-    this.fullscreenQuad.attributes[ATTR_KEY_COLORS].bindExternalTexture(this.offscreenFBO.colorsTexture);
   }
 
   getProjectionMatrix () {

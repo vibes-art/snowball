@@ -13,12 +13,11 @@ class XObject {
     this.useRandomColors = opts.useRandomColors || false;
     this.positionOffset = opts.positionOffset || [0, 0, 0];
     this.frontFace = opts.frontFace || opts.gl.CCW;
-    this.material = opts.material || null;
 
+    this.material = null;
     this.attributes = {};
     this.uniforms = {};
     this.matrices = null;
-    this.textureUnitIndex = 0;
     this.isActive = false;
 
     this.indices = this.useIndices ? new Uint32Array(this.indexCount) : null;
@@ -34,6 +33,7 @@ class XObject {
     this.defineAttributes(opts);
     this.defineUniforms(opts);
     this.setShader(opts);
+    this.setMaterial(opts);
     this.generate(opts);
     this.bindBuffers();
     this.scene.addObject(this);
@@ -58,6 +58,12 @@ class XObject {
     this.shader.connectObject(this);
   }
 
+  setMaterial (opts) {
+    var material = opts.material || null;
+    this.material = material;
+    this.scene.updateObjectShader(this);
+  }
+
   generate (opts) { /* override */ }
 
   enableRenderPass (type, isEnabled) {
@@ -70,15 +76,13 @@ class XObject {
     opts.gl = this.gl;
     opts.count = this.vertexCount;
 
-    if (opts.useTexture) {
-      opts.textureUnit = this.scene.textureUnitIndex + this.textureUnitIndex++;
-
+    if (opts.useTexture || opts.texture) {
       var uniformKey = `${key}Texture`;
       var uniformOpts = {};
       uniformOpts.type = UNI_TYPE_INT;
       uniformOpts.components = 1;
-      uniformOpts.data = opts.textureUnit;
-      this.addUniform(uniformKey, uniformOpts);
+      uniformOpts.texture = opts.texture || null;
+      opts.uniform = this.addUniform(uniformKey, uniformOpts);
     }
 
     this.attributes[key] = new XAttribute(opts);
@@ -88,7 +92,7 @@ class XObject {
     opts = opts || {};
     opts.key = key;
 
-    this.uniforms[key] = new XUniform(opts);
+    return this.uniforms[key] = new XUniform(opts);
   }
 
   setMatrices (modelMatrix) {

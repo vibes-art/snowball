@@ -1,4 +1,4 @@
-class XPBRShader extends XShader {
+class XPBRTexShader extends XShader {
 
   setShaderSource (opts) {
     super.setShaderSource(opts);
@@ -11,6 +11,7 @@ class XPBRShader extends XShader {
       in vec4 vWorldPos;
       in vec4 vNormal;
       in vec4 vColor;
+      in vec2 vUV;
       out vec4 fragColor;
 
       const int MAX_LIGHTS = ${MAX_LIGHTS};
@@ -47,6 +48,8 @@ class XPBRShader extends XShader {
       uniform vec4 baseColor;
       uniform float metallic;
       uniform float roughness;
+      uniform int hasAlbedoMap;
+      uniform sampler2D albedoMap;
 
       float DistributionGGX(vec3 N, vec3 H, float roughness) {
         float a = roughness * roughness;
@@ -115,7 +118,12 @@ class XPBRShader extends XShader {
         vec3 normalDir = normalize(vNormal.xyz);
         vec3 viewDir = normalize(vViewPos - vWorldPos.xyz);
 
-        vec3 tintColor = baseColor.rgb * vColor.rgb;
+        vec4 texColor = baseColor;
+        if (hasAlbedoMap > 0) {
+          texColor = texture(albedoMap, vUV);
+        }
+
+        vec3 tintColor = texColor.rgb * vColor.rgb;
         vec3 finalColor = tintColor;
         float alpha = baseColor.a;
         float roughnessClamped = clamp(roughness, 0.04, 1.0);

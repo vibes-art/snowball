@@ -71,6 +71,7 @@ class XLight {
   addShadowMapTexture (depthTexture, textureUnit) {
     this.shadowMap.data = textureUnit;
     this.shadowMap.texture = depthTexture;
+    this.shadowMap.isReservedTextureUnit = true;
     this.calculateViewMatrix();
   }
 
