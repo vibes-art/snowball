@@ -14,10 +14,10 @@ class XObject {
     this.positionOffset = opts.positionOffset || [0, 0, 0];
     this.frontFace = opts.frontFace || opts.gl.CCW;
 
-    this.material = null;
     this.attributes = {};
     this.uniforms = {};
     this.matrices = null;
+    this.material = null;
     this.isActive = false;
 
     this.indices = this.useIndices ? new Uint32Array(this.indexCount) : null;
@@ -85,7 +85,7 @@ class XObject {
       opts.uniform = this.addUniform(uniformKey, uniformOpts);
     }
 
-    this.attributes[key] = new XAttribute(opts);
+    return this.attributes[key] = new XAttribute(opts);
   }
 
   addUniform (key, opts) {
@@ -118,7 +118,6 @@ class XObject {
         isDirty: this.indicesDirty,
         target: this.gl.ELEMENT_ARRAY_BUFFER
       });
-      this.indicesDirty = false;
     }
   }
 
@@ -201,12 +200,43 @@ class XObject {
     return this.uniforms;
   }
 
+  onDrawFinish () {
+    this.indicesDirty = false;
+
+    for (var key in this.attributes) {
+      this.attributes[key].isDirty = false;
+    }
+
+    for (var key in this.uniforms) {
+      this.uniforms[key].isDirty = false;
+    }
+
+    if (this.matrices) {
+      for (var key in this.matrices) {
+        this.matrices[key].isDirty = false;
+      }
+    }
+
+    if (this.material) {
+      var uniforms = this.material.getUniforms();
+      for (var key in uniforms) {
+        uniforms[key].isDirty = false;
+      }
+    }
+  }
+
   remove () {
     this.scene.removeObject(this);
 
     for (var key in this.attributes) {
       this.attributes[key].remove();
     }
+
+    for (var key in this.uniforms) {
+      this.uniforms[key].remove();
+    }
+
+    // we don't remove XMaterials here bc they are shared
   }
 
 }

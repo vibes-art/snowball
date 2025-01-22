@@ -33,7 +33,6 @@ class XAttribute {
       });
     }
 
-    this.isDirty = false;
     this.bufferOffset = 0;
     this.bufferLength = 0;
   }

@@ -20,6 +20,7 @@ class XScene {
     this.drawingTextureUnitIndex = this.reservedTextureUnitIndex;
     this.lastAttribs = [];
     this.lastShader = null;
+    this.lastFrontFace = this.gl.CCW;
     this.haveObjectsChanged = false;
     this.needsShaderConnect = false;
 
@@ -301,15 +302,20 @@ class XScene {
         }
       }
 
+      var isNewPass = true;
+
       for (var i = 0; i < objects.length; i++) {
         // reset with each object
         this.drawingTextureUnitIndex = this.reservedTextureUnitIndex;
 
         var obj = objects[i];
         var shader = pass.shader || obj.shader;
-        var isNewShader = this.lastShader !== shader;
+        var isNewShader = isNewPass || this.lastShader !== shader;
 
-        gl.frontFace(obj.frontFace);
+        if (obj.frontFace !== this.lastFrontFace) {
+          gl.frontFace(obj.frontFace);
+          this.lastFrontFace = obj.frontFace;
+        }
 
         if ((this.needsShaderConnect || this.haveObjectsChanged) && isNewShader) {
           shader.connect();
@@ -325,30 +331,27 @@ class XScene {
 
         // apply object matrices, with fallback to scene matrices
         this.applyMatrixUniforms(obj, shader, isNewShader);
-
         // apply all the scene's light uniforms
         this.applyLightUniforms(shader, isNewShader);
-
         // apply object and material uniforms
-        this.applyUniforms(obj, shader, true);
+        this.applyUniforms(obj, shader, isNewShader);
         if (obj.material) {
-          this.applyUniforms(obj.material, shader, true);
-
+          this.applyUniforms(obj.material, shader, isNewShader);
           MATERIAL_TEXTURE_BOOLS.forEach((key, idx) => {
             var matKey = MATERIAL_TEXTURE_MAPS[idx];
             this.uniforms[key].data = obj.material[matKey].texture ? 1 : 0;
           });
         }
-
         // apply global scene uniforms
         this.applyUniforms(this.uniforms, shader, isNewShader);
         // render pass uniforms applied last to override any defaults
-        // pass true here to always apply render pass specific uniforms
-        this.applyUniforms(pass.uniforms, shader, true);
+        this.applyUniforms(pass.uniforms, shader, isNewShader);
 
         this.bindBuffers(obj, shader);
 
         obj.draw();
+
+        isNewPass = false;
       }
 
       if (DEBUG_LIGHTS) {
@@ -366,21 +369,46 @@ class XScene {
       }
     }
 
-    frameIndex++;
     // debugger;
 
     this.onDrawFinish();
   }
 
   onDrawFinish () {
+    frameIndex++;
+
     this.needsShaderConnect = false;
     this.haveObjectsChanged = false;
 
-    var objects = this.objects;
-    var objectCount = objects.length;
+    var objectCount = this.objects.length;
     for (var i = objectCount - 1; i >= 0; i--) {
-      var obj = objects[i];
-      obj.onDrawFinish && obj.onDrawFinish();
+      this.objects[i].onDrawFinish();
+    }
+
+    for (var key in this.uniforms) {
+      this.uniforms[key].isDirty = false;
+    }
+
+    for (var key in this.matrices) {
+      this.matrices[key].isDirty = false;
+    }
+
+    for (var key in this.lights) {
+      var lightType = this.lights[key];
+      if (lightType.length !== undefined) {
+        for (var i = 0; i < lightType.length; i++) {
+          lightType[i].getUniforms().forEach(uniform => uniform.isDirty = false);
+        }
+      } else {
+        lightType.color.isDirty = false;
+      }
+    }
+
+    for (var i = 0; i < this.renderPasses.length; i++) {
+      var uniforms = this.renderPasses[i].uniforms;
+      for (var key in uniforms) {
+        uniforms[key].isDirty = false;
+      }
     }
   }
 
@@ -388,8 +416,7 @@ class XScene {
     for (var key in this.matrices) {
       var objMatrix = obj.matrices && obj.matrices[key];
       var srcMatrix = objMatrix || this.matrices[key];
-      // TODO: refactor unnecessary force by reseting all isDirty flags after all passes
-      this.applyUniform(srcMatrix, shader, true);
+      this.applyUniform(srcMatrix, shader, force);
     }
   }
 
