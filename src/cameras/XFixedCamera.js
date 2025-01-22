@@ -3,8 +3,9 @@ class XFixedCamera extends XCamera {
   constructor (opts) {
     super(opts);
 
-    this.modelOffset = { x: 0, y: 0, z: 0 };
-    this.totalRotation = { x: 0, y: 0, z: 0 };
+    this.modelOffset = [0, 0, 0];
+    this.modelRotation = [0, 0, 0];
+    this.totalRotation = [0, 0, 0];
     this.isModelRotated = false;
     this.mouseScrollUp = null;
     this.mouseScrollDown = null;
@@ -20,42 +21,42 @@ class XFixedCamera extends XCamera {
 
   onMouseMove (evt, dx, dy) {
     var rotBounds = PI / 2;
-    var lastRotationX = this.totalRotation.x;
-    var lastRotationY = this.totalRotation.y;
-    var lastRotationZ = this.totalRotation.z;
+    var lastRotationX = this.totalRotation[0];
+    var lastRotationY = this.totalRotation[1];
+    var lastRotationZ = this.totalRotation[2];
     var horizontalInfluence = cos(lastRotationY);
     var verticalInfluence = cos(lastRotationX);
     var rotationInfluenceX = dx * this.sensitivity * horizontalInfluence;
     var rotationInfluenceY = dy * this.sensitivity * verticalInfluence;
     var rotationInfluenceZ = dx * this.sensitivity * (1 - horizontalInfluence);
 
-    var mox = this.modelOffset.x + rotationInfluenceX + lastRotationX;
+    var mox = this.modelOffset[0] + rotationInfluenceX + lastRotationX;
     if (mox >= -rotBounds && mox <= rotBounds) {
-      this.modelOffset.x += rotationInfluenceX;
+      this.modelOffset[0] += rotationInfluenceX;
     }
 
-    var moy = this.modelOffset.y + rotationInfluenceY + lastRotationY;
+    var moy = this.modelOffset[1] + rotationInfluenceY + lastRotationY;
     if (moy >= -rotBounds && moy <= rotBounds) {
-      this.modelOffset.y += rotationInfluenceY;
+      this.modelOffset[1] += rotationInfluenceY;
     }
 
-    var moz = this.modelOffset.z + rotationInfluenceZ + lastRotationZ;
+    var moz = this.modelOffset[2] + rotationInfluenceZ + lastRotationZ;
     if (moz >= -rotBounds && moz <= rotBounds) {
-      this.modelOffset.z += rotationInfluenceZ;
+      this.modelOffset[2] += rotationInfluenceZ;
     }
 
-    var finalRotationX = max(-rotBounds, min(rotBounds, this.modelOffset.x + lastRotationX));
-    var finalRotationY = max(-rotBounds, min(rotBounds, this.modelOffset.y + lastRotationY));
-    var finalRotationZ = max(-rotBounds, min(rotBounds, this.modelOffset.z + lastRotationZ));
+    var finalRotationX = max(-rotBounds, min(rotBounds, this.modelOffset[0] + lastRotationX));
+    var finalRotationY = max(-rotBounds, min(rotBounds, this.modelOffset[1] + lastRotationY));
+    var finalRotationZ = max(-rotBounds, min(rotBounds, this.modelOffset[2] + lastRotationZ));
     this.modelRotation = [finalRotationX, finalRotationY, finalRotationZ];
     this.isModelRotated = true;
   }
 
   onMouseUp (evt) {
-    this.totalRotation.x += this.modelOffset.x;
-    this.totalRotation.y += this.modelOffset.y;
-    this.totalRotation.z += this.modelOffset.z;
-    this.modelOffset = { x: 0, y: 0, z: 0 };
+    this.totalRotation[0] += this.modelOffset[0];
+    this.totalRotation[1] += this.modelOffset[1];
+    this.totalRotation[2] += this.modelOffset[2];
+    this.modelOffset = [0, 0, 0];
   }
 
   onMouseWheel (evt) {
@@ -107,8 +108,9 @@ class XFixedCamera extends XCamera {
   reset () {
     super.reset();
 
-    this.modelOffset = { x: 0, y: 0, z: 0 };
-    this.totalRotation = { x: 0, y: 0, z: 0 };
+    this.modelOffset = [0, 0, 0];
+    this.totalRotation = [0, 0, 0];
+    this.modelRotation = [0, 0, 0];
     this.isModelRotated = false;
   }
 
