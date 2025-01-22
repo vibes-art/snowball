@@ -363,9 +363,41 @@ class XCanvas {
   }
 
   onMouseWheel (evt) { this.camera && this.camera.onMouseWheel(evt); }
-  onTouchStart (evt) { this.camera && this.camera.onTouchStart(evt); }
-  onTouchMove (evt) { this.camera && this.camera.onTouchMove(evt); }
-  onTouchEnd (evt) { this.camera && this.camera.onTouchEnd(evt); }
+
+  // by default, touch events mimic mouse events
+  onTouchStart (touchEvt) {
+    touchEvt.preventDefault();
+
+    var touch = touchEvt.touches[0];
+    if (touch) {
+      this.onMouseDown({
+        x: touch.clientX,
+        y: touch.clientY
+      });
+    }
+  }
+
+  onTouchMove (touchEvt) {
+    touchEvt.preventDefault();
+
+    var touch = touchEvt.touches[0];
+    if (touch) {
+      this.onMouseMove({
+        x: touch.clientX,
+        y: touch.clientY
+      });
+    }
+  }
+
+  onTouchEnd (touchEvt) {
+    var touch = touchEvt.changedTouches[0];
+    if (touch) {
+      this.onMouseUp({
+        x: touch.clientX,
+        y: touch.clientY
+      });
+    }
+  }
 
   saveOutput (opts) {
     opts = opts || {};
