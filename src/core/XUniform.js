@@ -96,6 +96,7 @@ class XUniform {
       XGLUtils.bindTexture(gl, this.data, this.texture);
     }
 
+    // TODO: refactor isDirty after all passes have gone
     this.isDirty = false;
 
     VERBOSE && console.log(`uniform: ${this.key}, ${location}, ${this.data}`);

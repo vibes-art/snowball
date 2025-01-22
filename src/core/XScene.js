@@ -388,7 +388,8 @@ class XScene {
     for (var key in this.matrices) {
       var objMatrix = obj.matrices && obj.matrices[key];
       var srcMatrix = objMatrix || this.matrices[key];
-      this.applyUniform(srcMatrix, shader, force);
+      // TODO: refactor unnecessary force by reseting all isDirty flags after all passes
+      this.applyUniform(srcMatrix, shader, true);
     }
   }
 

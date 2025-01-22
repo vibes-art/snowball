@@ -99,9 +99,8 @@ class XObject {
     if (!modelMatrix) return;
 
     this.matrices = {};
-
-    this.matrices.model = new XUniform({ key: 'modelMatrix', type: UNI_TYPE_MATRIX });
-    this.matrices.normal = new XUniform({ key: 'normalMatrix', type: UNI_TYPE_MATRIX });
+    this.matrices.model = new XUniform({ key: UNI_KEY_MODEL_MATRIX, type: UNI_TYPE_MATRIX });
+    this.matrices.normal = new XUniform({ key: UNI_KEY_NORMAL_MATRIX, type: UNI_TYPE_MATRIX });
 
     this.matrices.model.data = modelMatrix;
     this.matrices.model.data = XMatrix4.scale(this.matrices.model.data, -1, 1, 1);
@@ -139,9 +138,25 @@ class XObject {
 
   get isDirty () {
     var isDirty = this.indicesDirty;
+    if (isDirty) return isDirty;
+
     for (var key in this.attributes) {
       isDirty = isDirty || this.attributes[key].isDirty;
+      if (isDirty) return isDirty;
     }
+
+    for (var key in this.uniforms) {
+      isDirty = isDirty || this.uniforms[key].isDirty;
+      if (isDirty) return isDirty;
+    }
+
+    if (this.matrices) {
+      for (var key in this.matrices) {
+        isDirty = isDirty || this.matrices[key].isDirty;
+        if (isDirty) return isDirty;
+      }
+    }
+
     return isDirty;
   }
 
