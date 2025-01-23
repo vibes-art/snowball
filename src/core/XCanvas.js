@@ -148,6 +148,8 @@ class XCanvas {
     XClock.reset();
     XTimeline.reset();
     this.onTickListener = null;
+    this.shader = null;
+    this.textureShader = null;
 
     setTimeout(() => this.init(), 0);
   }

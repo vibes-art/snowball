@@ -233,7 +233,7 @@ class XObject {
     }
 
     for (var key in this.uniforms) {
-      this.uniforms[key].remove();
+      this.uniforms[key].remove(this.gl);
     }
 
     // we don't remove XMaterials here bc they are shared
