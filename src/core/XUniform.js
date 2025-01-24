@@ -136,7 +136,7 @@ class XUniform {
 
   remove (gl) {
     if (this.texture) {
-      gl.deleteTexture(this.texture);
+      XGLUtils.unloadTexture(gl, this.texture);
       this.texture = null;
     }
   }

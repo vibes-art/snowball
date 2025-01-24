@@ -271,7 +271,7 @@ class XCanvas {
       this.scene.removeRenderPass(RENDER_PASS_ANTIALIAS, null);
 
       this.gl.deleteFramebuffer(this.offscreenFBO.framebuffer);
-      this.gl.deleteTexture(this.offscreenFBO.colorsTexture);
+      XGLUtils.unloadTexture(this.gl, this.offscreenFBO.colorsTexture);
       this.gl.deleteRenderbuffer(this.offscreenFBO.depthBuffer);
     } else {
       this.scene.removeRenderPass(RENDER_PASS_MAIN, null);

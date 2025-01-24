@@ -1,5 +1,13 @@
 var XGLUtils = {};
 
+// global texture cache
+XGLUtils.textureCache = {};
+XGLUtils.currentTextureMemory = 0;
+XGLUtils.maxTextureMemory = min(
+  (navigator.deviceMemory || 4) * 0.33 * 1024 * 1024 * 1024, // 33% device memory
+  1024 * 1024 * 1024 // capped at 1 GB
+);
+
 XGLUtils.setBuffer = function (gl, buffer, srcData, opts) {
   var target = opts.target !== undefined ? opts.target : gl.ARRAY_BUFFER;
   var isDirty = opts.isDirty;
@@ -71,12 +79,36 @@ XGLUtils.createTexture = function (gl, data, width, height, components) {
 };
 
 XGLUtils.bindTexture = function (gl, textureUnit, texture) {
+  var url = texture.url;
+  var cacheEntry = XGLUtils.textureCache[url];
+  if (cacheEntry) {
+    cacheEntry.lastUsedTime = performance.now();
+  }
+
   gl.activeTexture(gl.TEXTURE0 + textureUnit);
   gl.bindTexture(gl.TEXTURE_2D, texture);
 };
 
 XGLUtils.loadTexture = function (gl, url) {
+  var time = performance.now();
+  var cacheEntry = XGLUtils.textureCache[url];
+
+  if (cacheEntry) {
+    cacheEntry.lastUsedTime = time;
+    return cacheEntry.texture;
+  }
+
   var texture = gl.createTexture();
+  texture.url = url;
+  cacheEntry = XGLUtils.textureCache[url] = {
+    texture,
+    isLoaded: false,
+    width: 1,
+    height: 1,
+    sizeInBytes: 4,
+    lastUsedTime: time
+  };
+
   XGLUtils.bindTexture(gl, SHARED_TEXTURE_UNIT, texture);
 
   // temp pixel while image loads
@@ -91,22 +123,30 @@ XGLUtils.loadTexture = function (gl, url) {
   gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, width, height, border, srcFormat, srcType, pixel);
 
   var image = new Image();
-  image.onload = function () {
+  image.onload = function() {
     XGLUtils.bindTexture(gl, SHARED_TEXTURE_UNIT, texture);
     gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, srcFormat, srcType, image);
 
-    // WebGL1 has different requirements for power of 2 images
-    // vs non power of 2 images so check if the image is a
-    // power of 2 in both dimensions.
-    if (XUtils.isPowerOf2(image.width) && XUtils.isPowerOf2(image.height)) {
-       gl.generateMipmap(gl.TEXTURE_2D);
+    var isPowerOf2 = XUtils.isPowerOf2(image.width) && XUtils.isPowerOf2(image.height);
+    if (isPowerOf2) {
+      gl.generateMipmap(gl.TEXTURE_2D);
     } else {
-       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     }
 
     gl.bindTexture(gl.TEXTURE_2D, null);
+
+    cacheEntry.isLoaded = true;
+    cacheEntry.width = image.width;
+    cacheEntry.height = image.height;
+
+    // estimate GPU memory usage, width * height * 4 (RGBA)
+    var sizeInBytes = ceil((isPowerOf2 ? 1.33 : 1) * image.width * image.height * 4);
+    XGLUtils.currentTextureMemory += sizeInBytes;
+    cacheEntry.sizeInBytes = sizeInBytes;
+    XGLUtils.maybeUnloadTextures(gl);
   };
 
   image.crossOrigin = 'anonymous';
@@ -115,6 +155,30 @@ XGLUtils.loadTexture = function (gl, url) {
   gl.bindTexture(gl.TEXTURE_2D, null);
 
   return texture;
+};
+
+XGLUtils.maybeUnloadTextures = function (gl) {
+  if (XGLUtils.currentTextureMemory <= XGLUtils.maxTextureMemory) return;
+
+  var entries = Object.values(XGLUtils.textureCache);
+  entries.sort((a, b) => a.lastUsedTime - b.lastUsedTime);
+
+  var i = 0;
+  while (XGLUtils.currentTextureMemory > XGLUtils.maxTextureMemory && i < entries.length) {
+    XGLUtils.unloadTexture(gl, entries[i++].texture);
+  }
+};
+
+XGLUtils.unloadTexture = function (gl, texture) {
+  var url = texture.url;
+  var cacheEntry = XGLUtils.textureCache[url];
+  if (cacheEntry) {
+    XGLUtils.currentTextureMemory -= cacheEntry.sizeInBytes;
+    XGLUtils.currentTextureMemory = max(0, XGLUtils.currentTextureMemory);
+    delete XGLUtils.textureCache[url];
+  }
+
+  gl.deleteTexture(texture);
 };
 
 XGLUtils.initShaderProgram = function (gl, vertexShaderSource, fragmentShaderSource) {

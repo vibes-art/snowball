@@ -125,7 +125,7 @@ class XAttribute {
     }
 
     if (this.texture) {
-      this.gl.deleteTexture(this.texture);
+      XGLUtils.unloadTexture(this.gl, this.texture);
       this.texture = null;
     }
   }
