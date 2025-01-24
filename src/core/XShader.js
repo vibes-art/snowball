@@ -130,7 +130,7 @@ class XShader {
         }
 
         float avgShadow = shadowSum / float(samples);
-        return 1.0 - avgShadow;
+        return avgShadow;
       }
 
       void main(void) {
@@ -180,8 +180,12 @@ class XShader {
           float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularShininess);
           vec3 specular = specularStrength * spec * lightColor * fresnel;
 
-          float shadowFactor = computeShadow(i, vWorldPos);
-          finalColor += spotFactor * attenuation * (1.0 - shadowFactor) * (diffuse + specular);
+          float shadowFactor = 1.0;
+          if (${ENABLE_SHADOWS}) {
+            shadowFactor = computeShadow(i, vWorldPos);
+          }
+
+          finalColor += spotFactor * attenuation * shadowFactor * (diffuse + specular);
         }
 
         for (int i = 0; i < pointLightCount; i++) {

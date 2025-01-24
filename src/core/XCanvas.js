@@ -11,10 +11,12 @@ class XCanvas {
       alpha: false
     };
 
-    this.useSupersampleAA = this.type === CANVAS_WEBGL && !this.canvasOpts.antialias;
+    this.useSupersampleAA = this.type === CANVAS_WEBGL
+      && !this.canvasOpts.antialias
+      && AA_SUPERSAMPLE > 1;
     this.scaleAA = this.useSupersampleAA ? AA_SUPERSAMPLE : 1;
-    this.width = this.scaleAA * (opts.width || 0);
-    this.height = this.scaleAA * (opts.height || 0);
+    this.width = ceil(this.scaleAA * (opts.width || 0));
+    this.height = ceil(this.scaleAA * (opts.height || 0));
     this.isWindowFit = this.width === 0;
 
     this.canvas = null;
@@ -173,8 +175,8 @@ class XCanvas {
   setDimensions () {
     this.windowWidth = window.innerWidth;
     this.windowHeight = window.innerHeight;
-    this.width = this.isWindowFit ? this.scaleAA * this.windowWidth : this.width;
-    this.height = this.isWindowFit ? this.scaleAA * this.windowHeight : this.height;
+    this.width = this.isWindowFit ? ceil(this.scaleAA * this.windowWidth) : this.width;
+    this.height = this.isWindowFit ? ceil(this.scaleAA * this.windowHeight) : this.height;
     this.dragSensitivity = PI / this.windowWidth;
   }
 
@@ -235,8 +237,8 @@ class XCanvas {
     }
 
     if (canvas === this.canvas) {
-      var scaledWidth = width / this.scaleAA;
-      var scaledHeight = height / this.scaleAA;
+      var scaledWidth = ceil(width / this.scaleAA);
+      var scaledHeight = ceil(height / this.scaleAA);
       var x = (this.windowWidth - scaledWidth) / 2;
       var y = (this.windowHeight - scaledHeight) / 2;
       canvas.style.left = x + 'px';

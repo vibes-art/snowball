@@ -108,7 +108,7 @@ class XPBRShader extends XShader {
         }
 
         float avgShadow = shadowSum / float(samples);
-        return 1.0 - avgShadow;
+        return avgShadow;
       }
 
       void main(void) {
@@ -168,8 +168,12 @@ class XPBRShader extends XShader {
             }
           }
 
-          float shadowFactor = computeShadow(i, vWorldPos);
-          finalColor += spotFactor * radiance * (1.0 - shadowFactor) * (diffuse + specular) * NdotL;
+          float shadowFactor = 1.0;
+          if (${ENABLE_SHADOWS}) {
+            shadowFactor = computeShadow(i, vWorldPos);
+          }
+
+          finalColor += spotFactor * radiance * shadowFactor * (diffuse + specular) * NdotL;
         }
 
         for (int i = 0; i < pointLightCount; i++) {

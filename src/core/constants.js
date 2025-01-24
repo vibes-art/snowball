@@ -23,22 +23,45 @@ var PI = Math.PI;
 var TAU = 2 * PI;
 var GLD = (1 + sqrt(5)) / 2;
 var GLD_RECT = 1 / GLD;
-var QUILT_RECURSION_CHANCE = 0.8;
-var QUILT_RECURSION_DECREMENT = 0.1;
+
+var IS_MOBILE = false;
+
+function detectDevicePerformance () {
+  var isMobile = false;
+  var deviceMemory = navigator.deviceMemory || 4;
+  var isLowMemory = deviceMemory < 2;
+
+  if (navigator.userAgentData) {
+    isMobile = navigator.userAgentData.mobile;
+  } else {
+    if (navigator.maxTouchPoints > 1) {
+      isMobile = true;
+    } else {
+      isMobile = /Mobi|Android/i.test(navigator.userAgent);
+    }
+  }
+
+  IS_MOBILE = isMobile || isLowMemory;
+  console.log(`IS_MOBILE: ${IS_MOBILE}, Mobile detection: ${isMobile}, Memory (GB): ${deviceMemory}`);
+};
+
+detectDevicePerformance();
 
 var ENABLE_LOGS = true;
 var DEBUG_LOGS = ENABLE_LOGS && false;
 var DEBUG_LIGHTS = false;
 var VERBOSE = false;
-var LIVE_RENDER = false;
 var SHOW_NORMAL_MAPS = false;
+var USE_FLOATING_POINT_TEXTURES = true;
+var USE_PBR = true;
+var USE_MSAA = false;
+var ENABLE_SHADOWS = true;
+var LIVE_RENDER = false;
+
 var CAMERA_FOV = 45 * PI / 180;
 var CAMERA_Z_NEAR = 0.1;
 var CAMERA_Z_FAR = 100.0;
 var UP_VECTOR = [0, 1, 0];
-var USE_FLOATING_POINT_TEXTURES = true;
-var USE_PBR = true;
-var USE_MSAA = false;
 var AA_SUPERSAMPLE = 4;
 var AMBIENT_LIGHT = [0.8, 0.8, 0.8];
 var MAX_LIGHTS = 9;
@@ -49,11 +72,12 @@ var ATTEN_LINEAR = 0.09;
 var ATTEN_QUAD = 0.032;
 var SHARED_TEXTURE_UNIT = 0;
 var BASE_SCENE_TEXTURE_UNIT = 1;
+var NO_SHADER_LOCATION = -1;
 
 var DIM_X = 0;
 var DIM_Z = 1;
-
-var NO_SHADER_LOCATION = -1;
+var QUILT_RECURSION_CHANCE = 0.8;
+var QUILT_RECURSION_DECREMENT = 0.1;
 
 var RENDER_PASS_LIGHTS = 'lights';
 var RENDER_PASS_MAIN = 'main';

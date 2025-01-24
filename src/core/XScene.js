@@ -169,20 +169,22 @@ class XScene {
       light = new XLight(opts);
     }
 
-    var shadowFBO = XGLUtils.createDepthFramebuffer(this.gl, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
-    light.addShadowMapTexture(shadowFBO.depthTexture, this.reserveTextureUnit());
+    if (ENABLE_SHADOWS) {
+      var shadowFBO = XGLUtils.createDepthFramebuffer(this.gl, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+      light.addShadowMapTexture(shadowFBO.depthTexture, this.reserveTextureUnit());
 
-    if (!this.shadowShader) {
-      this.initShadows();
-    };
+      if (!this.shadowShader) {
+        this.initShadows();
+      };
 
-    this.addRenderPass(RENDER_PASS_LIGHTS, {
-      framebuffer: shadowFBO.framebuffer,
-      shader: this.shadowShader,
-      uniforms: { lightIndex: light.index },
-      viewport: { width: SHADOW_MAP_SIZE, height: SHADOW_MAP_SIZE },
-      isBeforeMain: true
-    });
+      this.addRenderPass(RENDER_PASS_LIGHTS, {
+        framebuffer: shadowFBO.framebuffer,
+        shader: this.shadowShader,
+        uniforms: { lightIndex: light.index },
+        viewport: { width: SHADOW_MAP_SIZE, height: SHADOW_MAP_SIZE },
+        isBeforeMain: true
+      });
+    }
 
     lights.push(light);
 
