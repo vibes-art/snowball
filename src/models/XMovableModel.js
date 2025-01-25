@@ -8,6 +8,11 @@ class XMovableModel {
     this.timeSinceUpdate = 0;
   }
 
+  setVelocity (velocity) {
+    this.timeSinceUpdate = 0;
+    this.velocity = velocity;
+  }
+
   stop () {
     this.velocity = [0, 0, 0];
   }

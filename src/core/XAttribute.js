@@ -21,7 +21,7 @@ class XAttribute {
     this.buffer = null;
   }
 
-  bindBuffer () {
+  bindBuffer (location = NO_SHADER_LOCATION) {
     if (this.useTexture) {
       this.bindTexture();
     } else {
@@ -35,6 +35,10 @@ class XAttribute {
 
     this.bufferOffset = 0;
     this.bufferLength = 0;
+
+    if (location !== NO_SHADER_LOCATION) {
+      XGLUtils.bindVertexAttributeArray(this.gl, location, this.components);
+    }
   }
 
   bindTexture () {

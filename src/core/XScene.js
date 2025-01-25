@@ -496,21 +496,10 @@ class XScene {
         continue;
       }
 
-      if (!attribute.buffer) continue;
-
-      var target = attribute.bufferTarget ? attribute.bufferTarget : gl.ARRAY_BUFFER;
-      gl.bindBuffer(target, attribute.buffer);
-
       var location = shader.attributeLocations[key];
-      if (location === NO_SHADER_LOCATION || location === null) continue;
+      if (!attribute.buffer || location === NO_SHADER_LOCATION || location === null) continue;
 
-      var num = attribute.components;
-      var type = gl.FLOAT;
-      var normalize = false;
-      var stride = 0;
-      var offset = 0;
-      gl.vertexAttribPointer(location, num, type, normalize, stride, offset);
-      gl.enableVertexAttribArray(location);
+      attribute.bindBuffer(location);
       attribs.push(location);
     }
 

@@ -9,6 +9,7 @@ class XFixedCamera extends XCamera {
     this.isModelRotated = false;
     this.mouseScrollUp = null;
     this.mouseScrollDown = null;
+    this.lockRotation = false;
   }
 
   logControls () {
@@ -20,6 +21,8 @@ class XFixedCamera extends XCamera {
   }
 
   onMouseMove (evt, dx, dy) {
+    if (this.lockRotation) return;
+
     var rotBounds = PI / 2;
     var lastRotationX = this.totalRotation[0];
     var lastRotationY = this.totalRotation[1];

@@ -5,7 +5,7 @@ XGLUtils.textureCache = {};
 XGLUtils.currentTextureMemory = 0;
 XGLUtils.maxTextureMemory = min(
   (navigator.deviceMemory || 4) * 0.33 * 1024 * 1024 * 1024, // 33% device memory
-  1024 * 1024 * 1024 // capped at 1 GB
+  (IS_MOBILE ? 512 : 1024) * 1024 * 1024 // capped at 512 MB mobile, 1 GB desktop
 );
 
 XGLUtils.setBuffer = function (gl, buffer, srcData, opts) {
@@ -53,6 +53,16 @@ XGLUtils.bindBufferSubData = function (gl, buffer, srcData, opts) {
   } else {
     gl.bufferSubData(target, offset, srcData);
   }
+};
+
+XGLUtils.bindVertexAttributeArray = function (gl, location, components, opts = {}) {
+  var type = opts.type || gl.FLOAT;
+  var normalize = opts.normalize || false;
+  var stride = opts.stride || 0;
+  var offset = opts.offset || 0;
+
+  gl.vertexAttribPointer(location, components, type, normalize, stride, offset);
+  gl.enableVertexAttribArray(location);
 };
 
 XGLUtils.createTexture = function (gl, data, width, height, components) {
