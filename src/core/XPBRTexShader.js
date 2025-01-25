@@ -79,6 +79,7 @@ class XPBRTexShader extends XShader {
       uniform vec3 pointLightFixedAxes[MAX_POINT_LIGHTS];
       uniform float pointLightPowers[MAX_POINT_LIGHTS];
 
+      uniform vec3 ambientColor;
       uniform vec3 fogColor;
       uniform float fogDensity;
       uniform float attenConst;
@@ -171,7 +172,6 @@ class XPBRTexShader extends XShader {
         }
 
         vec3 tintColor = texColor.rgb * vColor.rgb;
-        // vec3 finalColor = tintColor;
         vec3 finalColor = vec3(0.0);
 
         vec3 N = normalize(vTBN[2]);
@@ -285,7 +285,10 @@ class XPBRTexShader extends XShader {
         float distFromView = length(vWorldPos.xyz - vViewPos);
         float fogFactor = 1.0 - exp(-fogDensity * distFromView * distFromView);
         finalColor = mix(finalColor, fogColor, clamp(fogFactor, 0.0, 1.0));
-        fragColor = vec4(finalColor, alpha);
+
+        vec3 ambient = ambientColor * tintColor;
+        vec3 ambientScale = vec3(1.0 - finalColor.rgb);
+        fragColor = vec4(finalColor + ambientScale * ambient, alpha);
       }
     `;
   }

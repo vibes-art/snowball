@@ -13,6 +13,7 @@ class XScene {
     this.matrices = {};
     this.viewport = {};
     this.renderPasses = [];
+    this.shaderUniformCache = new WeakMap();
 
     this.onDrawListeners = [];
     this.isDrawing = LIVE_RENDER;
@@ -466,7 +467,21 @@ class XScene {
       uniform.data = this.getDrawingTextureUnit();
     }
 
+    var uniformMap = this.shaderUniformCache.get(shader);
+    if (!uniformMap) {
+      uniformMap = new Map();
+      this.shaderUniformCache.set(shader, uniformMap);
+    }
+
+    var lastUniform = uniformMap.get(location);
+    if (!force && !uniform.isDirty && lastUniform === uniform) {
+      VERBOSE && console.log(`uniform SKIPPED: ${this.key}, ${location}, ${this.data}`);
+      return;
+    }
+
+    uniformMap.set(location, uniform);
     uniform.apply(this.gl, location, force);
+    VERBOSE && console.log(`uniform: ${this.key}, ${location}, ${this.data}`);
   }
 
   bindBuffers (obj, shader) {
@@ -535,6 +550,8 @@ class XScene {
     }
 
     this.disableLastAttribs();
+
+    this.shaderUniformCache.clear();
   }
 
 }

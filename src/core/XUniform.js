@@ -79,12 +79,7 @@ class XUniform {
     this.isDirty = true;
   }
 
-  apply (gl, location, force) {
-    if (!force && !this.isDirty) {
-      VERBOSE && console.log(`uniform SKIPPED: ${this.key}, ${location}, ${this.data}`);
-      return;
-    }
-
+  apply (gl, location) {
     switch (this.type) {
       case UNI_TYPE_FLOAT: this.applyFloats(gl, location); break;
       case UNI_TYPE_INT: this.applyInts(gl, location); break;
@@ -95,8 +90,6 @@ class XUniform {
     if (this.texture) {
       XGLUtils.bindTexture(gl, this.data, this.texture);
     }
-
-    VERBOSE && console.log(`uniform: ${this.key}, ${location}, ${this.data}`);
   }
 
   applyFloats (gl, location) {
