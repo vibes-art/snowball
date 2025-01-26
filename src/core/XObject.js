@@ -35,7 +35,7 @@ class XObject {
     this.setShader(opts);
     this.setMaterial(opts);
     this.generate(opts);
-    this.bindBuffers();
+    this.updateVertexAttributes();
     this.scene.addObject(this);
 
     this.enableRenderPass(RENDER_PASS_LIGHTS, true);
@@ -108,9 +108,9 @@ class XObject {
     this.matrices.normal.data = XMatrix4.transpose(this.matrices.normal.data);
   }
 
-  bindBuffers () {
+  updateVertexAttributes () {
     for (var key in this.attributes) {
-      this.attributes[key].bindBuffer();
+      this.attributes[key].update();
     }
 
     if (this.useIndices) {

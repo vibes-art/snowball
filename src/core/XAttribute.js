@@ -8,70 +8,72 @@ class XAttribute {
     this.defaultValues = opts.defaultValues || [];
     this.bufferTarget = opts.bufferTarget || 0;
 
-    this.useTexture = (opts.useTexture || !!opts.texture) || false;
-    this.texture = opts.texture || null;
+    this.useTexture = opts.useTexture || false;
+    this.isExternalTexture = false;
     this.textureWidth = opts.textureWidth || 0;
     this.textureHeight = opts.textureHeight || 0;
+
+    this.buffer = null;
+    this.texture = null;
     this.uniform = opts.uniform || null;
 
     this.data = new Float32Array(this.components * this.count);
     this.bufferOffset = 0;
     this.bufferLength = 0;
     this.isDirty = true;
-    this.buffer = null;
+
+    opts.texture && this.setTexture(opts.texture);
   }
 
-  bindBuffer (location = NO_SHADER_LOCATION) {
-    if (this.useTexture) {
-      this.bindTexture();
-    } else {
-      this.buffer = XGLUtils.setBuffer(this.gl, this.buffer, this.data, {
-        offset: this.bufferOffset,
-        length: this.bufferLength,
-        isDirty: this.isDirty,
-        target: this.bufferTarget ? this.bufferTarget : undefined
-      });
-    }
-
-    this.bufferOffset = 0;
-    this.bufferLength = 0;
-
-    if (location !== NO_SHADER_LOCATION) {
+  bind (scene, location = NO_SHADER_LOCATION) {
+    if (this.useTextures) {
+      this.updateTexture();
+      XGLUtils.bindTexture(this.gl, scene.getDrawingTextureUnit(), this.texture);
+    } else if (location !== NO_SHADER_LOCATION && location !== null) {
+      this.updateBuffer();
       XGLUtils.bindVertexAttributeArray(this.gl, location, this.components);
     }
   }
 
-  bindTexture () {
-    if (!this.isDirty) return;
+  update () {
+    if (this.useTextures) {
+      this.updateTexture();
+    } else {
+      this.updateBuffer();
+    }
+  }
 
-    var gl = this.gl;
-    var data = this.data;
+  updateBuffer () {
+    this.buffer = XGLUtils.setBuffer(this.gl, this.buffer, this.data, {
+      offset: this.bufferOffset,
+      length: this.bufferLength,
+      isDirty: this.isDirty,
+      target: this.bufferTarget ? this.bufferTarget : undefined
+    });
+
+    this.bufferOffset = 0;
+    this.bufferLength = 0;
+  }
+
+  setTexture (texture) {
+    this.texture = texture;
+    this.useTexture = !!texture;
+    this.isExternalTexture = !!texture;
+  }
+
+  updateTexture () {
+    // only internal textures are created and updated from data
+    if (!this.isDirty || this.isExternalTexture) return;
+
     var width = this.textureWidth;
     var height = this.textureHeight;
     var components = this.components;
-
     if (!this.texture) {
-      this.texture = XGLUtils.createTexture(gl, data, width, height, components);
-
-      if (this.uniform) {
-        this.uniform.texture = this.texture;
-      }
+      this.texture = XGLUtils.createTexture(this.gl, this.data, width, height, components);
+      if (this.uniform) this.uniform.texture = this.texture;
+    } else {
+      XGLUtils.updateTexture(this.gl, this.texture, this.data, width, height, components);
     }
-
-    var internalFormat, format;
-    switch (components) {
-      case 4: internalFormat = gl.RGBA32F; format = gl.RGBA; break;
-      case 3: internalFormat = gl.RGB32F; format = gl.RGB; break;
-      case 1: internalFormat = gl.R32F; format = gl.RED; break;
-      default: console.error("Unsupported component size: " + components);
-    }
-
-    if (data.length !== width * height * components) {
-      console.error("Data size does not match texture dimensions.");
-    }
-
-    XGLUtils.bindTexture(gl, SHARED_TEXTURE_UNIT, this.texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, gl.FLOAT, data, 0);
   }
 
   getValue (vertexIndex, componentIndex) {
@@ -124,7 +126,7 @@ class XAttribute {
 
   remove () {
     if (this.buffer) {
-      this.gl.deleteBuffer(this.buffer);
+      XGLUtils.deleteBuffer(this.gl, this.buffer);
       this.buffer = null;
     }
 

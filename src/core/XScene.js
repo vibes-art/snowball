@@ -350,7 +350,7 @@ class XScene {
         // render pass uniforms applied last to override any defaults
         this.applyUniforms(pass.uniforms, shader, isNewShader);
 
-        this.bindBuffers(obj, shader);
+        this.applyAttributes(obj, shader);
 
         obj.draw();
 
@@ -484,22 +484,14 @@ class XScene {
     VERBOSE && console.log(`uniform: ${this.key}, ${location}, ${this.data}`);
   }
 
-  bindBuffers (obj, shader) {
-    var gl = this.gl;
+  applyAttributes (obj, shader) {
     var attributes = obj.attributes;
     var attribs = [];
 
     for (var key in attributes) {
       var attribute = attributes[key];
-      if (attribute.useTextures) {
-        XGLUtils.bindTexture(gl, this.getDrawingTextureUnit(), attribute.texture);
-        continue;
-      }
-
       var location = shader.attributeLocations[key];
-      if (!attribute.buffer || location === NO_SHADER_LOCATION || location === null) continue;
-
-      attribute.bindBuffer(location);
+      attribute.bind(this, location);
       attribs.push(location);
     }
 

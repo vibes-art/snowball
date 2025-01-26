@@ -275,7 +275,7 @@ class XHeightMap extends XObject {
     }
 
     this.oncePerDraw = true;
-    this.bindBuffers();
+    this.updateVertexAttributes();
   }
 
   onDraw (dt) {

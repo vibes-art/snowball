@@ -55,6 +55,10 @@ XGLUtils.bindBufferSubData = function (gl, buffer, srcData, opts) {
   }
 };
 
+XGLUtils.deleteBuffer = function (gl, buffer) {
+  gl.deleteBuffer(buffer);
+};
+
 XGLUtils.bindVertexAttributeArray = function (gl, location, components, opts = {}) {
   var type = opts.type || gl.FLOAT;
   var normalize = opts.normalize || false;
@@ -65,7 +69,61 @@ XGLUtils.bindVertexAttributeArray = function (gl, location, components, opts = {
   gl.enableVertexAttribArray(location);
 };
 
+XGLUtils.applyUniform = function (gl, type, components, data, location) {
+  switch (type) {
+    case UNI_TYPE_FLOAT: XGLUtils.applyUniformFloats(gl, components, data, location); break;
+    case UNI_TYPE_INT: XGLUtils.applyUniformInts(gl, components, data, location); break;
+    case UNI_TYPE_UINT: XGLUtils.applyUniformUnsignedInts(gl, components, data, location); break;
+    case UNI_TYPE_MATRIX: XGLUtils.applyUniformMatrices(gl, components, data, location); break;
+  }
+};
+
+XGLUtils.applyUniformFloats = function (gl, components, data, location) {
+  switch (components) {
+    case 1: gl.uniform1f(location, data); break;
+    case 2: gl.uniform2fv(location, data); break;
+    case 3: gl.uniform3fv(location, data); break;
+    case 4: gl.uniform4fv(location, data); break;
+  }
+};
+
+XGLUtils.applyUniformInts = function (gl, components, data, location) {
+  switch (components) {
+    case 1: gl.uniform1i(location, data); break;
+    case 2: gl.uniform2iv(location, data); break;
+    case 3: gl.uniform3iv(location, data); break;
+    case 4: gl.uniform4iv(location, data); break;
+  }
+};
+
+XGLUtils.applyUniformUnsignedInts = function (gl, components, data, location) {
+  switch (components) {
+    case 1: gl.uniform1ui(location, data); break;
+    case 2: gl.uniform2uiv(location, data); break;
+    case 3: gl.uniform3uiv(location, data); break;
+    case 4: gl.uniform4uiv(location, data); break;
+  }
+};
+
+XGLUtils.applyUniformMatrices = function (gl, components, data, location) {
+  switch (components) {
+    case 2: gl.uniformMatrix2fv(location, false, data); break;
+    case 3: gl.uniformMatrix3fv(location, false, data); break;
+    case 4: gl.uniformMatrix4fv(location, false, data); break;
+  }
+};
+
 XGLUtils.createTexture = function (gl, data, width, height, components) {
+  var texture = gl.createTexture();
+  XGLUtils.updateTexture(gl, texture, data, width, height, components);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  return texture;
+};
+
+XGLUtils.updateTexture = function (gl, texture, data, width, height, components) {
   var internalFormat, format;
   switch (components) {
     case 4: internalFormat = gl.RGBA32F; format = gl.RGBA; break;
@@ -78,14 +136,8 @@ XGLUtils.createTexture = function (gl, data, width, height, components) {
     console.error("Data size does not match texture dimensions.");
   }
 
-  var texture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, texture);
+  XGLUtils.bindTexture(gl, SHARED_TEXTURE_UNIT, texture);
   gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, gl.FLOAT, data, 0);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  return texture;
 };
 
 XGLUtils.bindTexture = function (gl, textureUnit, texture) {

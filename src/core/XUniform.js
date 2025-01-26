@@ -80,51 +80,8 @@ class XUniform {
   }
 
   apply (gl, location) {
-    switch (this.type) {
-      case UNI_TYPE_FLOAT: this.applyFloats(gl, location); break;
-      case UNI_TYPE_INT: this.applyInts(gl, location); break;
-      case UNI_TYPE_UINT: this.applyUnsignedInts(gl, location); break;
-      case UNI_TYPE_MATRIX: this.applyMatrices(gl, location); break;
-    }
-
-    if (this.texture) {
-      XGLUtils.bindTexture(gl, this.data, this.texture);
-    }
-  }
-
-  applyFloats (gl, location) {
-    switch (this.components) {
-      case 1: gl.uniform1f(location, this.data); break;
-      case 2: gl.uniform2fv(location, this.data); break;
-      case 3: gl.uniform3fv(location, this.data); break;
-      case 4: gl.uniform4fv(location, this.data); break;
-    }
-  }
-
-  applyInts (gl, location) {
-    switch (this.components) {
-      case 1: gl.uniform1i(location, this.data); break;
-      case 2: gl.uniform2iv(location, this.data); break;
-      case 3: gl.uniform3iv(location, this.data); break;
-      case 4: gl.uniform4iv(location, this.data); break;
-    }
-  }
-
-  applyUnsignedInts (gl, location) {
-    switch (this.components) {
-      case 1: gl.uniform1ui(location, this.data); break;
-      case 2: gl.uniform2uiv(location, this.data); break;
-      case 3: gl.uniform3uiv(location, this.data); break;
-      case 4: gl.uniform4uiv(location, this.data); break;
-    }
-  }
-
-  applyMatrices (gl, location) {
-    switch (this.components) {
-      case 2: gl.uniformMatrix2fv(location, false, this.data); break;
-      case 3: gl.uniformMatrix3fv(location, false, this.data); break;
-      case 4: gl.uniformMatrix4fv(location, false, this.data); break;
-    }
+    XGLUtils.applyUniform(gl, this.type, this.components, this.data, location);
+    this.texture && XGLUtils.bindTexture(gl, this.data, this.texture);
   }
 
   remove (gl) {
