@@ -37,8 +37,10 @@ class XSpotLight extends XLight {
     return super.getUniforms().concat([this.innerAngle, this.outerAngle]);
   }
 
-  calculateViewMatrix () {
-    var projectionMatrix = XMatrix4.perspective(this.outerAngle.data, 1, SPOT_LIGHT_Z_NEAR, SPOT_LIGHT_Z_FAR);
+  calculateViewMatrix (edgeAccuracyMult) {
+    edgeAccuracyMult = edgeAccuracyMult || 2;
+    var fov = edgeAccuracyMult * this.outerAngle.data;
+    var projectionMatrix = XMatrix4.perspective(fov, 1, SPOT_LIGHT_Z_NEAR, SPOT_LIGHT_Z_FAR);
     this.viewProjMatrix.data = XMatrix4.multiply(projectionMatrix, this.lookAtMatrix);
   }
 
