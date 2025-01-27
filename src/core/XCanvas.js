@@ -207,7 +207,14 @@ class XCanvas {
 
     var colorBufferFloatExt = gl.getExtension('EXT_color_buffer_float');
     if (!colorBufferFloatExt) {
+      COLOR_BUFFER_FLOAT_ENABLED = false;
       console.error('EXT_color_buffer_float is not supported!');
+    };
+
+    var colorBufferHalfFloatExt = gl.getExtension('EXT_color_buffer_half_float');
+    if (!colorBufferHalfFloatExt) {
+      COLOR_BUFFER_HALF_FLOAT_ENABLED = false;
+      console.error('EXT_color_buffer_half_float is not supported!');
     };
 
     this.canvas.addEventListener('webglcontextlost', (evt) => {

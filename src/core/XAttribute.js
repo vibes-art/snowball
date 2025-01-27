@@ -32,7 +32,11 @@ class XAttribute {
     } else if (location !== NO_SHADER_LOCATION && location !== null) {
       this.updateBuffer();
       XGLUtils.bindVertexAttributeArray(this.gl, location, this.components);
+      return true;
     }
+
+    // return whether or not we used vertex attribute array
+    return false;
   }
 
   update () {

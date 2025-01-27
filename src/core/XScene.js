@@ -491,8 +491,8 @@ class XScene {
     for (var key in attributes) {
       var attribute = attributes[key];
       var location = shader.attributeLocations[key];
-      attribute.bind(this, location);
-      attribs.push(location);
+      var usedAttribs = attribute.bind(this, location);
+      usedAttribs && attribs.push(location);
     }
 
     this.disableLastAttribs(attribs);
@@ -532,7 +532,7 @@ class XScene {
 
     this.disableLastAttribs();
 
-    this.shaderUniformCache.clear();
+    this.shaderUniformCache = null;
   }
 
 }
