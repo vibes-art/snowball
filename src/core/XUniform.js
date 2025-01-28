@@ -4,7 +4,7 @@ class XUniform {
     this.key = opts.key;
     this.type = opts.type || UNI_TYPE_FLOAT;
     this.components = opts.components || 4;
-    this.texture = opts.texture || null;
+    this.texture = null;
     this.isReservedTextureUnit = false;
 
     this.fvData = null;
@@ -16,9 +16,8 @@ class XUniform {
     this.initializeData();
     DEBUG_LOGS && this.validateData();
 
-    if (opts.data !== undefined) {
-      this.data = opts.data;
-    }
+    if (opts.data !== undefined) this.data = opts.data;
+    if (opts.texture) this.setTexture(opts.texture);
   }
 
   initializeData () {
@@ -76,6 +75,11 @@ class XUniform {
       case UNI_TYPE_MATRIX: this.matrixData[componentIndex] = value; break;
     }
 
+    this.isDirty = true;
+  }
+
+  setTexture (texture) {
+    this.texture = texture;
     this.isDirty = true;
   }
 

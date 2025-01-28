@@ -279,21 +279,37 @@ XGLUtils.createFramebuffer = function (gl, width, height) {
 
   var colorsTexture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, colorsTexture);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  XGLUtils.textureBestColorBuffer(gl, width, height);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, colorsTexture, 0);
 
-  var depthBuffer = gl.createRenderbuffer();
-  gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
+  var renderbuffer = gl.createRenderbuffer();
+  gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
   gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
-  gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthBuffer);
+  gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
 
   gl.bindTexture(gl.TEXTURE_2D, null);
   gl.bindRenderbuffer(gl.RENDERBUFFER, null);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-  return { framebuffer, colorsTexture, depthBuffer };
+  return { framebuffer, colorsTexture, renderbuffer };
+};
+
+XGLUtils.deleteFramebuffer = function (gl, fbo) {
+  gl.deleteFramebuffer(fbo.framebuffer);
+  gl.deleteRenderbuffer(fbo.renderbuffer);
+  XGLUtils.unloadTexture(gl, fbo.colorsTexture);
+};
+
+XGLUtils.textureBestColorBuffer = function (gl, width, height) {
+  if (USE_FLOATING_POINT_TEXTURES && COLOR_BUFFER_FLOAT_ENABLED) {
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, null);
+  } else if (USE_FLOATING_POINT_TEXTURES && COLOR_BUFFER_HALF_FLOAT_ENABLED) {
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, width, height, 0, gl.RGBA, gl.FLOAT, null);
+  } else {
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  }
 };
 
 XGLUtils.createDepthFramebuffer = function (gl, width, height) {

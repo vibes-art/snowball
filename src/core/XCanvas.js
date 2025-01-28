@@ -125,7 +125,17 @@ class XCanvas {
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_MAIN, false);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_ANTIALIAS, true);
 
-    this.resizeCanvas();
+    var mainRenderPass = this.scene.getRenderPass(RENDER_PASS_MAIN);
+    mainRenderPass.framebufferKey = RENDER_PASS_MAIN;
+
+    var fbo = this.scene.addFramebuffer(RENDER_PASS_MAIN, {
+      width: this.width,
+      height: this.height
+    });
+
+    fbo.linkAttribute(this.fullscreenQuad, ATTR_KEY_COLORS);
+
+    this.scene.addRenderPass(RENDER_PASS_ANTIALIAS);
   }
 
   initObjects () {
@@ -263,42 +273,8 @@ class XCanvas {
     this.gl.viewport(0, 0, width, height);
 
     if (this.scene) {
-      this.scene.viewport.width = width;
-      this.scene.viewport.height = height;
-      this.scene.uniforms.resolution.data = [width, height];
-      this.scene.matrices.projection.data = this.getProjectionMatrix();
-
-      if (this.useSupersampleAA) {
-        this.onFBOResize(width, height);
-      }
+      this.scene.onResize(width, height, this.getProjectionMatrix());
     }
-  }
-
-  onFBOResize (width, height) {
-    if (this.offscreenFBO) {
-      this.scene.removeRenderPass(RENDER_PASS_MAIN, this.offscreenFBO.framebuffer);
-      this.scene.removeRenderPass(RENDER_PASS_ANTIALIAS, null);
-
-      this.gl.deleteFramebuffer(this.offscreenFBO.framebuffer);
-      XGLUtils.unloadTexture(this.gl, this.offscreenFBO.colorsTexture);
-      this.gl.deleteRenderbuffer(this.offscreenFBO.depthBuffer);
-    } else {
-      this.scene.removeRenderPass(RENDER_PASS_MAIN, null);
-    }
-
-    this.offscreenFBO = XGLUtils.createFramebuffer(this.gl, width, height);
-    this.scene.addRenderPass(RENDER_PASS_MAIN, { framebuffer: this.offscreenFBO.framebuffer });
-    this.scene.addRenderPass(RENDER_PASS_ANTIALIAS);
-    this.onFullscreenQuadResize(width, height);
-  }
-
-  onFullscreenQuadResize (width, height) {
-    this.fullscreenQuad.attributes[ATTR_KEY_COLORS].remove();
-    this.fullscreenQuad.addAttribute(ATTR_KEY_COLORS, {
-      texture: this.offscreenFBO.colorsTexture,
-      textureWidth: width,
-      textureHeight: height
-    });
   }
 
   getProjectionMatrix () {

@@ -77,12 +77,7 @@ class XObject {
     opts.count = this.vertexCount;
 
     if (opts.useTexture || opts.texture) {
-      var uniformKey = `${key}Texture`;
-      var uniformOpts = {};
-      uniformOpts.type = UNI_TYPE_INT;
-      uniformOpts.components = 1;
-      uniformOpts.texture = opts.texture || null;
-      opts.uniform = this.addUniform(uniformKey, uniformOpts);
+      opts.uniform = this.getTextureUniformForAttribute(key, opts);
     }
 
     return this.attributes[key] = new XAttribute(opts);
@@ -93,6 +88,31 @@ class XObject {
     opts.key = key;
 
     return this.uniforms[key] = new XUniform(opts);
+  }
+
+  setTextureForAttribute (texture, attribKey) {
+    var attrib = this.attributes[attribKey];
+    var uniform = this.getTextureUniformForAttribute(attribKey, { texture });
+
+    attrib.uniform = uniform;
+    attrib.setTexture(texture);
+  }
+
+  getTextureUniformForAttribute (attribKey, opts) {
+    opts = opts || {};
+
+    var uniformKey = `${attribKey}Texture`;
+    var uniform = this.uniforms[uniformKey];
+
+    if (!uniform) {
+      var uniformOpts = {};
+      uniformOpts.type = UNI_TYPE_INT;
+      uniformOpts.components = 1;
+      uniformOpts.texture = opts.texture || null;
+      uniform = this.addUniform(uniformKey, uniformOpts);
+    }
+
+    return uniform;
   }
 
   setMatrices (modelMatrix) {

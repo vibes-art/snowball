@@ -63,6 +63,7 @@ class XAttribute {
     this.texture = texture;
     this.useTexture = !!texture;
     this.isExternalTexture = !!texture;
+    if (this.uniform) this.uniform.setTexture(texture);
   }
 
   updateTexture () {
@@ -74,7 +75,7 @@ class XAttribute {
     var components = this.components;
     if (!this.texture) {
       this.texture = XGLUtils.createTexture(this.gl, this.data, width, height, components);
-      if (this.uniform) this.uniform.texture = this.texture;
+      if (this.uniform) this.uniform.setTexture(this.texture);
     } else {
       XGLUtils.updateTexture(this.gl, this.texture, this.data, width, height, components);
     }

@@ -28,7 +28,7 @@ class XPassthroughShader extends XShader {
   }
 
   connect () {
-    this.setUniformLocation('colorsTexture');
+    this.setUniformLocation(UNI_KEY_COLORS_TEXTURE);
   }
 
 }

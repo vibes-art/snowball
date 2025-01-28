@@ -13,6 +13,7 @@ class XScene {
     this.matrices = {};
     this.viewport = {};
     this.renderPasses = [];
+    this.framebufferObjects = {};
     this.shaderUniformCache = new WeakMap();
 
     this.onDrawListeners = [];
@@ -94,6 +95,15 @@ class XScene {
     }
   }
 
+  getRenderPass (type) {
+    for (var i = 0; i < this.renderPasses.length; i++) {
+      var pass = this.renderPasses[i];
+      if (pass.type === type) {
+        return pass;
+      }
+    }
+  }
+
   removeRenderPass (type, framebuffer) {
     for (var i = this.renderPasses.length - 1; i >= 0; i--) {
       var pass = this.renderPasses[i];
@@ -103,6 +113,18 @@ class XScene {
         }
       }
     }
+  }
+
+  addFramebuffer (key, opts) {
+    opts = opts || {};
+
+    opts.gl = this.gl;
+    opts.key = key;
+    opts.width = opts.width || this.viewport.width;
+    opts.height = opts.height || this.viewport.height;
+    opts.scale = opts.scale || 1;
+
+    return this.framebufferObjects[key] = new XFramebufferObject(opts);
   }
 
   setPrimaryShaders (shader, textureShader) {
@@ -228,6 +250,17 @@ class XScene {
     this.isDrawing = isEnabled;
   }
 
+  onResize (width, height, projectionMatrix) {
+    this.viewport.width = width;
+    this.viewport.height = height;
+    this.uniforms.resolution.data = [width, height];
+    this.matrices.projection.data = projectionMatrix;
+
+    for (var key in this.framebufferObjects) {
+      this.framebufferObjects[key].onResize(width, height);
+    }
+  }
+
   onDraw (object, cb) {
     object.onDrawCB = cb;
     this.onDrawListeners.push(cb);
@@ -246,9 +279,12 @@ class XScene {
       var pass = this.renderPasses[passIndex];
       if (DEBUG_LIGHTS && pass.type !== RENDER_PASS_LIGHTS) continue;
 
-      if (pass.framebuffer) {
-        gl.bindFramebuffer(gl.FRAMEBUFFER, pass.framebuffer);
+      var framebuffer = pass.framebuffer || null;
+      if (pass.framebufferKey) {
+        framebuffer = this.framebufferObjects[pass.framebufferKey].framebuffer;
       }
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
 
       var viewport = pass.viewport || this.viewport;
       gl.viewport(0, 0, viewport.width, viewport.height);
@@ -357,8 +393,8 @@ class XScene {
         isNewPass = false;
       }
 
-      if (DEBUG_LIGHTS) {
-        gl.bindFramebuffer(gl.READ_FRAMEBUFFER, pass.framebuffer);
+      if (DEBUG_LIGHTS && framebuffer) {
+        gl.bindFramebuffer(gl.READ_FRAMEBUFFER, framebuffer);
         gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
         gl.blitFramebuffer(
           0, 0, viewport.width, viewport.height,
@@ -367,7 +403,7 @@ class XScene {
         );
       }
 
-      if (pass.framebuffer) {
+      if (framebuffer) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       }
     }
