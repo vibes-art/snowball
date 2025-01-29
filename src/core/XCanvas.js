@@ -71,10 +71,7 @@ class XCanvas {
     this.initShader(opts);
     this.initCamera(opts);
     this.initEffects(opts);
-
-    if (this.useSupersampleAA) {
-      this.initFullscreenQuad(opts);
-    }
+    this.initMainFramebuffer(opts);
 
     // process effect links after all render passes and FBOs are initialized
     for (var i = 0; i < this.effects.length; i++) {
@@ -132,7 +129,7 @@ class XCanvas {
     }
   }
 
-  initFullscreenQuad (opts) {
+  initMainFramebuffer (opts) {
     this.fullscreenQuad = new XQuad({
       gl: this.gl,
       scene: this.scene,
@@ -246,13 +243,13 @@ class XCanvas {
 
     var colorBufferFloatExt = gl.getExtension('EXT_color_buffer_float');
     if (!colorBufferFloatExt) {
-      COLOR_BUFFER_FLOAT_ENABLED = false;
+      ENABLE_COLOR_BUFFER_FLOAT = false;
       console.warn('EXT_color_buffer_float is not supported!');
     };
 
     var colorBufferHalfFloatExt = gl.getExtension('EXT_color_buffer_half_float');
     if (!colorBufferHalfFloatExt) {
-      COLOR_BUFFER_HALF_FLOAT_ENABLED = false;
+      ENABLE_COLOR_BUFFER_HALF_FLOAT = false;
       console.warn('EXT_color_buffer_half_float is not supported!');
     };
 
