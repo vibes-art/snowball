@@ -46,7 +46,7 @@ class XBloomEffect {
       framebufferKey: RENDER_PASS_BLOOM_EXTRACT,
       shader: new XBloomExtractShader({ scene: scene }),
       uniforms: extractUniforms,
-      viewport: { width: bloomWidth, height: bloomHeight }
+      viewport: { scale: this.scale }
     });
 
     // TODO: separate all this into a Bloom class and update uniforms on resize
@@ -60,11 +60,14 @@ class XBloomEffect {
       data: bloomWidth
     });
 
+    // save for update on resize
+    this.uniforms.blurHorzUniforms = blurHorzUniforms;
+
     scene.addRenderPass(RENDER_PASS_BLOOM_BLUR_HORZ, {
       framebufferKey: RENDER_PASS_BLOOM_BLUR_HORZ,
       shader: new XBloomBlurShader({ scene: scene, isHorizontal: true }),
       uniforms: blurHorzUniforms,
-      viewport: { width: bloomWidth, height: bloomHeight }
+      viewport: { scale: this.scale }
     });
 
     var blurVertUniforms = {};
@@ -77,11 +80,14 @@ class XBloomEffect {
       data: bloomHeight
     });
 
+    // save for update on resize
+    this.uniforms.blurVertUniforms = blurVertUniforms;
+
     scene.addRenderPass(RENDER_PASS_BLOOM_BLUR_VERT, {
       framebufferKey: RENDER_PASS_BLOOM_BLUR_VERT,
       shader: new XBloomBlurShader({ scene: scene, isHorizontal: false }),
       uniforms: blurVertUniforms,
-      viewport: { width: bloomWidth, height: bloomHeight }
+      viewport: { scale: this.scale }
     });
 
     var combineUniforms = {};
@@ -98,17 +104,23 @@ class XBloomEffect {
     scene.addRenderPass(RENDER_PASS_BLOOM_COMBINE, {
       framebufferKey: RENDER_PASS_BLOOM_COMBINE,
       shader: new XBloomCombineShader({ scene: scene }),
-      uniforms: combineUniforms,
-      viewport: { width: this.width, height: this.height }
+      uniforms: combineUniforms
     });
   }
 
   onResize (width, height) {
+    this.width = width;
+    this.height = height;
 
+    var bloomWidth = width * this.scale;
+    var bloomHeight = height * this.scale;
+
+    this.uniforms.blurHorzUniforms[UNI_KEY_TEXTURE_SIZE].data = bloomWidth;
+    this.uniforms.blurVertUniforms[UNI_KEY_TEXTURE_SIZE].data = bloomHeight;
   }
 
   remove () {
-
+    this.uniforms = {};
   }
 
 }

@@ -287,7 +287,10 @@ class XScene {
       gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
 
       var viewport = pass.viewport || this.viewport;
-      gl.viewport(0, 0, viewport.width, viewport.height);
+      var scale = viewport.scale || 1;
+      var width = scale * (viewport.width || this.viewport.width);
+      var height = scale * (viewport.height || this.viewport.height);
+      gl.viewport(0, 0, width, height);
 
       var bgc = this.lights.background.getColor();
       gl.clearColor(bgc[0], bgc[1], bgc[2], 1.0);

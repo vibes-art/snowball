@@ -59,6 +59,8 @@ var USE_PBR = true;
 var USE_MSAA = false;
 var ENABLE_SHADOWS = true;
 var ENABLE_BLOOM = true;
+var ENABLE_TONE_MAPPING = false;
+var ENABLE_HDR = true;
 var LIVE_RENDER = false;
 
 var CAMERA_FOV = 45 * PI / 180;
@@ -148,6 +150,7 @@ var UNI_KEY_SCENE_TEXTURE = 'sceneTexture';
 var UNI_KEY_BLOOM_TEXTURE = 'bloomTexture';
 var UNI_KEY_INTENSITY = 'intensity';
 var UNI_KEY_TEXTURE_SIZE = 'textureSize';
+var UNI_KEY_EXPOSURE = 'exposure';
 
 var NOISE_TYPE_HEIGHT = 'height';
 var NOISE_TYPE_COLOR_HEIGHT_OFFSET = 'colorHeightOffset';

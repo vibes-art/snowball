@@ -136,7 +136,7 @@ class XCanvas {
     this.fullscreenQuad = new XQuad({
       gl: this.gl,
       scene: this.scene,
-      shader: new XPassthroughShader({ scene: this.scene }),
+      shader: new XFinalColorShader({ scene: this.scene }),
       vertices: [
         { position: [-1, -1, 0], color: [1, 1, 1, 1] },
         { position: [ 1, -1, 0], color: [1, 1, 1, 1] },
