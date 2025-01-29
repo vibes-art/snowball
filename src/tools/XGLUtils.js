@@ -305,9 +305,9 @@ XGLUtils.deleteFramebuffer = function (gl, fbo) {
 };
 
 XGLUtils.textureBestColorBuffer = function (gl, width, height) {
-  if (USE_FLOATING_POINT_TEXTURES && COLOR_BUFFER_FLOAT_ENABLED) {
+  if (USE_FLOATING_POINT_TEXTURES && ENABLE_COLOR_BUFFER_FLOAT) {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, null);
-  } else if (USE_FLOATING_POINT_TEXTURES && COLOR_BUFFER_HALF_FLOAT_ENABLED) {
+  } else if (USE_FLOATING_POINT_TEXTURES && ENABLE_COLOR_BUFFER_HALF_FLOAT) {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, width, height, 0, gl.RGBA, gl.FLOAT, null);
   } else {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
