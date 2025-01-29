@@ -30,6 +30,7 @@ class XCanvas {
     this.acceptInput = false;
     this.isDragging = false;
     this.dragLast = { x: 0, y: 0 };
+    this.effects = [];
 
     window.onload = () => this.init();
   }
@@ -69,9 +70,19 @@ class XCanvas {
     this.initLights(opts);
     this.initShader(opts);
     this.initCamera(opts);
+    this.initEffects(opts);
 
     if (this.useSupersampleAA) {
       this.initFullscreenQuad(opts);
+    }
+
+    // process effect links after all render passes and FBOs are initialized
+    for (var i = 0; i < this.effects.length; i++) {
+      var effect = this.effects[i];
+      effect.queuedFBOUniformLinks.forEach(link => {
+        this.scene.framebufferObjects[link.fboKey].linkUniform(link.uniform);
+      });
+      effect.queuedFBOUniformLinks.length = 0;
     }
 
     this.onNextFrame(() => this.initObjects());
@@ -108,6 +119,19 @@ class XCanvas {
     });
   }
 
+  initEffects (opts) {
+    if (ENABLE_BLOOM) {
+      this.effects.push(new XBloomEffect({
+        scene: this.scene,
+        width: this.width,
+        height: this.height,
+        threshold: 1,
+        intensity: 0.07,
+        scale: 0.5
+      }));
+    }
+  }
+
   initFullscreenQuad (opts) {
     this.fullscreenQuad = new XQuad({
       gl: this.gl,
@@ -123,6 +147,10 @@ class XCanvas {
 
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_LIGHTS, false);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_MAIN, false);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_EXTRACT, ENABLE_BLOOM);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_BLUR_HORZ, ENABLE_BLOOM);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_BLUR_VERT, ENABLE_BLOOM);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_COMBINE, ENABLE_BLOOM);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_ANTIALIAS, true);
 
     var mainRenderPass = this.scene.getRenderPass(RENDER_PASS_MAIN);
@@ -133,7 +161,8 @@ class XCanvas {
       height: this.height
     });
 
-    fbo.linkAttribute(this.fullscreenQuad, ATTR_KEY_COLORS);
+    var linkFBO = ENABLE_BLOOM ? this.scene.framebufferObjects[RENDER_PASS_BLOOM_COMBINE] : fbo;
+    linkFBO.linkAttribute(this.fullscreenQuad, ATTR_KEY_COLORS);
 
     this.scene.addRenderPass(RENDER_PASS_ANTIALIAS);
   }
@@ -210,7 +239,7 @@ class XCanvas {
     var floatTextureLinearExt = gl.getExtension('OES_texture_float_linear');
     if (!floatTextureLinearExt && USE_FLOATING_POINT_TEXTURES) {
       USE_FLOATING_POINT_TEXTURES = false;
-      console.log('Floating point textures fallback triggered.');
+      console.warn('Floating point textures fallback triggered.');
       this.reset(false);
       return false;
     }
@@ -218,13 +247,13 @@ class XCanvas {
     var colorBufferFloatExt = gl.getExtension('EXT_color_buffer_float');
     if (!colorBufferFloatExt) {
       COLOR_BUFFER_FLOAT_ENABLED = false;
-      console.error('EXT_color_buffer_float is not supported!');
+      console.warn('EXT_color_buffer_float is not supported!');
     };
 
     var colorBufferHalfFloatExt = gl.getExtension('EXT_color_buffer_half_float');
     if (!colorBufferHalfFloatExt) {
       COLOR_BUFFER_HALF_FLOAT_ENABLED = false;
-      console.error('EXT_color_buffer_half_float is not supported!');
+      console.warn('EXT_color_buffer_half_float is not supported!');
     };
 
     this.canvas.addEventListener('webglcontextlost', (evt) => {
@@ -274,6 +303,7 @@ class XCanvas {
 
     if (this.scene) {
       this.scene.onResize(width, height, this.getProjectionMatrix());
+      this.effects.forEach(effect => effect.onResize(width, height));
     }
   }
 

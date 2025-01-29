@@ -151,7 +151,9 @@ XGLUtils.bindTexture = function (gl, textureUnit, texture) {
   gl.bindTexture(gl.TEXTURE_2D, texture);
 };
 
-XGLUtils.loadTexture = function (gl, url) {
+XGLUtils.loadTexture = function (gl, url, sRGB) {
+  sRGB = sRGB || false;
+
   var time = performance.now();
   var cacheEntry = XGLUtils.textureCache[url];
 
@@ -175,7 +177,7 @@ XGLUtils.loadTexture = function (gl, url) {
 
   // temp pixel while image loads
   var level = 0;
-  var internalFormat = gl.RGBA;
+  var internalFormat = sRGB ? gl.SRGB8_ALPHA8 : gl.RGBA;
   var width = 1;
   var height = 1;
   var border = 0;

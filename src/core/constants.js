@@ -58,6 +58,7 @@ var COLOR_BUFFER_HALF_FLOAT_ENABLED = true;
 var USE_PBR = true;
 var USE_MSAA = false;
 var ENABLE_SHADOWS = true;
+var ENABLE_BLOOM = true;
 var LIVE_RENDER = false;
 
 var CAMERA_FOV = 45 * PI / 180;
@@ -84,6 +85,10 @@ var QUILT_RECURSION_DECREMENT = 0.1;
 var RENDER_PASS_LIGHTS = 'lights';
 var RENDER_PASS_MAIN = 'main';
 var RENDER_PASS_ANTIALIAS = 'antialias';
+var RENDER_PASS_BLOOM_EXTRACT = 'bloomExtract';
+var RENDER_PASS_BLOOM_BLUR_HORZ = 'bloomBlurHorz';
+var RENDER_PASS_BLOOM_BLUR_VERT = 'bloomBlurVert';
+var RENDER_PASS_BLOOM_COMBINE = 'bloomCombine';
 
 var LIGHT_DIRECTIONAL = 'directional';
 var LIGHT_POINT = 'point';
@@ -142,6 +147,7 @@ var UNI_KEY_THRESHOLD = 'threshold';
 var UNI_KEY_SCENE_TEXTURE = 'sceneTexture';
 var UNI_KEY_BLOOM_TEXTURE = 'bloomTexture';
 var UNI_KEY_INTENSITY = 'intensity';
+var UNI_KEY_TEXTURE_SIZE = 'textureSize';
 
 var NOISE_TYPE_HEIGHT = 'height';
 var NOISE_TYPE_COLOR_HEIGHT_OFFSET = 'colorHeightOffset';

@@ -10,7 +10,9 @@ class XFramebufferObject {
     this.framebuffer = null;
     this.renderbuffer = null;
     this.colorsTexture = null;
+
     this.linkedAttributes = [];
+    this.linkedUniforms = [];
 
     this.init();
   }
@@ -43,29 +45,45 @@ class XFramebufferObject {
     obj.setTextureForAttribute(this.colorsTexture, key);
   }
 
+  linkUniform (uniform) {
+    this.linkedUniforms.push(uniform);
+    this.updateLinkedUniform(uniform);
+  }
+
+  updateLinkedUniform (uniform) {
+    uniform.setTexture(this.colorsTexture);
+  }
+
   onResize (width, height) {
     this.width = width;
     this.height = height;
 
-    // preserve linked attributes since resize isn't a full removal
-    var links = this.linkedAttributes;
+    // preserve links since resize isn't a full removal
+    var linkedAttribs = this.linkedAttributes;
+    var linkedUniforms = this.linkedUniforms;
+
     this.remove();
-    this.linkedAttributes = links;
+
+    this.linkedAttributes = linkedAttribs;
+    this.linkedUniforms = linkedUniforms;
 
     this.init();
 
-    links.forEach(link => this.updateLinkedAttribute(link));
+    linkedAttribs.forEach(link => this.updateLinkedAttribute(link));
+    linkedUniforms.forEach(uniform => this.updateLinkedUniform(uniform));
   }
 
   remove () {
     if (!this.framebuffer) return;
 
     XGLUtils.deleteFramebuffer(this.gl, this);
+
     this.framebuffer = null;
     this.renderbuffer = null;
     this.colorsTexture = null;
 
     this.linkedAttributes = [];
+    this.linkedUniforms = [];
   }
 
 }

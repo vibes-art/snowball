@@ -15,7 +15,7 @@ class XAttribute {
 
     this.buffer = null;
     this.texture = null;
-    this.uniform = opts.uniform || null;
+    this.textureUniform = opts.textureUniform || null;
 
     this.data = new Float32Array(this.components * this.count);
     this.bufferOffset = 0;
@@ -59,11 +59,13 @@ class XAttribute {
     this.bufferLength = 0;
   }
 
-  setTexture (texture) {
+  setTexture (texture, textureUniform) {
     this.texture = texture;
     this.useTexture = !!texture;
     this.isExternalTexture = !!texture;
-    if (this.uniform) this.uniform.setTexture(texture);
+
+    if (textureUniform) this.textureUniform = textureUniform;
+    if (this.textureUniform) this.textureUniform.setTexture(texture);
   }
 
   updateTexture () {
@@ -75,7 +77,7 @@ class XAttribute {
     var components = this.components;
     if (!this.texture) {
       this.texture = XGLUtils.createTexture(this.gl, this.data, width, height, components);
-      if (this.uniform) this.uniform.setTexture(this.texture);
+      if (this.textureUniform) this.textureUniform.setTexture(this.texture);
     } else {
       XGLUtils.updateTexture(this.gl, this.texture, this.data, width, height, components);
     }

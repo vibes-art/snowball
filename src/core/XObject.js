@@ -77,7 +77,7 @@ class XObject {
     opts.count = this.vertexCount;
 
     if (opts.useTexture || opts.texture) {
-      opts.uniform = this.getTextureUniformForAttribute(key, opts);
+      opts.textureUniform = this.getTextureUniformForAttribute(key, opts);
     }
 
     return this.attributes[key] = new XAttribute(opts);
@@ -93,9 +93,7 @@ class XObject {
   setTextureForAttribute (texture, attribKey) {
     var attrib = this.attributes[attribKey];
     var uniform = this.getTextureUniformForAttribute(attribKey, { texture });
-
-    attrib.uniform = uniform;
-    attrib.setTexture(texture);
+    attrib.setTexture(texture, uniform);
   }
 
   getTextureUniformForAttribute (attribKey, opts) {

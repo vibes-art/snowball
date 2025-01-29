@@ -568,6 +568,10 @@ class XScene {
 
     this.disableLastAttribs();
 
+    for (var key in this.framebufferObjects) {
+      this.framebufferObjects[key].remove();
+    }
+
     this.shaderUniformCache = null;
   }
 
