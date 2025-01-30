@@ -122,9 +122,9 @@ class XCanvas {
         scene: this.scene,
         width: this.width,
         height: this.height,
-        threshold: 1,
-        intensity: 0.07,
-        scale: 0.5
+        threshold: BLOOM_THRESHOLD,
+        intensity: BLOOM_INTENSITY,
+        scale: BLOOM_SCALE
       }));
     }
   }
