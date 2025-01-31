@@ -300,7 +300,8 @@ class XScene {
         pass.isFirstDraw = false;
         gl.clearDepth(1.0);
         gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        // TODO: allow passes or objects to control this
+        // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
       }
