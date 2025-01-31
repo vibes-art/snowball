@@ -10,6 +10,7 @@ class XLight {
     var directionKey = `${this.key}Direction`;
     var positionKey = `${this.key}Position`;
     var powerKey = `${this.key}Power`;
+    var radiusKey = `${this.key}Radius`;
     var fixedAxesKey = `${this.key}FixedAxes`;
 
     var index = opts.index;
@@ -18,6 +19,7 @@ class XLight {
       directionKey = `${this.key}Directions[${index}]`;
       positionKey = `${this.key}Positions[${index}]`;
       powerKey = `${this.key}Powers[${index}]`;
+      radiusKey = `${this.key}Radii[${index}]`;
       fixedAxesKey = `${this.key}FixedAxes[${index}]`
 
       if (this.key === UNI_KEY_DIRECTIONAL_LIGHT) {
@@ -35,17 +37,19 @@ class XLight {
     this.color = new XUniform({ key: colorKey, components: 3 });
     this.direction = new XUniform({ key: directionKey, components: 3 });
     this.power = new XUniform({ key: powerKey, components: 1 });
+    this.radius = new XUniform({ key: radiusKey, components: 1 });
     this.fixedAxes = new XUniform({ key: fixedAxesKey, components: 3 });
 
     this.updateColor();
     this.setPosition(opts.position);
     this.setPower(opts.power);
+    this.setRadius(opts.radius);
     this.setFixedAxes(opts.fixedAxes);
     this.lookAt(opts.lookAtPoint);
   }
 
   getUniforms () {
-    var uniforms = [this.position, this.color, this.direction, this.power, this.fixedAxes];
+    var uniforms = [this.position, this.color, this.direction, this.power, this.radius, this.fixedAxes];
     if (this.key === UNI_KEY_DIRECTIONAL_LIGHT) {
       uniforms = uniforms.concat([this.index, this.viewProjMatrix, this.shadowMap]);
     }
@@ -163,6 +167,10 @@ class XLight {
 
   setPower (power) {
     this.power.data = power !== undefined ? power : 1.0;
+  }
+
+  setRadius (radius) {
+    this.radius.data = radius || 0.0;
   }
 
 }

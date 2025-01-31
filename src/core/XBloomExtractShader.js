@@ -8,7 +8,7 @@ class XBloomExtractShader extends XShader {
       out vec2 vUV;
 
       void main(void) {
-        vUV = (positions * 0.5) + 0.5; 
+        vUV = (positions * 0.5) + 0.5;
         gl_Position = vec4(positions, 0.0, 1.0);
       }
     `;

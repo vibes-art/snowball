@@ -144,10 +144,11 @@ class XCanvas {
 
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_LIGHTS, false);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_MAIN, false);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_EMISSIVE, false);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_EXTRACT, ENABLE_BLOOM);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_BLUR_HORZ, ENABLE_BLOOM);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_BLUR_VERT, ENABLE_BLOOM);
-    this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_COMBINE, ENABLE_BLOOM);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_COMBINE, this.effects.length > 0);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_ANTIALIAS, true);
 
     var mainRenderPass = this.scene.getRenderPass(RENDER_PASS_MAIN);
@@ -158,7 +159,7 @@ class XCanvas {
       height: this.height
     });
 
-    var linkFBO = ENABLE_BLOOM ? this.scene.framebufferObjects[RENDER_PASS_BLOOM_COMBINE] : fbo;
+    var linkFBO = this.effects.length > 0 ? this.scene.framebufferObjects[RENDER_PASS_COMBINE] : fbo;
     linkFBO.linkAttribute(this.fullscreenQuad, ATTR_KEY_COLORS);
 
     this.scene.addRenderPass(RENDER_PASS_ANTIALIAS);

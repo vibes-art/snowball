@@ -1,4 +1,4 @@
-class XBloomCombineShader extends XShader {
+class XCombineShader extends XShader {
 
   setShaderSource () {
     this.vertexShaderSource = `#version 300 es
@@ -20,20 +20,20 @@ class XBloomCombineShader extends XShader {
       out vec4 fragColor;
 
       uniform sampler2D sceneTexture;
-      uniform sampler2D bloomTexture;
+      uniform sampler2D combineTexture;
       uniform float intensity;
 
       void main(void) {
         vec3 sceneColor = texture(sceneTexture, vUV).rgb;
-        vec3 bloomColor = texture(bloomTexture, vUV).rgb * intensity;
-        fragColor = vec4(sceneColor + bloomColor, 1.0);
+        vec3 combineColor = texture(combineTexture, vUV).rgb * intensity;
+        fragColor = vec4(sceneColor + combineColor, 1.0);
       }
     `;
   }
 
   connect () {
     this.setUniformLocation(UNI_KEY_SCENE_TEXTURE);
-    this.setUniformLocation(UNI_KEY_BLOOM_TEXTURE);
+    this.setUniformLocation(UNI_KEY_COMBINE_TEXTURE);
     this.setUniformLocation(UNI_KEY_INTENSITY);
   }
 

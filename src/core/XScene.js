@@ -102,6 +102,7 @@ class XScene {
         return pass;
       }
     }
+    return null;
   }
 
   removeRenderPass (type, framebuffer) {
@@ -514,13 +515,13 @@ class XScene {
 
     var lastUniform = uniformMap.get(location);
     if (!force && !uniform.isDirty && lastUniform === uniform) {
-      VERBOSE && console.log(`uniform SKIPPED: ${this.key}, ${location}, ${this.data}`);
+      VERBOSE && console.log(`uniform SKIPPED: ${uniform.key}, ${location}, ${uniform.data}`);
       return;
     }
 
     uniformMap.set(location, uniform);
     uniform.apply(this.gl, location, force);
-    VERBOSE && console.log(`uniform: ${this.key}, ${location}, ${this.data}`);
+    VERBOSE && location && console.log(`uniform: ${uniform.key}, ${location}, ${uniform.data}`);
   }
 
   applyAttributes (obj, shader) {

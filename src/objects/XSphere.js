@@ -1,18 +1,21 @@
-var QUAD_TRIANGLE_INDICES = [[0, 1, 2], [0, 2, 3]];
-
-class XQuad extends XObject {
+class XSphere extends XObject {
 
   constructor (opts) {
-    opts.type = opts.gl.TRIANGLE_FAN;
-    opts.vertexCount = 4;
-    opts.useIndices = false;
+    opts.type = opts.gl.TRIANGLES;
+    opts.useIndices = true;
+    opts.vertexCount = (opts.rings + 1) * (opts.segments + 1);
 
     super(opts);
   }
 
   initialize (opts) {
-    this.vertices = opts.vertices;
+    this.rings = opts.rings || 16;
+    this.segments = opts.segments || 32;
+    this.radius = opts.radius || 1;
     this.color = opts.color || [0.5, 0.5, 0.5, 1];
+
+    this.vertices = [];
+    this.indices = null;
 
     this.generatedNormals = [];
     this.generatedTangents = [];
@@ -32,14 +35,42 @@ class XQuad extends XObject {
   }
 
   generate (opts) {
+    this.generateSphereIndices();
+    this.generateSphereVertices();
     super.generate(opts);
+  }
 
-    var vertices = this.vertices;
-    if (!vertices || vertices.length < this.vertexCount) {
-      console.error(`Missing XQuad vertices data.`);
+  generateSphereVertices () {
+    this.vertices = [];
+
+    for (var lat = 0; lat <= this.rings; lat++) {
+      var phi = Math.PI * (lat / this.rings);
+
+      for (var lon = 0; lon <= this.segments; lon++) {
+        var theta = TAU * (lon / this.segments);
+
+        // spherical -> cartesian
+        var sinPhi = sin(phi);
+        var cosPhi = cos(phi);
+        var sinTheta = sin(theta);
+        var cosTheta = cos(theta);
+        var x = this.radius * sinPhi * cosTheta;
+        var y = this.radius * cosPhi;
+        var z = this.radius * sinPhi * sinTheta;
+        var u = 1 - (lon / this.segments);
+        var v = 1 - (lat / this.rings);
+
+        this.vertices.push({
+          position: [x, y, z],
+          color: this.color,
+          uv: [u, v]
+        });
+      }
     }
 
     // TODO: generalize all of this and move to XObject?
+    var vertices = this.vertices;
+    this.vertexCount = vertices.length;
 
     // set positions and tex coords first
     for (var i = 0; i < vertices.length; i++) {
@@ -62,6 +93,25 @@ class XQuad extends XObject {
     }
   }
 
+  generateSphereIndices () {
+    var indices = [];
+
+    for (var lat = 0; lat < this.rings; lat++) {
+      for (var lon = 0; lon < this.segments; lon++) {
+        var current = lat * (this.segments + 1) + lon;
+        var next = current + (this.segments + 1);
+        // triangle 1: current + 1, current, next
+        indices.push(current, current + 1, next);
+        // triangle 2: next, next + 1, current + 1
+        indices.push(next + 1, next, current + 1);
+      }
+    }
+
+    this.indexCount = indices.length;
+    this.indices = new Uint32Array(indices);
+    this.indicesDirty = true;
+  }
+
   generateAllVectors () {
     this.generatedNormals.length = 0;
     this.generatedTangents.length = 0;
@@ -73,10 +123,10 @@ class XQuad extends XObject {
       this.generatedBitangents.push([0, 0, 0]);
     }
 
-    for (var t = 0; t < QUAD_TRIANGLE_INDICES.length; t++) {
-      var idx0 = QUAD_TRIANGLE_INDICES[t][0];
-      var idx1 = QUAD_TRIANGLE_INDICES[t][1];
-      var idx2 = QUAD_TRIANGLE_INDICES[t][2];
+    for (var i = 0; i < this.indices.length; i += 3) {
+      var idx0 = this.indices[i + 0];
+      var idx1 = this.indices[i + 1];
+      var idx2 = this.indices[i + 2];
 
       var p0 = this.getPosition(idx0);
       var p1 = this.getPosition(idx1);
@@ -143,12 +193,9 @@ class XQuad extends XObject {
   }
 
   calculateTextureCoord (i) {
-    switch (i) {
-      case 0: return [1.0, 1.0];
-      case 1: return [1.0, 0.0];
-      case 2: return [0.0, 0.0];
-      case 3: return [0.0, 1.0];
-    }
+    var vertex = this.vertices[i];
+    if (vertex.uv) return [vertex.uv[0], vertex.uv[1]];
+    return [0, 0];
   }
 
 }

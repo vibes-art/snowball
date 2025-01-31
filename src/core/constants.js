@@ -89,11 +89,12 @@ var QUILT_RECURSION_DECREMENT = 0.1;
 
 var RENDER_PASS_LIGHTS = 'lights';
 var RENDER_PASS_MAIN = 'main';
+var RENDER_PASS_EMISSIVE = 'emissive';
 var RENDER_PASS_ANTIALIAS = 'antialias';
 var RENDER_PASS_BLOOM_EXTRACT = 'bloomExtract';
 var RENDER_PASS_BLOOM_BLUR_HORZ = 'bloomBlurHorz';
 var RENDER_PASS_BLOOM_BLUR_VERT = 'bloomBlurVert';
-var RENDER_PASS_BLOOM_COMBINE = 'bloomCombine';
+var RENDER_PASS_COMBINE = 'combine';
 
 var LIGHT_DIRECTIONAL = 'directional';
 var LIGHT_POINT = 'point';
@@ -150,10 +151,11 @@ var UNI_KEY_COLORS_TEXTURE = 'colorsTexture';
 var UNI_KEY_SOURCE_TEXTURE = 'sourceTexture';
 var UNI_KEY_THRESHOLD = 'threshold';
 var UNI_KEY_SCENE_TEXTURE = 'sceneTexture';
-var UNI_KEY_BLOOM_TEXTURE = 'bloomTexture';
+var UNI_KEY_COMBINE_TEXTURE = 'combineTexture';
 var UNI_KEY_INTENSITY = 'intensity';
 var UNI_KEY_TEXTURE_SIZE = 'textureSize';
 var UNI_KEY_EXPOSURE = 'exposure';
+var UNI_KEY_EMISSION = 'emission';
 
 var NOISE_TYPE_HEIGHT = 'height';
 var NOISE_TYPE_COLOR_HEIGHT_OFFSET = 'colorHeightOffset';

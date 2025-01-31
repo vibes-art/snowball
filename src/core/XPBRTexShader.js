@@ -78,6 +78,7 @@ class XPBRTexShader extends XShader {
       uniform vec3 pointLightColors[MAX_POINT_LIGHTS];
       uniform vec3 pointLightFixedAxes[MAX_POINT_LIGHTS];
       uniform float pointLightPowers[MAX_POINT_LIGHTS];
+      uniform float pointLightRadii[MAX_POINT_LIGHTS];
 
       uniform vec3 ambientColor;
       uniform vec3 fogColor;
@@ -253,6 +254,7 @@ class XPBRTexShader extends XShader {
           vec3 pointLightColor = pointLightColors[i];
           vec3 pointLightFixedAxes = pointLightFixedAxes[i];
           float pointLightPower = pointLightPowers[i];
+          float pointLightRadius = pointLightRadii[i];
 
           float toLightX = pointLightFixedAxes[0] != 0.0 ? pointLightFixedAxes[0] : pointLightPos.x - vWorldPos.x;
           float toLightY = pointLightFixedAxes[1] != 0.0 ? pointLightFixedAxes[1] : pointLightPos.y - vWorldPos.y;
@@ -265,9 +267,12 @@ class XPBRTexShader extends XShader {
           float attenuation = pointLightPower / (toLightDist * toLightDist);
           vec3 radiance = pointLightColor * attenuation; 
 
+          float sphereFactor = pointLightRadius / toLightDist;
+          float combinedRoughness = sqrt(roughnessClamped * roughnessClamped + sphereFactor * sphereFactor);
+
           // Cook-Torrance BRDF
-          float NDF = DistributionGGX(normalDir, halfDir, roughnessClamped);
-          float G = GeometrySmith(normalDir, viewDir, toLightDir, roughnessClamped);
+          float NDF = DistributionGGX(normalDir, halfDir, combinedRoughness);
+          float G = GeometrySmith(normalDir, viewDir, toLightDir, combinedRoughness);
           vec3 F = fresnelSchlick(max(dot(halfDir, viewDir), 0.0), F0);
           float NdotL = max(dot(normalDir, toLightDir), 0.0);
           float denom = 4.0 * max(dot(normalDir, viewDir), 0.0) * NdotL + 0.001;

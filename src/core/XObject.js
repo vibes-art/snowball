@@ -40,6 +40,7 @@ class XObject {
 
     this.enableRenderPass(RENDER_PASS_LIGHTS, true);
     this.enableRenderPass(RENDER_PASS_MAIN, true);
+    this.enableRenderPass(RENDER_PASS_EMISSIVE, true);
   }
 
   defineAttributes (opts) {
@@ -48,6 +49,7 @@ class XObject {
 
   defineUniforms (opts) {
     this.setMatrices(opts.modelMatrix);
+    this.addUniform(UNI_KEY_EMISSION, { components: 1, data: 0 });
   }
 
   setShader (opts) {
