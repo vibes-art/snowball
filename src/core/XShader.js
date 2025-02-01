@@ -81,7 +81,6 @@ class XShader {
       uniform int pointLightCount;
       uniform vec3 pointLightPositions[MAX_POINT_LIGHTS];
       uniform vec3 pointLightColors[MAX_POINT_LIGHTS];
-      uniform vec3 pointLightFixedAxes[MAX_POINT_LIGHTS];
       uniform float pointLightPowers[MAX_POINT_LIGHTS];
 
       uniform vec3 ambientColor;
@@ -191,15 +190,9 @@ class XShader {
         for (int i = 0; i < pointLightCount; i++) {
           vec3 pointLightPos = pointLightPositions[i];
           vec3 pointLightColor = pointLightColors[i];
-          vec3 pointLightFixedAxes = pointLightFixedAxes[i];
           float pointLightPower = pointLightPowers[i];
 
-          float toLightX = pointLightFixedAxes[0] != 0.0 ? pointLightFixedAxes[0] : pointLightPos.x - vWorldPos.x;
-          float toLightY = pointLightFixedAxes[1] != 0.0 ? pointLightFixedAxes[1] : pointLightPos.y - vWorldPos.y;
-          float toLightZ = pointLightFixedAxes[2] != 0.0 ? pointLightFixedAxes[2] : pointLightPos.z - vWorldPos.z;
-          vec3 toLight = vec3(toLightX, toLightY, toLightZ);
-
-          // vec3 toLight = pointLightPos - vWorldPos.xyz;
+          vec3 toLight = pointLightPos - vWorldPos.xyz;
           vec3 lightDir = normalize(toLight);
 
           float distance = length(toLight);
