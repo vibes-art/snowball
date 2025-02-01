@@ -111,18 +111,7 @@ class XCanvas {
     });
   }
 
-  initEffects (opts) {
-    if (ENABLE_BLOOM) {
-      this.effects.push(new XBloomEffect({
-        scene: this.scene,
-        width: this.width,
-        height: this.height,
-        threshold: BLOOM_THRESHOLD,
-        intensity: BLOOM_INTENSITY,
-        scale: BLOOM_SCALE
-      }));
-    }
-  }
+  initEffects (opts) { /* override to add shader effects */}
 
   initFullscreenQuad (opts) {
     this.fullscreenQuad = new XQuad({
