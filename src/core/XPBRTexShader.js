@@ -191,7 +191,7 @@ class XPBRTexShader extends XShader {
           metalVal = rmSample.b;
         }
 
-        float roughnessClamped = clamp(roughVal, 0.04, 1.0);
+        float roughnessClamped = clamp(roughVal, 0.07, 1.0);
         vec3 F0 = mix(vec3(0.04), tintColor, metalVal);
 
         for (int i = 0; i < lightCount; i++) {

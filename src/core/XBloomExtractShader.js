@@ -25,7 +25,7 @@ class XBloomExtractShader extends XShader {
       void main(void) {
         vec3 color = texture(sourceTexture, vUV).rgb;
         float brightness = max(color.r, max(color.g, color.b));
-        float softFactor = smoothstep(threshold, threshold + 0.2, brightness);
+        float softFactor = smoothstep(threshold, threshold + 0.3, brightness);
         fragColor = vec4(color * softFactor, 1.0);
       }
     `;

@@ -36,12 +36,17 @@ class XBloomBlurShader extends XShader {
         float offset = 1.0 / textureSize;
         vec3 result = vec3(0.0);
 
-        float[15] kernel = float[](
-          0.0005, 0.0024, 0.0092, 0.0278, 0.0656, 0.1210, 0.1747,
-          0.1974, 0.1747, 0.1210, 0.0656, 0.0278, 0.0092, 0.0024, 0.0005
+        // float[15] kernel = float[](
+        //   0.0005, 0.0024, 0.0092, 0.0278, 0.0656, 0.1210, 0.1747,
+        //   0.1974, 0.1747, 0.1210, 0.0656, 0.0278, 0.0092, 0.0024, 0.0005
+        // );
+
+        float[11] kernel = float[](
+          0.0005, 0.0024, 0.0092, 0.0278, 0.0656,
+          0.1210, 0.0656, 0.0278, 0.0092, 0.0024, 0.0005
         );
 
-        int halfK = 7;
+        int halfK = 5;
 
         for (int i = -halfK; i <= halfK; i++) {
           float w = kernel[i + halfK];

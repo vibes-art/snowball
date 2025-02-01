@@ -120,7 +120,7 @@ class XPBRShader extends XShader {
         vec3 finalColor = vec3(0.0);
 
         float alpha = baseColor.a;
-        float roughnessClamped = clamp(roughness, 0.04, 1.0);
+        float roughnessClamped = clamp(roughness, 0.07, 1.0);
         vec3 F0 = mix(vec3(0.04), tintColor, metallic);
 
         for (int i = 0; i < lightCount; i++) {
