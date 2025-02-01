@@ -6,7 +6,6 @@ class XBloomEffect {
     this.scale = opts.scale || 1;
 
     this.uniforms = {};
-    this.queuedFBOUniformLinks = [];
 
     this.init(opts);
   }
@@ -25,22 +24,20 @@ class XBloomEffect {
     bloomOpts.height = this.height;
     bloomOpts.scale = this.scale;
 
+    var sourceFBO = scene.getSourceFramebuffer();
     var extractFBO = scene.addFramebuffer(RENDER_PASS_BLOOM_EXTRACT, bloomOpts);
     var blurHorzFBO = scene.addFramebuffer(RENDER_PASS_BLOOM_BLUR_HORZ, bloomOpts);
     var blurVertFBO = scene.addFramebuffer(RENDER_PASS_BLOOM_BLUR_VERT, bloomOpts);
-    var combineFBO = scene.addFramebuffer(RENDER_PASS_COMBINE, { ...bloomOpts, scale: 1 });
+    var combineFBO = scene.addFramebuffer(RENDER_PASS_COMBINE_BLOOM, { ...bloomOpts, scale: 1 });
 
-    var bloomWidth = bloomOpts.width * bloomOpts.scale;
-    var bloomHeight = bloomOpts.height * bloomOpts.scale;
+    var bloomWidth = round(bloomOpts.width * bloomOpts.scale);
+    var bloomHeight = round(bloomOpts.height * bloomOpts.scale);
 
     var extractUniforms = {};
     extractUniforms[UNI_KEY_SOURCE_TEXTURE] = new XUniform({ key: UNI_KEY_SOURCE_TEXTURE, ...uniTexOpts });
     extractUniforms[UNI_KEY_THRESHOLD] = new XUniform({ key: UNI_KEY_THRESHOLD, data: threshold, components: 1 });
 
-    this.queuedFBOUniformLinks.push({
-      fboKey: RENDER_PASS_MAIN,
-      uniform: extractUniforms[UNI_KEY_SOURCE_TEXTURE]
-    });
+    sourceFBO.linkUniform(extractUniforms[UNI_KEY_SOURCE_TEXTURE]);
 
     scene.addRenderPass(RENDER_PASS_BLOOM_EXTRACT, {
       framebufferKey: RENDER_PASS_BLOOM_EXTRACT,
@@ -91,18 +88,14 @@ class XBloomEffect {
     });
 
     var combineUniforms = {};
-    combineUniforms[UNI_KEY_SCENE_TEXTURE] = new XUniform({ key: UNI_KEY_SCENE_TEXTURE, ...uniTexOpts });
+    combineUniforms[UNI_KEY_SOURCE_TEXTURE] = new XUniform({ key: UNI_KEY_SOURCE_TEXTURE, ...uniTexOpts });
     combineUniforms[UNI_KEY_COMBINE_TEXTURE] = new XUniform({ key: UNI_KEY_COMBINE_TEXTURE, ...uniTexOpts });
     combineUniforms[UNI_KEY_INTENSITY] = new XUniform({ key: UNI_KEY_INTENSITY, data: intensity, components: 1 });
     blurVertFBO.linkUniform(combineUniforms[UNI_KEY_COMBINE_TEXTURE]);
+    sourceFBO.linkUniform(combineUniforms[UNI_KEY_SOURCE_TEXTURE]);
 
-    this.queuedFBOUniformLinks.push({
-      fboKey: RENDER_PASS_MAIN,
-      uniform: combineUniforms[UNI_KEY_SCENE_TEXTURE]
-    });
-
-    scene.addRenderPass(RENDER_PASS_COMBINE, {
-      framebufferKey: RENDER_PASS_COMBINE,
+    scene.addRenderPass(RENDER_PASS_COMBINE_BLOOM, {
+      framebufferKey: RENDER_PASS_COMBINE_BLOOM,
       shader: new XCombineShader({ scene: scene }),
       uniforms: combineUniforms
     });

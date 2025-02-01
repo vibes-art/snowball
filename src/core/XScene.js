@@ -26,7 +26,10 @@ class XScene {
     this.haveObjectsChanged = false;
     this.needsShaderConnect = false;
 
-    this.addRenderPass(RENDER_PASS_MAIN);
+    this.addRenderPass(RENDER_PASS_MAIN, {
+      framebufferKey: RENDER_PASS_MAIN
+    });
+
     this.initUniforms(opts);
     this.initLights(opts);
     this.initMatrices(opts);
@@ -126,6 +129,19 @@ class XScene {
     opts.scale = opts.scale || 1;
 
     return this.framebufferObjects[key] = new XFramebufferObject(opts);
+  }
+
+  getSourceFramebuffer () {
+    var sourceFBO = null;
+
+    var passes = this.renderPasses;
+    var lastPass = passes[passes.length - 1];
+    if (lastPass && lastPass.type) {
+      var lastFBO = this.framebufferObjects[lastPass.type];
+      if (lastFBO) sourceFBO = lastFBO;
+    }
+
+    return sourceFBO;
   }
 
   setPrimaryShaders (shader, textureShader) {

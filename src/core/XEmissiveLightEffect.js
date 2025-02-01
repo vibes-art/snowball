@@ -6,7 +6,6 @@ class XEmissiveLightEffect {
     this.scale = opts.scale || 1;
 
     this.uniforms = {};
-    this.queuedFBOUniformLinks = [];
 
     this.init(opts);
   }
@@ -23,8 +22,9 @@ class XEmissiveLightEffect {
       height: this.height
     };
 
+    var sourceFBO = scene.getSourceFramebuffer();
     this.emissiveFBO = scene.addFramebuffer(RENDER_PASS_EMISSIVE, { ...fboOpts });
-    this.combineFBO = scene.addFramebuffer(RENDER_PASS_COMBINE, { ...fboOpts });
+    this.combineFBO = scene.addFramebuffer(RENDER_PASS_COMBINE_EMISSIVE, { ...fboOpts });
 
     scene.addRenderPass(RENDER_PASS_EMISSIVE, {
       framebufferKey: RENDER_PASS_EMISSIVE,
@@ -32,18 +32,15 @@ class XEmissiveLightEffect {
     });
 
     var combineUniforms = {};
-    combineUniforms[UNI_KEY_SCENE_TEXTURE] = new XUniform({ key: UNI_KEY_SCENE_TEXTURE, ...uniTexOpts });
+    combineUniforms[UNI_KEY_SOURCE_TEXTURE] = new XUniform({ key: UNI_KEY_SOURCE_TEXTURE, ...uniTexOpts });
     combineUniforms[UNI_KEY_COMBINE_TEXTURE] = new XUniform({ key: UNI_KEY_COMBINE_TEXTURE, ...uniTexOpts });
     combineUniforms[UNI_KEY_INTENSITY] = new XUniform({ key: UNI_KEY_INTENSITY, data: 1, components: 1 });
     this.emissiveFBO.linkUniform(combineUniforms[UNI_KEY_COMBINE_TEXTURE]);
 
-    this.queuedFBOUniformLinks.push({
-      fboKey: RENDER_PASS_MAIN,
-      uniform: combineUniforms[UNI_KEY_SCENE_TEXTURE]
-    });
+    sourceFBO.linkUniform(combineUniforms[UNI_KEY_SOURCE_TEXTURE]);
 
-    scene.addRenderPass(RENDER_PASS_COMBINE, {
-      framebufferKey: RENDER_PASS_COMBINE,
+    scene.addRenderPass(RENDER_PASS_COMBINE_EMISSIVE, {
+      framebufferKey: RENDER_PASS_COMBINE_EMISSIVE,
       shader: new XCombineShader({ scene: scene }),
       uniforms: combineUniforms
     });

@@ -66,21 +66,16 @@ class XCanvas {
     opts.projectionMatrix = this.getProjectionMatrix();
 
     this.scene = new XScene({ gl: this.gl, ...opts });
+    this.scene.addFramebuffer(RENDER_PASS_MAIN, {
+      width: this.width,
+      height: this.height
+    });
 
     this.initLights(opts);
     this.initShader(opts);
     this.initCamera(opts);
     this.initEffects(opts);
-    this.initMainFramebuffer(opts);
-
-    // process effect links after all render passes and FBOs are initialized
-    for (var i = 0; i < this.effects.length; i++) {
-      var effect = this.effects[i];
-      effect.queuedFBOUniformLinks.forEach(link => {
-        this.scene.framebufferObjects[link.fboKey].linkUniform(link.uniform);
-      });
-      effect.queuedFBOUniformLinks.length = 0;
-    }
+    this.initFullscreenQuad(opts);
 
     this.onNextFrame(() => this.initObjects());
   }
@@ -129,7 +124,7 @@ class XCanvas {
     }
   }
 
-  initMainFramebuffer (opts) {
+  initFullscreenQuad (opts) {
     this.fullscreenQuad = new XQuad({
       gl: this.gl,
       scene: this.scene,
@@ -145,22 +140,16 @@ class XCanvas {
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_LIGHTS, false);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_MAIN, false);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_EMISSIVE, false);
-    this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_EXTRACT, ENABLE_BLOOM);
-    this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_BLUR_HORZ, ENABLE_BLOOM);
-    this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_BLUR_VERT, ENABLE_BLOOM);
-    this.fullscreenQuad.enableRenderPass(RENDER_PASS_COMBINE, this.effects.length > 0);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_EXTRACT, true);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_BLUR_HORZ, true);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_BLUR_VERT, true);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_COMBINE_BLOOM, true);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_COMBINE_EMISSIVE, true);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_ANTIALIAS, true);
 
-    var mainRenderPass = this.scene.getRenderPass(RENDER_PASS_MAIN);
-    mainRenderPass.framebufferKey = RENDER_PASS_MAIN;
-
-    var fbo = this.scene.addFramebuffer(RENDER_PASS_MAIN, {
-      width: this.width,
-      height: this.height
-    });
-
-    var linkFBO = this.effects.length > 0 ? this.scene.framebufferObjects[RENDER_PASS_COMBINE] : fbo;
-    linkFBO.linkAttribute(this.fullscreenQuad, ATTR_KEY_COLORS);
+    // get the final framebuffer before antialiasing as our source color
+    var sourceFBO = this.scene.getSourceFramebuffer();
+    sourceFBO.linkAttribute(this.fullscreenQuad, ATTR_KEY_COLORS);
 
     this.scene.addRenderPass(RENDER_PASS_ANTIALIAS);
   }

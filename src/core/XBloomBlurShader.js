@@ -51,7 +51,8 @@ class XBloomBlurShader extends XShader {
           result += w * texture(sourceTexture, uv).rgb;
         }
 
-        fragColor = vec4(result, 1.0);
+        // for now 0.5 alpha indicates additive to XCombineShader
+        fragColor = vec4(result, 0.5);
       }
     `;
   }

@@ -94,7 +94,8 @@ var RENDER_PASS_ANTIALIAS = 'antialias';
 var RENDER_PASS_BLOOM_EXTRACT = 'bloomExtract';
 var RENDER_PASS_BLOOM_BLUR_HORZ = 'bloomBlurHorz';
 var RENDER_PASS_BLOOM_BLUR_VERT = 'bloomBlurVert';
-var RENDER_PASS_COMBINE = 'combine';
+var RENDER_PASS_COMBINE_EMISSIVE = 'combineEmissive';
+var RENDER_PASS_COMBINE_BLOOM = 'combineBloom';
 
 var LIGHT_DIRECTIONAL = 'directional';
 var LIGHT_POINT = 'point';
@@ -150,7 +151,6 @@ var MATERIAL_TEXTURE_MAPS = [UNI_KEY_ALBEDO_MAP, UNI_KEY_NORMAL_MAP, UNI_KEY_ROU
 var UNI_KEY_COLORS_TEXTURE = 'colorsTexture';
 var UNI_KEY_SOURCE_TEXTURE = 'sourceTexture';
 var UNI_KEY_THRESHOLD = 'threshold';
-var UNI_KEY_SCENE_TEXTURE = 'sceneTexture';
 var UNI_KEY_COMBINE_TEXTURE = 'combineTexture';
 var UNI_KEY_INTENSITY = 'intensity';
 var UNI_KEY_TEXTURE_SIZE = 'textureSize';
