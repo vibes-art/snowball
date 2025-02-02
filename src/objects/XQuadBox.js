@@ -75,4 +75,9 @@ class XQuadBox {
     // TODO
   }
 
+  remove () {
+    this.quads.forEach(quad => quad.remove());
+    this.quads = [];
+  }
+
 }
