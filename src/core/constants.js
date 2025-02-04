@@ -25,6 +25,7 @@ var GLD = (1 + sqrt(5)) / 2;
 var GLD_RECT = 1 / GLD;
 
 var IS_MOBILE = false;
+var IS_HEADLESS = false;
 
 function detectDevicePerformance () {
   var isMobile = false;
@@ -42,6 +43,8 @@ function detectDevicePerformance () {
   }
 
   IS_MOBILE = isMobile || isLowMemory;
+  IS_HEADLESS = /\bHeadlessChrome\//.test(navigator.userAgent);
+
   console.log(`IS_MOBILE: ${IS_MOBILE}, Mobile detection: ${isMobile}, Memory (GB): ${deviceMemory}`);
 };
 
@@ -60,7 +63,6 @@ var ENABLE_COLOR_BUFFER_HALF_FLOAT = true;
 var ENABLE_SHADOWS = true;
 var ENABLE_TONE_MAPPING = false;
 var ENABLE_HDR = true;
-var LIVE_RENDER = false;
 
 var CAMERA_FOV = 45 * PI / 180;
 var CAMERA_Z_NEAR = 0.1;

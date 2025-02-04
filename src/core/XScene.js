@@ -17,7 +17,7 @@ class XScene {
     this.shaderUniformCache = new WeakMap();
 
     this.onDrawListeners = [];
-    this.isDrawing = LIVE_RENDER;
+    this.isDrawing = true;
     this.reservedTextureUnitIndex = BASE_SCENE_TEXTURE_UNIT;
     this.drawingTextureUnitIndex = this.reservedTextureUnitIndex;
     this.lastAttribs = [];

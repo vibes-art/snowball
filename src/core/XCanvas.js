@@ -297,7 +297,7 @@ class XCanvas {
     window.addEventListener("mousedown", (evt) => this.onMouseDown(evt));
     window.addEventListener("mousemove", (evt) => this.onMouseMove(evt));
     window.addEventListener("mouseup", (evt) => this.onMouseUp(evt));
-    window.addEventListener("wheel", (evt) => this.onMouseWheel(evt));
+    window.addEventListener("wheel", (evt) => this.onMouseWheel(evt), { passive: false });
     window.addEventListener("touchstart", (evt) => this.onTouchStart(evt), { passive: false });
     window.addEventListener("touchmove", (evt) => this.onTouchMove(evt), { passive: false });
     window.addEventListener("touchend", (evt) => this.onTouchEnd(evt), { passive: false });
