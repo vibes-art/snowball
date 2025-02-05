@@ -38,7 +38,7 @@ class XSpotLight extends XLight {
   }
 
   calculateViewMatrix (edgeAccuracyMult) {
-    edgeAccuracyMult = edgeAccuracyMult || 2;
+    edgeAccuracyMult = edgeAccuracyMult || 5;
     var fov = edgeAccuracyMult * this.outerAngle.data;
     var projectionMatrix = XMatrix4.perspective(fov, 1, SPOT_LIGHT_Z_NEAR, SPOT_LIGHT_Z_FAR);
     this.viewProjMatrix.data = XMatrix4.multiply(projectionMatrix, this.lookAtMatrix);

@@ -230,6 +230,8 @@ class XScene {
 
     this.uniforms.lightCount.data = lights.length;
     this.needsShaderConnect = true;
+
+    return light;
   }
 
   addPointLight (opts) {
