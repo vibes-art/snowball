@@ -151,7 +151,7 @@ XGLUtils.bindTexture = function (gl, textureUnit, texture) {
   gl.bindTexture(gl.TEXTURE_2D, texture);
 };
 
-XGLUtils.loadTexture = function (gl, url, sRGB) {
+XGLUtils.loadTexture = function (gl, url, sRGB, onLoad) {
   sRGB = sRGB || false;
 
   var time = performance.now();
@@ -211,6 +211,8 @@ XGLUtils.loadTexture = function (gl, url, sRGB) {
     XGLUtils.currentTextureMemory += sizeInBytes;
     cacheEntry.sizeInBytes = sizeInBytes;
     XGLUtils.maybeUnloadTextures(gl);
+
+    onLoad && onLoad(texture);
   };
 
   image.crossOrigin = 'anonymous';
@@ -345,4 +347,11 @@ XGLUtils.createDepthFramebuffer = function (gl, width, height) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
   return { framebuffer, depthTexture, debugColorTex };
+};
+
+XGLUtils.loadMaterial = function (gl, path, mat) {
+  mat.useTextures = true;
+  XGLUtils.loadTexture(gl, `${path}.png`, true, t => mat.setMaterialTexture(UNI_KEY_ALBEDO_MAP, t));
+  XGLUtils.loadTexture(gl, `${path}_normal.png`, false, t => mat.setMaterialTexture(UNI_KEY_NORMAL_MAP, t));
+  XGLUtils.loadTexture(gl, `${path}_roughness.png`, false, t => mat.setMaterialTexture(UNI_KEY_ROUGHNESS_MAP, t));
 };

@@ -25,7 +25,7 @@ class XMaterial {
     if (!uniform) return console.error(`Missing XMaterial texture for key: ${key}`);
 
     this.useTextures = true;
-    uniform.texture = texture;
+    uniform.setTexture(texture);
   }
 
   getUniforms () {
