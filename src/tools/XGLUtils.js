@@ -1,3 +1,5 @@
+var MAX_IMAGE_RETRIES = 3;
+
 var XGLUtils = {};
 
 // global texture cache
@@ -151,8 +153,10 @@ XGLUtils.bindTexture = function (gl, textureUnit, texture) {
   gl.bindTexture(gl.TEXTURE_2D, texture);
 };
 
-XGLUtils.loadTexture = function (gl, url, sRGB, onLoad) {
+XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries) {
   sRGB = sRGB || false;
+  onLoad = onLoad || null;
+  retries = retries || 0;
 
   var time = performance.now();
   var cacheEntry = XGLUtils.textureCache[url];
@@ -184,11 +188,11 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad) {
   var border = 0;
   var srcFormat = gl.RGBA;
   var srcType = gl.UNSIGNED_BYTE;
-  var pixel = new Uint8Array([0, 0, 255, 255]);
+  var pixel = new Uint8Array([255, 255, 255, 255]);
   gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, width, height, border, srcFormat, srcType, pixel);
 
   var image = new Image();
-  image.onload = function() {
+  image.onload = function () {
     XGLUtils.bindTexture(gl, SHARED_TEXTURE_UNIT, texture);
     gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, srcFormat, srcType, image);
 
@@ -215,6 +219,17 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad) {
     XGLUtils.maybeUnloadTextures(gl);
 
     onLoad && onLoad(texture);
+  };
+
+  image.onerror = function () {
+    delete XGLUtils.textureCache[url];
+    console.error(`Error loading image: ${url}`);
+
+    if (retries < MAX_IMAGE_RETRIES) {
+      setTimeout(() => XGLUtils.loadTexture(gl, url, sRGB, onLoad, retries), 100 * retries++);
+    } else {
+      console.error(`Failed to load ${url} after ${maxRetries} retries.`);
+    }
   };
 
   image.crossOrigin = 'anonymous';
