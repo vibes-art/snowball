@@ -30,7 +30,7 @@ var IS_HEADLESS = false;
 function detectDevicePerformance () {
   var isMobile = false;
   var deviceMemory = navigator.deviceMemory || 4;
-  var isLowMemory = deviceMemory < 2;
+  var isLowMemory = deviceMemory < 1;
 
   if (navigator.userAgentData) {
     isMobile = navigator.userAgentData.mobile;

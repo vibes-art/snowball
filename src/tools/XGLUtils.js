@@ -4,7 +4,7 @@ var XGLUtils = {};
 XGLUtils.textureCache = {};
 XGLUtils.currentTextureMemory = 0;
 XGLUtils.maxTextureMemory = min(
-  (navigator.deviceMemory || 4) * 0.33 * 1024 * 1024 * 1024, // 33% device memory
+  (navigator.deviceMemory || 4) * 1024 * 1024 * 1024, // device memory
   (IS_MOBILE ? 512 : 1024) * 1024 * 1024 // capped at 512 MB mobile, 1 GB desktop
 );
 
@@ -159,6 +159,7 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad) {
 
   if (cacheEntry) {
     cacheEntry.lastUsedTime = time;
+    onLoad && onLoad(cacheEntry.texture);
     return cacheEntry.texture;
   }
 
@@ -205,6 +206,7 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad) {
     cacheEntry.isLoaded = true;
     cacheEntry.width = image.width;
     cacheEntry.height = image.height;
+    cacheEntry.lastUsedTime = performance.now();
 
     // estimate GPU memory usage, width * height * 4 (RGBA)
     var sizeInBytes = ceil((isPowerOf2 ? 1.33 : 1) * image.width * image.height * 4);
@@ -347,11 +349,4 @@ XGLUtils.createDepthFramebuffer = function (gl, width, height) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
   return { framebuffer, depthTexture, debugColorTex };
-};
-
-XGLUtils.loadMaterial = function (gl, path, mat) {
-  mat.useTextures = true;
-  XGLUtils.loadTexture(gl, `${path}.png`, true, t => mat.setMaterialTexture(UNI_KEY_ALBEDO_MAP, t));
-  XGLUtils.loadTexture(gl, `${path}_normal.png`, false, t => mat.setMaterialTexture(UNI_KEY_NORMAL_MAP, t));
-  XGLUtils.loadTexture(gl, `${path}_roughness.png`, false, t => mat.setMaterialTexture(UNI_KEY_ROUGHNESS_MAP, t));
 };

@@ -28,6 +28,16 @@ class XMaterial {
     uniform.setTexture(texture);
   }
 
+  loadAllTextures (gl, path, type) {
+    type = type || 'png';
+
+    this.useTextures = true;
+
+    XGLUtils.loadTexture(gl, `${path}.${type}`, true, t => this.setMaterialTexture(UNI_KEY_ALBEDO_MAP, t));
+    XGLUtils.loadTexture(gl, `${path}_normal.${type}`, false, t => this.setMaterialTexture(UNI_KEY_NORMAL_MAP, t));
+    XGLUtils.loadTexture(gl, `${path}_roughness.${type}`, false, t => this.setMaterialTexture(UNI_KEY_ROUGHNESS_MAP, t));
+  }
+
   getUniforms () {
     return this.uniforms;
   }
