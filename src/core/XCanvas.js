@@ -18,6 +18,8 @@ class XCanvas {
     this.width = ceil(this.scaleAA * (opts.width || 0));
     this.height = ceil(this.scaleAA * (opts.height || 0));
     this.isWindowFit = this.width === 0;
+    this.aspectRatioMin = opts.aspectRatioMin || 0;
+    this.aspectRatioMax = opts.aspectRatioMax || 0;
 
     this.canvas = null;
     this.ctx = null;
@@ -252,6 +254,17 @@ class XCanvas {
     canvas = canvas || this.canvas;
     width = width || this.width;
     height = height || this.height;
+
+    if (canvas === this.canvas) {
+      var aspect = width / height;
+      if (this.aspectRatioMax && aspect > this.aspectRatioMax) {
+        width = this.aspectRatioMax * height;
+      }
+
+      if (this.aspectRatioMin && aspect < this.aspectRatioMin) {
+        height = width / this.aspectRatioMin;
+      }
+    }
 
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
