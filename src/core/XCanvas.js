@@ -20,6 +20,9 @@ class XCanvas {
     this.isWindowFit = this.width === 0;
     this.aspectRatioMin = opts.aspectRatioMin || 0;
     this.aspectRatioMax = opts.aspectRatioMax || 0;
+    this.enableMobileUpscale = opts.enableMobileUpscale !== undefined
+      ? opts.enableMobileUpscale
+      : true;
 
     this.canvas = null;
     this.ctx = null;
@@ -53,7 +56,7 @@ class XCanvas {
     }
 
     if (isWebGL) {
-      hasWorkingGL && this.initScene();
+      this.initScene();
     } else {
       this.prepareRenderLoop();
     }
@@ -255,6 +258,13 @@ class XCanvas {
     width = width || this.width;
     height = height || this.height;
 
+    var upscale = 1;
+    if (IS_MOBILE && this.enableMobileUpscale && width < height && this.canvas === canvas) {
+      upscale = 2;
+      width = round(width / upscale);
+      height = round(height / upscale);
+    }
+
     if (canvas === this.canvas) {
       var aspect = width / height;
       if (this.aspectRatioMax && aspect > this.aspectRatioMax) {
@@ -272,8 +282,8 @@ class XCanvas {
     }
 
     if (canvas === this.canvas) {
-      var scaledWidth = ceil(width / this.scaleAA);
-      var scaledHeight = ceil(height / this.scaleAA);
+      var scaledWidth = ceil(upscale * width / this.scaleAA);
+      var scaledHeight = ceil(upscale * height / this.scaleAA);
       var x = (this.windowWidth - scaledWidth) / 2;
       var y = (this.windowHeight - scaledHeight) / 2;
       canvas.style.left = x + 'px';

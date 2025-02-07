@@ -1,7 +1,9 @@
 class XMaterial {
 
   constructor (opts) {
+    this.loadCount = 0;
     this.useTextures = false;
+    this.onAllTexturesLoaded = null;
 
     this.baseColor = new XUniform({ key: UNI_KEY_BASE_COLOR, data: opts.baseColor || [1, 1, 1, 1] });
     this.metallic = new XUniform({ key: UNI_KEY_METALLIC, components: 1, data: opts.metallic || 0 });
@@ -26,11 +28,20 @@ class XMaterial {
 
     this.useTextures = true;
     uniform.setTexture(texture);
+
+    this.loadCount++;
+
+    if (this.onAllTexturesLoaded && this.loadCount === MATERIAL_TEXTURE_MAPS.length) {
+      this.onAllTexturesLoaded();
+    }
   }
 
-  loadAllTextures (gl, path, type) {
+  loadAllTextures (gl, path, onLoad, type) {
+    onLoad = onLoad || null;
     type = type || 'png';
 
+    this.loadCount = 0;
+    this.onAllTexturesLoaded = onLoad;
     this.useTextures = true;
 
     XGLUtils.loadTexture(gl, `${path}.${type}`, true, t => this.setMaterialTexture(UNI_KEY_ALBEDO_MAP, t));
