@@ -53,7 +53,7 @@ class BlankCanvas extends XCanvas {
         boxes.push(new XQuadBox({
           ...boxOpts,
           vertices,
-          centerPoint: [cx, cy, cz]
+          center: [cx, cy, cz]
         }));
       }
     }

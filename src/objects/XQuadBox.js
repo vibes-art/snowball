@@ -7,7 +7,7 @@ class XQuadBox {
   constructor (opts) {
     this.gl = opts.gl;
 
-    this.centerPoint = opts.centerPoint || [0, 0, 0];
+    this.center = opts.center || [0, 0, 0];
     this.dimensions = opts.dimensions || [0, 0, 0];
     this.size = opts.size || 1;
     this.color = opts.color || [0.5, 0.5, 0.5, 1];
@@ -23,7 +23,7 @@ class XQuadBox {
   }
 
   initialize (opts) {
-    var cp = this.centerPoint;
+    var cp = this.center;
     var halfWidth = (this.dimensions[0] || this.size) / 2;
     var halfHeight = (this.dimensions[1] || this.size) / 2;
     var halfDepth = (this.dimensions[2] || this.size) / 2;

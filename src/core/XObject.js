@@ -123,7 +123,6 @@ class XObject {
     this.matrices.normal = new XUniform({ key: UNI_KEY_NORMAL_MATRIX, type: UNI_TYPE_MATRIX });
 
     this.matrices.model.data = modelMatrix;
-    this.matrices.model.data = XMatrix4.scale(this.matrices.model.data, -1, 1, 1);
     this.matrices.normal.data = XMatrix4.invert(this.matrices.model.data);
     this.matrices.normal.data = XMatrix4.transpose(this.matrices.normal.data);
   }
@@ -218,6 +217,48 @@ class XObject {
 
   getUniforms () {
     return this.uniforms;
+  }
+
+  getBoundingSphere () {
+    return this.computeBoundingSphere();
+  }
+
+  computeBoundingSphere () {
+    var minBounds = [MAX_SAFE_INTEGER, MAX_SAFE_INTEGER, MAX_SAFE_INTEGER];
+    var maxBounds = [MIN_SAFE_INTEGER, MIN_SAFE_INTEGER, MIN_SAFE_INTEGER];
+
+    for (var i = 0; i < this.vertexCount; i++) {
+      var pos = this.getPosition(i);
+      minBounds[0] = min(minBounds[0], pos[0]);
+      minBounds[1] = min(minBounds[1], pos[1]);
+      minBounds[2] = min(minBounds[2], pos[2]);
+      maxBounds[0] = max(maxBounds[0], pos[0]);
+      maxBounds[1] = max(maxBounds[1], pos[1]);
+      maxBounds[2] = max(maxBounds[2], pos[2]);
+    }
+
+    var center = [
+      (minBounds[0] + maxBounds[0]) / 2,
+      (minBounds[1] + maxBounds[1]) / 2,
+      (minBounds[2] + maxBounds[2]) / 2
+    ];
+
+    var radius = 0;
+    for (var i = 0; i < this.vertexCount; i++) {
+      var pos = this.getPosition(i);
+      var dist = XVector3.distance(pos, center);
+      if (dist > radius) radius = dist;
+    }
+
+    if (this.matrices && this.matrices.model && this.matrices.model.data) {
+      center = XMatrix4.transformPoint(this.matrices.model.data, center);
+      var origin = XMatrix4.transformPoint(this.matrices.model.data, [0, 0, 0]);
+      var unitX = XMatrix4.transformPoint(this.matrices.model.data, [1, 0, 0]);
+      var scaleFactor = XVector3.distance(origin, unitX);
+      radius *= scaleFactor;
+    }
+
+    return { center, radius };
   }
 
   onDrawFinish () {

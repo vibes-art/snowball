@@ -46,7 +46,6 @@ class XBloomEffect {
       viewport: { scale: this.scale }
     });
 
-    // TODO: separate all this into a Bloom class and update uniforms on resize
     var blurHorzUniforms = {};
     blurHorzUniforms[UNI_KEY_SOURCE_TEXTURE] = new XUniform({ key: UNI_KEY_SOURCE_TEXTURE, ...uniTexOpts });
     extractFBO.linkUniform(blurHorzUniforms[UNI_KEY_SOURCE_TEXTURE]);

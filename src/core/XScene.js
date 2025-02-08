@@ -570,6 +570,53 @@ class XScene {
     }
   }
 
+  selectObjects (screenX, screenY) {
+    var ndcX = (screenX / this.viewport.width) * 2 - 1;
+    var ndcY = 1 - (screenY / this.viewport.height) * 2;
+    var nearClip = [ndcX, ndcY, -1, 1];
+    var farClip = [ndcX, ndcY,  1, 1];
+
+    var proj = this.matrices.projection.data;
+    var view = this.matrices.view.data;
+    var projView = XMatrix4.multiply(proj, view);
+    var invProjView = XMatrix4.invert(projView);
+
+    var nw4 = XMatrix4.multiplyWithVector(invProjView, nearClip);
+    var fw4 = XMatrix4.multiplyWithVector(invProjView, farClip);
+    var nearWorld = [nw4[0] / nw4[3], nw4[1] / nw4[3], nw4[2] / nw4[3]];
+    var farWorld = [fw4[0] / fw4[3], fw4[1] / fw4[3], fw4[2] / fw4[3]];
+
+    var rayOrigin = nearWorld;
+    var rayDir = XVector3.normalize(XVector3.subtract(farWorld, nearWorld));
+
+    var hitObjects = [];
+    for (var i = 0; i < this.objects.length; i++) {
+      var obj = this.objects[i];
+      if (!obj.vertexCount || !obj.isActive) continue;
+
+      if (obj.intersectsRay) {
+        if (obj.intersectsRay(rayOrigin, rayDir)) {
+          hitObjects.push(obj);
+        }
+      } else {
+        var sphere = obj.getBoundingSphere();
+        if (XVector3.rayIntersectsSphere(rayOrigin, rayDir, sphere)) {
+          hitObjects.push(obj);
+        }
+      }
+    }
+
+    hitObjects.sort((a, b) => {
+      var sphA = a.getBoundingSphere();
+      var sphB = b.getBoundingSphere();
+      var distA = XVector3.distance(rayOrigin, sphA.center);
+      var distB = XVector3.distance(rayOrigin, sphB.center);
+      return distA - distB;
+    });
+
+    return hitObjects;
+  }
+
   remove () {
     var objCount = this.objects.length;
     var shaders = [];

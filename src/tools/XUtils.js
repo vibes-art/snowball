@@ -356,12 +356,12 @@ XUtils.recurseQuilt = function (x0, z0, dx, dz, depth, opts) {
     return;
   };
 
-  var centerPoint = opts.centerPoint || { x: dx / 2, z: dz / 2, isCentered: true };
+  var center = opts.center || { x: dx / 2, z: dz / 2, isCentered: true };
   var buffer = (opts.buffer || 0) / (depth + 1);
-  var x1 = centerPoint.x;
-  var z1 = centerPoint.z;
+  var x1 = center.x;
+  var z1 = center.z;
   if (depth > 0) {
-    var goldenCircle = XUtils.getGoldenCircle(dx / 2, dx, dz, centerPoint);
+    var goldenCircle = XUtils.getGoldenCircle(dx / 2, dx, dz, center);
     x1 = x0 + goldenCircle.x;
     z1 = z0 + goldenCircle.z;
   }

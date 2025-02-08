@@ -198,4 +198,11 @@ class XSphere extends XObject {
     return [0, 0];
   }
 
+  computeBoundingSphere () {
+    return {
+      center: this.positionOffset.slice(),
+      radius: this.radius
+    };
+  }
+
 }

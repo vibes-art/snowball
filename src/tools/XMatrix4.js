@@ -213,56 +213,37 @@ XMatrix4.ortho = function (left, right, bottom, top, near, far) {
 };
 
 XMatrix4.lookAt = function (eye, center, up) {
-  function subtract(a, b) {
-    return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-  }
-  function cross(a, b) {
-    return [
-      a[1] * b[2] - a[2] * b[1],
-      a[2] * b[0] - a[0] * b[2],
-      a[0] * b[1] - a[1] * b[0]
-    ];
-  }
-  function dot(a, b) { return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]; }
-  function length(v) { return sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]); }
-  function normalize(v) {
-    var len = length(v);
-    if (len < 1e-10) return [0,0,0];
-    return [v[0]/len, v[1]/len, v[2]/len];
-  }
-
-  var f = normalize(subtract(center, eye));
-  var s = normalize(cross(f, up));
-  var u = cross(s, f);
+  var f = XVector3.normalize(XVector3.subtract(center, eye));
+  var s = XVector3.normalize(XVector3.cross(f, up));
+  var u = XVector3.cross(s, f);
 
   var out = new Float32Array(16);
-  out[0]  =  s[0];
-  out[1]  =  u[0];
-  out[2]  = -f[0];
-  out[3]  =  0.0;
-  out[4]  =  s[1];
-  out[5]  =  u[1];
-  out[6]  = -f[1];
-  out[7]  =  0.0;
-  out[8]  =  s[2];
-  out[9]  =  u[2];
+  out[0] = s[0];
+  out[1] = u[0];
+  out[2] = -f[0];
+  out[3] = 0;
+  out[4] = s[1];
+  out[5] = u[1];
+  out[6] = -f[1];
+  out[7] = 0;
+  out[8] = s[2];
+  out[9] = u[2];
   out[10] = -f[2];
-  out[11] =  0.0;
-  out[12] = -dot(s, eye);
-  out[13] = -dot(u, eye);
-  out[14] =  dot(f, eye);
-  out[15] =  1.0;
+  out[11] = 0;
+  out[12] = -XVector3.dot(s, eye);
+  out[13] = -XVector3.dot(u, eye);
+  out[14] = XVector3.dot(f, eye);
+  out[15] = 1;
 
   return out;
 };
 
 XMatrix4.transformPoint = function (m, p) {
   var x = p[0], y = p[1], z = p[2];
-
-  var xPrime = m[0]*x + m[4]*y + m[8]*z  + m[12];
-  var yPrime = m[1]*x + m[5]*y + m[9]*z  + m[13];
-  var zPrime = m[2]*x + m[6]*y + m[10]*z + m[14];
-  var wPrime = m[3]*x + m[7]*y + m[11]*z + m[15];
+  var xPrime = m[0] * x + m[4] * y + m[8] * z  + m[12];
+  var yPrime = m[1] * x + m[5] * y + m[9] * z  + m[13];
+  var zPrime = m[2] * x + m[6] * y + m[10] * z + m[14];
+  var wPrime = m[3] * x + m[7] * y + m[11] * z + m[15];
 
   if (abs(wPrime) > 1e-8) {
     xPrime /= wPrime;
@@ -271,4 +252,12 @@ XMatrix4.transformPoint = function (m, p) {
   }
 
   return [xPrime, yPrime, zPrime];
+};
+
+XMatrix4.multiplyWithVector = function (m, v) {
+  var result = [];
+  for (var i = 0; i < 4; i++) {
+    result[i] = m[i] * v[0] + m[i + 4] * v[1] + m[i + 8] * v[2] + m[i + 12] * v[3];
+  }
+  return result;
 };
