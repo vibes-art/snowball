@@ -198,12 +198,14 @@ class XObject {
     this.attributes[key].setData(vertexIndex, data);
   }
 
-  getPosition (vertexIndex) {
+  getPosition (vertexIndex, includeOffset) {
     var position = this.getAttribute(ATTR_KEY_POSITIONS, vertexIndex);
-    var offset = this.positionOffset;
-    position[0] -= offset[0];
-    position[1] -= offset[1];
-    position[2] -= offset[2];
+    if (!includeOffset) {
+      var offset = this.positionOffset;
+      position[0] -= offset[0];
+      position[1] -= offset[1];
+      position[2] -= offset[2];
+    }
     return position;
   }
 

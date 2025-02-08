@@ -154,7 +154,7 @@ class XQuad extends XObject {
   intersectsRay (rayOrigin, rayDir) {
     var v = [];
     for (var i = 0; i < this.vertexCount; i++) {
-      var pos = this.getPosition(i);
+      var pos = this.getPosition(i, true);
       if (this.matrices && this.matrices.model && this.matrices.model.data) {
         pos = XMatrix4.transformPoint(this.matrices.model.data, pos);
       }

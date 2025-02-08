@@ -8,6 +8,14 @@ class XSphere extends XObject {
     super(opts);
   }
 
+  get center () {
+    return this.positionOffset.slice();
+  }
+
+  set center (center) {
+    return this.positionOffset = center.slice();
+  }
+
   initialize (opts) {
     this.rings = opts.rings || 16;
     this.segments = opts.segments || 32;
@@ -200,7 +208,7 @@ class XSphere extends XObject {
 
   computeBoundingSphere () {
     return {
-      center: this.positionOffset.slice(),
+      center: this.center,
       radius: this.radius
     };
   }
