@@ -26,7 +26,7 @@ XVector3.length = function (v) {
 
 XVector3.normalize = function (v) {
   var len = XVector3.length(v);
-  return len > 0 ? [v[0] / len, v[1] / len, v[2] / len] : [0, 0, 0];
+  return len > 1e-8 ? [v[0] / len, v[1] / len, v[2] / len] : [0, 0, 0];
 };
 
 XVector3.distance = function (a, b) {
