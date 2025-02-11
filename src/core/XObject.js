@@ -18,6 +18,7 @@ class XObject {
     this.uniforms = {};
     this.matrices = null;
     this.material = null;
+    this.parentObject = null;
     this.isActive = false;
 
     this.indices = this.useIndices ? new Uint32Array(this.indexCount) : null;

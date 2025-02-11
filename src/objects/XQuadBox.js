@@ -63,16 +63,10 @@ class XQuadBox {
         });
       }
 
-      this.quads.push(new XQuad({ ...quadOpts, vertices }));
+      var quad = new XQuad({ ...quadOpts, vertices });
+      quad.parentObject = this;
+      this.quads.push(quad);
     }
-  }
-
-  updateVertices (vertices) {
-    // TODO
-  }
-
-  updateFace (index, vertices) {
-    // TODO
   }
 
   remove () {

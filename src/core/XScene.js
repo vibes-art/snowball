@@ -336,7 +336,7 @@ class XScene {
       var objects = this.objects.slice();
       for (var o = objects.length - 1; o >= 0; o--) {
         var obj = objects[o];
-        if (!obj.renderPasses[pass.type]) {
+        if (!obj.renderPasses[pass.type] || !obj.isActive) {
           objects.splice(o, 1);
         }
       }
