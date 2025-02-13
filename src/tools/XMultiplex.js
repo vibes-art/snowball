@@ -9,11 +9,11 @@ class XMultiplex {
     this.multipliers = [];
   }
 
-  addVector (vector, mult) {
-    mult = mult !== undefined ? mult : 1;
+  addVector (vector, multiplier) {
+    multiplier = multiplier !== undefined ? multiplier : 1;
 
     this.vectors.push(vector);
-    this.multipliers.push(mult);
+    this.multipliers.push(multiplier);
 
     return vector;
   }

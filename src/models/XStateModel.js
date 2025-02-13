@@ -1,46 +1,38 @@
 class XStateModel {
 
   constructor (opts) {
-    this.states = opts.states;
-    this.attributes = opts.attributes;
-
     this.stateIndex = opts.stateIndex || 0;
     this.dimensions = opts.dimensions || 3;
     this.animTime = opts.animTime || 0;
     this.animEasing = opts.animEasing || XEasings.easeOutQuad;
 
+    this.states = [];
+    this.attributes = [];
     this.values = {};
+
     this.lastStateIndex = this.stateIndex;
     this.isAnimating = false;
     this.lastAnimation = null;
 
-    this.attributes.forEach((attrKey, i) => {
-      var multiplex = this.values[attrKey] = new XMultiplex({ dimensions: this.dimensions });
-      this.states.forEach((stateKey, j) => {
-        var vector = multiplex.getZeroVector();
-
-        var values = opts.values;
-        if (values) {
-          var stateValues = values[stateKey];
-          if (stateValues) {
-            var attrValue = stateValues[attrKey];
-            if (attrValue && attrValue.length === vector.length) {
-              vector = attrValue;
-            }
-          }
-        }
-
-        multiplex.addVector(vector, this.stateIndex === j ? 1 : 0);
-      });
-    });
+    this.init(opts);
   }
 
-  get animationPercent () {
-    if (this.isAnimating && this.lastAnimation) {
-      return this.lastAnimation.percent;
-    } else {
-      return 1;
-    }
+  init (opts) {
+    var states = opts.states || [];
+    var attributes = opts.attributes || [];
+    var values = opts.values || {};
+
+    attributes.forEach(attrKey => {
+      this.attributes.push(attrKey);
+      this.values[attrKey] = new XMultiplex({ dimensions: this.dimensions });
+    });
+
+    states.forEach((stateKey, index) => {
+      this.addState(stateKey, {
+        values: values[stateKey] || null,
+        multiplier: this.stateIndex === index ? 1 : 0
+      });
+    });
   }
 
   isState (stateKey) {
@@ -90,6 +82,28 @@ class XStateModel {
     });
   }
 
+  addState (stateKey, opts) {
+    opts = opts || {};
+
+    this.states.push(stateKey);
+
+    this.attributes.forEach(attrKey => {
+      var multiplex = this.values[attrKey];
+      var vector = multiplex.getZeroVector();
+
+      var values = opts.values;
+      if (values) {
+        var attrValue = values[attrKey];
+        if (attrValue && attrValue.length === vector.length) {
+          vector = attrValue;
+        }
+      }
+
+      var multiplier = opts.multiplier || 0;
+      multiplex.addVector(vector, multiplier);
+    });
+  }
+
   getAttributeValues (attrKey) {
     var multiplex = this.values[attrKey];
     return multiplex.getValues();
@@ -105,6 +119,14 @@ class XStateModel {
     var stateIndex = stateKey ? this.states.indexOf(stateKey) : this.stateIndex;
     var multiplex = this.values[attrKey];
     return multiplex.getVector(stateIndex);
+  }
+
+  get animationPercent () {
+    if (this.isAnimating && this.lastAnimation) {
+      return this.lastAnimation.percent;
+    } else {
+      return 1;
+    }
   }
 
 }
