@@ -43,8 +43,9 @@ class XStateModel {
     return this.states[this.stateIndex];
   }
 
-  setState (stateKey, animTime) {
+  setState (stateKey, animTime, animEasing) {
     animTime = animTime !== undefined ? animTime : this.animTime;
+    animEasing = animEasing !== undefined ? animEasing : this.animEasing;
 
     this.lastStateIndex = this.stateIndex;
     this.stateIndex = this.states.indexOf(stateKey);
@@ -68,7 +69,7 @@ class XStateModel {
 
         var animOpts = {};
         animOpts.duration = animTime;
-        animOpts.easing = this.animEasing;
+        animOpts.easing = animEasing;
         animOpts.callback = () => { this.isAnimating = false; };
 
         multiplex.animation = XTimeline.animate(multiplex.multipliers, targets, animOpts);
