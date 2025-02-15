@@ -4,6 +4,7 @@ class XMultiplex {
     opts = opts || {};
 
     this.dimensions = opts.dimensions || 3;
+    this.isQuaternion = opts.isQuaternion || false;
 
     this.vectors = [];
     this.multipliers = [];
@@ -30,6 +31,10 @@ class XMultiplex {
   }
 
   getValues () {
+    if (this.isQuaternion) {
+      return XQuaternion.weightedQuaternionBlend(this.vectors, this.multipliers);
+    }
+
     var values = [];
 
     for (var i = 0; i < this.vectors.length; i++) {

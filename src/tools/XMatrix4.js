@@ -109,32 +109,32 @@ XMatrix4.invert = function (target) {
   var s5 = target[2] * target[7] - target[6] * target[3];
 
   var c5 = target[10] * target[15] - target[14] * target[11];
-  var c4 = target[9]  * target[15] - target[13] * target[11];
-  var c3 = target[9]  * target[14] - target[13] * target[10];
-  var c2 = target[8]  * target[15] - target[12] * target[11];
-  var c1 = target[8]  * target[14] - target[12] * target[10];
-  var c0 = target[8]  * target[13] - target[12] * target[9];
+  var c4 = target[9] * target[15] - target[13] * target[11];
+  var c3 = target[9] * target[14] - target[13] * target[10];
+  var c2 = target[8] * target[15] - target[12] * target[11];
+  var c1 = target[8] * target[14] - target[12] * target[10];
+  var c0 = target[8] * target[13] - target[12] * target[9];
 
   var det = s0 * c5 - s1 * c4 + s2 * c3 + s3 * c2 - s4 * c1 + s5 * c0;
   if (abs(det) <= 1e-10) return target;
 
-  inverse[0]  = ( target[5] * c5 - target[6] * c4 + target[7] * c3) / det;
-  inverse[4]  = (-target[4] * c5 + target[6] * c2 - target[7] * c1) / det;
-  inverse[8]  = ( target[4] * c4 - target[5] * c2 + target[7] * c0) / det;
+  inverse[0] = ( target[5] * c5 - target[6] * c4 + target[7] * c3) / det;
+  inverse[4] = (-target[4] * c5 + target[6] * c2 - target[7] * c1) / det;
+  inverse[8] = ( target[4] * c4 - target[5] * c2 + target[7] * c0) / det;
   inverse[12] = (-target[4] * c3 + target[5] * c1 - target[6] * c0) / det;
 
-  inverse[1]  = (-target[1] * c5 + target[2] * c4 - target[3] * c3) / det;
-  inverse[5]  = ( target[0] * c5 - target[2] * c2 + target[3] * c1) / det;
-  inverse[9]  = (-target[0] * c4 + target[1] * c2 - target[3] * c0) / det;
+  inverse[1] = (-target[1] * c5 + target[2] * c4 - target[3] * c3) / det;
+  inverse[5] = ( target[0] * c5 - target[2] * c2 + target[3] * c1) / det;
+  inverse[9] = (-target[0] * c4 + target[1] * c2 - target[3] * c0) / det;
   inverse[13] = ( target[0] * c3 - target[1] * c1 + target[2] * c0) / det;
 
-  inverse[2]  = ( target[13] * s5 - target[14] * s4 + target[15] * s3) / det;
-  inverse[6]  = (-target[12] * s5 + target[14] * s2 - target[15] * s1) / det;
+  inverse[2] = ( target[13] * s5 - target[14] * s4 + target[15] * s3) / det;
+  inverse[6] = (-target[12] * s5 + target[14] * s2 - target[15] * s1) / det;
   inverse[10] = ( target[12] * s4 - target[13] * s2 + target[15] * s0) / det;
   inverse[14] = (-target[12] * s3 + target[13] * s1 - target[14] * s0) / det;
 
-  inverse[3]  = (-target[9] * s5 + target[10] * s4 - target[11] * s3) / det;
-  inverse[7]  = ( target[8] * s5 - target[10] * s2 + target[11] * s1) / det;
+  inverse[3] = (-target[9] * s5 + target[10] * s4 - target[11] * s3) / det;
+  inverse[7] = ( target[8] * s5 - target[10] * s2 + target[11] * s1) / det;
   inverse[11] = (-target[8] * s4 + target[9]  * s2 - target[11] * s0) / det;
   inverse[15] = ( target[8] * s3 - target[9]  * s1 + target[10] * s0) / det;
 
@@ -143,16 +143,16 @@ XMatrix4.invert = function (target) {
 
 XMatrix4.transpose = function (target) {
   var result = new Float32Array(16);
-  result[0]  = target[0];
-  result[1]  = target[4];
-  result[2]  = target[8];
-  result[3]  = target[12];
-  result[4]  = target[1];
-  result[5]  = target[5];
-  result[6]  = target[9];
-  result[7]  = target[13];
-  result[8]  = target[2];
-  result[9]  = target[6];
+  result[0] = target[0];
+  result[1] = target[4];
+  result[2] = target[8];
+  result[3] = target[12];
+  result[4] = target[1];
+  result[5] = target[5];
+  result[6] = target[9];
+  result[7] = target[13];
+  result[8] = target[2];
+  result[9] = target[6];
   result[10] = target[10];
   result[11] = target[14];
   result[12] = target[3];
@@ -260,4 +260,31 @@ XMatrix4.multiplyWithVector = function (m, v) {
     result[i] = m[i] * v[0] + m[i + 4] * v[1] + m[i + 8] * v[2] + m[i + 12] * v[3];
   }
   return result;
+};
+
+XMatrix4.fromQuaternion = function (q) {
+  var x = q[0], y = q[1], z = q[2], w = q[3];
+  var xx = x * x, yy = y * y, zz = z * z;
+  var xy = x * y, xz = x * z, yz = y * z;
+  var wx = w * x, wy = w * y, wz = w * z;
+
+  var out = new Float32Array(16);
+  out[0] = 1 - 2 * (yy + zz);
+  out[1] = 2 * (xy + wz);
+  out[2] = 2 * (xz - wy);
+  out[3] = 0;
+  out[4] = 2 * (xy - wz);
+  out[5] = 1 - 2 * (xx + zz);
+  out[6] = 2 * (yz + wx);
+  out[7] = 0;
+  out[8] = 2 * (xz + wy);
+  out[9] = 2 * (yz - wx);
+  out[10] = 1 - 2 * (xx + yy);
+  out[11] = 0;
+  out[12] = 0;
+  out[13] = 0;
+  out[14] = 0;
+  out[15] = 1;
+
+  return out;
 };

@@ -18,6 +18,7 @@ var atan2 = Math.atan2;
 var random = Math.random;
 var MIN_SAFE_INTEGER = Number.MIN_SAFE_INTEGER;
 var MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
+var ZERO_LENGTH = 1e-8;
 
 var PI = Math.PI;
 var TAU = 2 * PI;

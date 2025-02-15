@@ -1,8 +1,9 @@
+var QUATERNION = 'quaternion';
+
 class XStateModel {
 
   constructor (opts) {
     this.stateIndex = opts.stateIndex || 0;
-    this.dimensions = opts.dimensions || 3;
     this.animTime = opts.animTime || 0;
     this.animEasing = opts.animEasing || XEasings.easeOutQuad;
 
@@ -20,11 +21,15 @@ class XStateModel {
   init (opts) {
     var states = opts.states || [];
     var attributes = opts.attributes || [];
+    var dimensions = opts.dimensions || [];
     var values = opts.values || {};
 
-    attributes.forEach(attrKey => {
+    attributes.forEach((attrKey, i) => {
       this.attributes.push(attrKey);
-      this.values[attrKey] = new XMultiplex({ dimensions: this.dimensions });
+      this.values[attrKey] = new XMultiplex({
+        dimensions: dimensions[i],
+        isQuaternion: attrKey === QUATERNION
+      });
     });
 
     states.forEach((stateKey, index) => {

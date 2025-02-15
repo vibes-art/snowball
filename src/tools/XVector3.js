@@ -1,11 +1,11 @@
 var XVector3 = {};
 
-XVector3.get = function () {
-  return new Float32Array([0, 0, 0]);
+XVector3.get = function (x = 0, y = 0, z = 0) {
+  return new Float32Array([x, y, z]);
 };
 
 XVector3.subtract = function (a, b) {
-  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  return XVector3.get(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 };
 
 XVector3.dot = function (a, b) {
@@ -13,11 +13,15 @@ XVector3.dot = function (a, b) {
 };
 
 XVector3.cross = function (a, b) {
-  return [
+  return XVector3.get(
     a[1] * b[2] - a[2] * b[1],
     a[2] * b[0] - a[0] * b[2],
     a[0] * b[1] - a[1] * b[0]
-  ];
+  );
+};
+
+XVector3.scale = function (v, scale) {
+  return XVector3.get(scale * v[0], scale * v[1], scale * v[2]);
 };
 
 XVector3.length = function (v) {
@@ -26,7 +30,9 @@ XVector3.length = function (v) {
 
 XVector3.normalize = function (v) {
   var len = XVector3.length(v);
-  return len > 1e-8 ? [v[0] / len, v[1] / len, v[2] / len] : [0, 0, 0];
+  return len > ZERO_LENGTH
+    ? XVector3.get(v[0] / len, v[1] / len, v[2] / len)
+    : XVector3.get();
 };
 
 XVector3.distance = function (a, b) {
