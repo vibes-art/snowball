@@ -1,6 +1,9 @@
+var _materialUID = 1;
+
 class XMaterial {
 
   constructor (opts) {
+    this.uid = _materialUID++;
     this.loadCount = 0;
     this.useTextures = false;
     this.onAllTexturesLoaded = null;

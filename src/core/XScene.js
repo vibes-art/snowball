@@ -1,5 +1,15 @@
 var frameIndex = 0;
 
+var OBJECT_RENDER_SORT = function (a, b) {
+  var shaderDiff = a.shader.uid - b.shader.uid;
+  if (shaderDiff === 0) {
+    var aMatUID = (a.material && a.material.uid) || 0;
+    var bMatUID = (b.material && b.material.uid) || 0;
+    return aMatUID - bMatUID;
+  }
+  return shaderDiff;
+};
+
 class XScene {
 
   constructor (opts) {
@@ -22,9 +32,11 @@ class XScene {
     this.drawingTextureUnitIndex = this.reservedTextureUnitIndex;
     this.lastAttribs = [];
     this.lastShader = null;
+    this.lastMaterial = null;
     this.lastFrontFace = this.gl.CCW;
     this.haveObjectsChanged = false;
     this.needsShaderConnect = false;
+    this.appliedObjectMatrices = false;
 
     this.addRenderPass(RENDER_PASS_MAIN, {
       framebufferKey: RENDER_PASS_MAIN
@@ -33,6 +45,13 @@ class XScene {
     this.initUniforms(opts);
     this.initLights(opts);
     this.initMatrices(opts);
+
+    // debugging stats
+    this.stats = {};
+    this.stats.drawCalls = 0;
+    this.stats.uniformCalls = 0;
+    this.stats.uniformSkips = 0;
+    this.stats.programCalls = 0;
   };
 
   initUniforms (opts) {
@@ -287,6 +306,10 @@ class XScene {
 
   draw (dt) {
     var cpuStart = performance.now();
+    this.stats.drawCalls = 0;
+    this.stats.uniformCalls = 0;
+    this.stats.uniformSkips = 0;
+    this.stats.programCalls = 0;
 
     var len = this.onDrawListeners.length;
     for (var i = len - 1; i >= 0; i--) {
@@ -302,7 +325,10 @@ class XScene {
 
       var framebuffer = pass.framebuffer || null;
       if (pass.framebufferKey) {
-        framebuffer = this.framebufferObjects[pass.framebufferKey].framebuffer;
+        var fbo = this.framebufferObjects[pass.framebufferKey];
+        if (fbo && fbo.framebuffer) {
+          framebuffer = fbo.framebuffer;
+        }
       }
 
       gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
@@ -368,13 +394,17 @@ class XScene {
 
       var isNewPass = true;
 
+      objects.sort(OBJECT_RENDER_SORT);
+
       for (var i = 0; i < objects.length; i++) {
         // reset with each object
         this.drawingTextureUnitIndex = this.reservedTextureUnitIndex;
 
         var obj = objects[i];
+        var material = obj.material;
         var shader = pass.shader || obj.shader;
         var isNewShader = isNewPass || this.lastShader !== shader;
+        var isNewMaterial = isNewShader || this.lastMaterial !== material;
 
         if (obj.frontFace !== this.lastFrontFace) {
           gl.frontFace(obj.frontFace);
@@ -390,30 +420,40 @@ class XScene {
 
         if (isNewShader || this.haveObjectsChanged) {
           gl.useProgram(shader.getProgram());
+          this.stats.programCalls++;
           this.lastShader = shader;
+
+          // apply global scene uniforms only once per shader
+          this.applySceneMatrixUniforms(shader, isNewShader);
+          this.applyLightUniforms(shader, isNewShader);
+          this.applyUniforms(this.uniforms, shader, isNewShader);
+          // render pass uniforms applied last to override any defaults
+          this.applyUniforms(pass.uniforms, shader, isNewShader);
         }
 
-        // apply object matrices, with fallback to scene matrices
-        this.applyMatrixUniforms(obj, shader, isNewShader);
-        // apply all the scene's light uniforms
-        this.applyLightUniforms(shader, isNewShader);
-        // apply object and material uniforms
+        // apply object matrices, or switch back to scene matrices
+        this.applyObjectMatrixUniforms(obj, shader, isNewShader);
+
+        // apply object uniforms
         this.applyUniforms(obj, shader, isNewShader);
-        if (obj.material) {
-          this.applyUniforms(obj.material, shader, isNewShader);
+
+        // apply material uniforms
+        if (material && isNewMaterial) {
+          this.applyUniforms(material, shader, isNewShader);
+
           MATERIAL_TEXTURE_BOOLS.forEach((key, idx) => {
             var matKey = MATERIAL_TEXTURE_MAPS[idx];
-            this.uniforms[key].data = obj.material[matKey].texture ? 1 : 0;
+            this.uniforms[key].data = material[matKey].texture ? 1 : 0;
+            this.applyUniform(this.uniforms[key], shader, isNewShader);
           });
+
+          this.lastMaterial = material;
         }
-        // apply global scene uniforms
-        this.applyUniforms(this.uniforms, shader, isNewShader);
-        // render pass uniforms applied last to override any defaults
-        this.applyUniforms(pass.uniforms, shader, isNewShader);
 
         this.applyAttributes(obj, shader);
 
         obj.draw();
+        this.stats.drawCalls++;
 
         isNewPass = false;
       }
@@ -441,6 +481,11 @@ class XScene {
     var cpuTime = cpuEnd - cpuStart;
     if (DEBUG_LOGS && frameIndex % 60 === 0) {
       console.log(`Frame #${frameIndex} CPU draw time: ${cpuTime.toFixed(2)} ms`);
+      console.log(`passes: ${this.renderPasses.length}`);
+      console.log(`drawCalls: ${this.stats.drawCalls}`);
+      console.log(`uniformCalls: ${this.stats.uniformCalls}`);
+      console.log(`uniformSkips: ${this.stats.uniformSkips}`);
+      console.log(`programCalls: ${this.stats.programCalls}`);
     }
   }
 
@@ -482,12 +527,29 @@ class XScene {
     }
   }
 
-  applyMatrixUniforms (obj, shader, force) {
+  applySceneMatrixUniforms (shader, force) {
     for (var key in this.matrices) {
-      var objMatrix = obj.matrices && obj.matrices[key];
-      var srcMatrix = objMatrix || this.matrices[key];
-      this.applyUniform(srcMatrix, shader, force);
+      this.applyUniform(this.matrices[key], shader, force);
     }
+  }
+
+  replaceObjectMatricesWithScene (shader, force) {
+    this.applyUniform(this.matrices.model, shader, force);
+    this.applyUniform(this.matrices.normal, shader, force);
+  }
+
+  applyObjectMatrixUniforms (obj, shader, force) {
+    var matrices = obj.matrices;
+    if (!matrices && this.appliedObjectMatrices) {
+      this.appliedObjectMatrices = false;
+      return this.replaceObjectMatricesWithScene(shader, force);
+    };
+
+    for (var key in matrices) {
+      this.applyUniform(matrices[key], shader, force);
+    }
+
+    this.appliedObjectMatrices = true;
   }
 
   applyLightUniforms (shader, force) {
@@ -540,14 +602,19 @@ class XScene {
       this.shaderUniformCache.set(shader, uniformMap);
     }
 
-    var lastUniform = uniformMap.get(location);
-    if (!force && !uniform.isDirty && lastUniform === uniform) {
-      VERBOSE && console.log(`uniform SKIPPED: ${uniform.key}, ${location}, ${uniform.data}`);
-      return;
+    var canSkip = !force && !uniform.isDirty;
+    if (canSkip) {
+      var lastUniform = uniformMap.get(location);
+      if (lastUniform && XUtils.areValuesEqual(lastUniform.data, uniform.data)) {
+        VERBOSE && console.log(`uniform SKIPPED: ${uniform.key}, ${location}, ${uniform.data}`);
+        this.stats.uniformSkips++;
+        return;
+      }
     }
 
     uniformMap.set(location, uniform);
-    uniform.apply(this.gl, location, force);
+    uniform.apply(this.gl, location);
+    this.stats.uniformCalls++;
     VERBOSE && location && console.log(`uniform: ${uniform.key}, ${location}, ${uniform.data}`);
   }
 

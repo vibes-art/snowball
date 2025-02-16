@@ -1,6 +1,9 @@
+var _shaderUID = 1;
+
 class XShader {
 
   constructor (opts) {
+    this.uid = _shaderUID++;
     this.scene = opts.scene;
 
     this.vertexShaderSource = '';

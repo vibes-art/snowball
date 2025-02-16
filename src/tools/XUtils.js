@@ -52,6 +52,29 @@ XUtils.normalize = function (a) {
   return a;
 };
 
+XUtils.areValuesEqual = function (a, b) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }
+
+  if (a instanceof Float32Array && b instanceof Float32Array) {
+    if (a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }
+
+  return false;
+};
+
 XUtils.choose = function (a) {
   return a[floor(a.length * random())];
 };
