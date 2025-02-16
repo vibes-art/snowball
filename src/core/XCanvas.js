@@ -12,17 +12,13 @@ class XCanvas {
     };
 
     this.useSupersampleAA = this.type === CANVAS_WEBGL
-      && !this.canvasOpts.antialias
-      && AA_SUPERSAMPLE > 1;
-    this.scaleAA = this.useSupersampleAA ? AA_SUPERSAMPLE : 1;
-    this.width = ceil(this.scaleAA * (opts.width || 0));
-    this.height = ceil(this.scaleAA * (opts.height || 0));
+      && AA_SUPERSAMPLE !== 1;
+    this.renderScale = this.useSupersampleAA ? AA_SUPERSAMPLE : 1;
+    this.width = ceil(this.renderScale * (opts.width || 0));
+    this.height = ceil(this.renderScale * (opts.height || 0));
     this.isWindowFit = this.width === 0;
     this.aspectRatioMin = opts.aspectRatioMin || 0;
     this.aspectRatioMax = opts.aspectRatioMax || 0;
-    this.enableMobileUpscale = opts.enableMobileUpscale !== undefined
-      ? opts.enableMobileUpscale
-      : true;
 
     this.canvas = null;
     this.ctx = null;
@@ -195,8 +191,8 @@ class XCanvas {
   setDimensions () {
     this.windowWidth = window.innerWidth;
     this.windowHeight = window.innerHeight;
-    this.width = this.isWindowFit ? ceil(this.scaleAA * this.windowWidth) : this.width;
-    this.height = this.isWindowFit ? ceil(this.scaleAA * this.windowHeight) : this.height;
+    this.width = this.isWindowFit ? ceil(this.renderScale * this.windowWidth) : this.width;
+    this.height = this.isWindowFit ? ceil(this.renderScale * this.windowHeight) : this.height;
     this.dragSensitivity = PI / this.windowWidth;
   }
 
@@ -258,13 +254,6 @@ class XCanvas {
     width = width || this.width;
     height = height || this.height;
 
-    var upscale = 1;
-    if (IS_MOBILE && this.enableMobileUpscale && width < height && this.canvas === canvas) {
-      upscale = 2;
-      width = round(width / upscale);
-      height = round(height / upscale);
-    }
-
     if (canvas === this.canvas) {
       var aspect = width / height;
       if (this.aspectRatioMax && aspect > this.aspectRatioMax) {
@@ -282,8 +271,8 @@ class XCanvas {
     }
 
     if (canvas === this.canvas) {
-      var scaledWidth = ceil(upscale * width / this.scaleAA);
-      var scaledHeight = ceil(upscale * height / this.scaleAA);
+      var scaledWidth = ceil(width / this.renderScale);
+      var scaledHeight = ceil(height / this.renderScale);
       var x = (this.windowWidth - scaledWidth) / 2;
       var y = (this.windowHeight - scaledHeight) / 2;
       canvas.style.left = x + 'px';
