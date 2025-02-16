@@ -8,7 +8,7 @@ class XBloomBlurShader extends XShader {
 
   setShaderSource () {
     this.vertexShaderSource = `#version 300 es
-      precision highp float;
+      precision ${PRECISION} float;
 
       in vec2 positions;
       out vec2 vUV;
@@ -24,7 +24,7 @@ class XBloomBlurShader extends XShader {
       : 'vec2 uv = vUV + vec2(0.0, float(i) * offset);';
 
     this.fragmentShaderSource = `#version 300 es
-      precision highp float;
+      precision ${PRECISION} float;
 
       in vec2 vUV;
       out vec4 fragColor;

@@ -21,7 +21,7 @@ class XShader {
 
   setShaderSource (opts) {
     this.vertexShaderSource = `#version 300 es
-      precision highp float;
+      precision ${PRECISION} float;
 
       uniform mat4 viewMatrix;
       uniform mat4 modelMatrix;
@@ -50,8 +50,8 @@ class XShader {
     `;
 
     this.fragmentShaderSource = `#version 300 es
-      precision highp float;
-      precision mediump sampler2DShadow;
+      precision ${PRECISION} float;
+      precision ${PRECISION} sampler2DShadow;
 
       in vec3 vViewPos;
       in vec4 vWorldPos;

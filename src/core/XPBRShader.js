@@ -4,8 +4,8 @@ class XPBRShader extends XShader {
     super.setShaderSource(opts);
 
     this.fragmentShaderSource = `#version 300 es
-      precision highp float;
-      precision mediump sampler2DShadow;
+      precision ${PRECISION} float;
+      precision ${PRECISION} sampler2DShadow;
 
       in vec3 vViewPos;
       in vec4 vWorldPos;

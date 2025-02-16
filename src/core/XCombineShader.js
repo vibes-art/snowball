@@ -2,7 +2,7 @@ class XCombineShader extends XShader {
 
   setShaderSource () {
     this.vertexShaderSource = `#version 300 es
-      precision highp float;
+      precision ${PRECISION} float;
 
       in vec2 positions;
       out vec2 vUV;
@@ -14,7 +14,7 @@ class XCombineShader extends XShader {
     `;
 
     this.fragmentShaderSource = `#version 300 es
-      precision highp float;
+      precision ${PRECISION} float;
 
       in vec2 vUV;
       out vec4 fragColor;

@@ -2,7 +2,7 @@ class XFinalColorShader extends XShader {
 
   setShaderSource (opts) {
     this.vertexShaderSource = `#version 300 es
-      precision highp float;
+      precision ${PRECISION} float;
 
       in vec2 positions;
       out vec2 vUV;
@@ -14,7 +14,7 @@ class XFinalColorShader extends XShader {
     `;
 
     this.fragmentShaderSource = `#version 300 es
-      precision highp float;
+      precision ${PRECISION} float;
 
       in vec2 vUV;
       out vec4 fragColor;

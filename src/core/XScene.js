@@ -286,6 +286,8 @@ class XScene {
   }
 
   draw (dt) {
+    var cpuStart = performance.now();
+
     var len = this.onDrawListeners.length;
     for (var i = len - 1; i >= 0; i--) {
       this.onDrawListeners[i](dt);
@@ -333,12 +335,12 @@ class XScene {
 
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-      var objects = this.objects.slice();
-      for (var o = objects.length - 1; o >= 0; o--) {
-        var obj = objects[o];
-        if (!obj.renderPasses[pass.type] || !obj.isActive) {
-          objects.splice(o, 1);
-        }
+      var objects = [];
+      var objectCount = this.objects.length;
+      for (var o = 0; o < objectCount; o++) {
+        var obj = this.objects[o];
+        if (!obj.renderPasses[pass.type] || !obj.isActive) continue;
+        objects.push(obj);
       }
 
       if (VERBOSE) {
@@ -434,6 +436,12 @@ class XScene {
     // debugger;
 
     this.onDrawFinish();
+
+    var cpuEnd = performance.now();
+    var cpuTime = cpuEnd - cpuStart;
+    if (DEBUG_LOGS && frameIndex % 60 === 0) {
+      console.log(`Frame #${frameIndex} CPU draw time: ${cpuTime.toFixed(2)} ms`);
+    }
   }
 
   onDrawFinish () {

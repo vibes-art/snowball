@@ -216,7 +216,7 @@ class XCanvas {
     var floatTextureLinearExt = gl.getExtension('OES_texture_float_linear');
     if (!floatTextureLinearExt && USE_FLOATING_POINT_TEXTURES) {
       USE_FLOATING_POINT_TEXTURES = false;
-      console.warn('Floating point textures fallback triggered.');
+      ENABLE_LOGS && console.warn('Floating point textures fallback triggered.');
       this.reset(false);
       return false;
     }
@@ -224,13 +224,13 @@ class XCanvas {
     var colorBufferFloatExt = gl.getExtension('EXT_color_buffer_float');
     if (!colorBufferFloatExt) {
       ENABLE_COLOR_BUFFER_FLOAT = false;
-      console.warn('EXT_color_buffer_float is not supported!');
+      ENABLE_LOGS && console.warn('EXT_color_buffer_float is not supported!');
     };
 
     var colorBufferHalfFloatExt = gl.getExtension('EXT_color_buffer_half_float');
     if (!colorBufferHalfFloatExt) {
       ENABLE_COLOR_BUFFER_HALF_FLOAT = false;
-      console.warn('EXT_color_buffer_half_float is not supported!');
+      ENABLE_LOGS && console.warn('EXT_color_buffer_half_float is not supported!');
     };
 
     this.canvas.addEventListener('webglcontextlost', (evt) => {

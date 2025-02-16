@@ -2,7 +2,7 @@ class XEmissiveShader extends XShader {
 
   setShaderSource (opts) {
     this.vertexShaderSource = `#version 300 es
-      precision highp float;
+      precision ${PRECISION} float;
 
       uniform mat4 viewMatrix;
       uniform mat4 modelMatrix;
@@ -25,7 +25,7 @@ class XEmissiveShader extends XShader {
     `;
 
     this.fragmentShaderSource = `#version 300 es
-      precision highp float;
+      precision ${PRECISION} float;
 
       in vec3 vViewPos;
       in vec4 vWorldPos;

@@ -36,7 +36,7 @@ class XShadowShader extends XShader {
       `;
 
     this.vertexShaderSource = `#version 300 es
-      precision highp float;
+      precision ${PRECISION} float;
 
       uniform mat4 modelMatrix;
       uniform int lightIndex;
@@ -53,7 +53,7 @@ class XShadowShader extends XShader {
     `;
 
     this.fragmentShaderSource = `#version 300 es
-      precision highp float;
+      precision ${PRECISION} float;
 
       ${fragMain}
     `;

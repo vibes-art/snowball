@@ -56,7 +56,7 @@ class XStateModel {
     this.stateIndex = this.states.indexOf(stateKey);
 
     if (this.stateIndex === -1) {
-      console.error(`Invalid state: ${stateKey}`);
+      ENABLE_LOGS && console.error(`Invalid state: ${stateKey}`);
     }
 
     this.attributes.forEach((attrKey, i) => {

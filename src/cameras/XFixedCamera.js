@@ -13,6 +13,8 @@ class XFixedCamera extends XCamera {
   }
 
   logControls () {
+    if (!ENABLE_LOGS) return;
+
     console.log(` `);
     console.log(`~~~ Fixed Camera Controls ~~~`);
     console.log(`    Click and drag Mouse to rotate`);
