@@ -152,15 +152,7 @@ class XQuad extends XObject {
   }
 
   intersectsRay (rayOrigin, rayDir) {
-    var v = [];
-    for (var i = 0; i < this.vertexCount; i++) {
-      var pos = this.getPosition(i, true);
-      if (this.matrices && this.matrices.model && this.matrices.model.data) {
-        pos = XMatrix4.transformPoint(this.matrices.model.data, pos);
-      }
-      v.push(pos);
-    }
-
+    var v = this.getWorldVertices();
     var t00 = QUAD_TRIANGLE_INDICES[0][0];
     var t01 = QUAD_TRIANGLE_INDICES[0][1];
     var t02 = QUAD_TRIANGLE_INDICES[0][2];
@@ -169,6 +161,29 @@ class XQuad extends XObject {
     var t12 = QUAD_TRIANGLE_INDICES[1][2];
     return XVector3.rayIntersectsTriangle(rayOrigin, rayDir, v[t00], v[t01], v[t02])
       || XVector3.rayIntersectsTriangle(rayOrigin, rayDir, v[t10], v[t11], v[t12]);
+  }
+
+  isInFrustum (planes) {
+    var worldVertices = this.getWorldVertices();
+
+    for (var p = 0; p < planes.length; p++) {
+      var plane = planes[p];
+      var outCount = 0;
+
+      for (var v = 0; v < worldVertices.length; v++) {
+        var x = worldVertices[v][0];
+        var y = worldVertices[v][1];
+        var z = worldVertices[v][2];
+        var dist = plane[0] * x + plane[1] * y + plane[2] * z + plane[3];
+        if (dist < 0) outCount++;
+      }
+
+      if (outCount === 4) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
 }

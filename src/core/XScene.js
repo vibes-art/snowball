@@ -10,6 +10,8 @@ var OBJECT_RENDER_SORT = function (a, b) {
   return shaderDiff;
 };
 
+var FRUSTUM_CULL_PASSES = [RENDER_PASS_MAIN, RENDER_PASS_EMISSIVE];
+
 class XScene {
 
   constructor (opts) {
@@ -34,6 +36,7 @@ class XScene {
     this.lastShader = null;
     this.lastMaterial = null;
     this.lastFrontFace = this.gl.CCW;
+    this.currentProjViewMatrix = null;
     this.haveObjectsChanged = false;
     this.needsShaderConnect = false;
     this.appliedObjectMatrices = false;
@@ -52,6 +55,7 @@ class XScene {
     this.stats.uniformCalls = 0;
     this.stats.uniformSkips = 0;
     this.stats.programCalls = 0;
+    this.stats.objectsCulled = 0;
   };
 
   initUniforms (opts) {
@@ -310,6 +314,7 @@ class XScene {
     this.stats.uniformCalls = 0;
     this.stats.uniformSkips = 0;
     this.stats.programCalls = 0;
+    this.stats.objectsCulled = 0;
 
     var len = this.onDrawListeners.length;
     for (var i = len - 1; i >= 0; i--) {
@@ -317,6 +322,11 @@ class XScene {
     }
 
     if (!this.isDrawing) return;
+
+    var proj = this.matrices.projection.data;
+    var view = this.matrices.view.data;
+    this.currentProjViewMatrix = XMatrix4.multiply(proj, view);
+    var frustumPlanes = XMatrix4.extractFrustumPlanes(this.currentProjViewMatrix);
 
     var gl = this.gl;
     for (var passIndex = 0; passIndex < this.renderPasses.length; passIndex++) {
@@ -366,6 +376,14 @@ class XScene {
       for (var o = 0; o < objectCount; o++) {
         var obj = this.objects[o];
         if (!obj.renderPasses[pass.type] || !obj.isActive) continue;
+
+        if (FRUSTUM_CULL_PASSES.indexOf(pass.type) !== -1) {
+          if (!obj.isInFrustum(frustumPlanes)) {
+            this.stats.objectsCulled++;
+            continue;
+          }
+        }
+
         objects.push(obj);
       }
 
@@ -486,6 +504,7 @@ class XScene {
       console.log(`uniformCalls: ${this.stats.uniformCalls}`);
       console.log(`uniformSkips: ${this.stats.uniformSkips}`);
       console.log(`programCalls: ${this.stats.programCalls}`);
+      console.log(`objectsCulled: ${this.stats.objectsCulled}`);
     }
   }
 
@@ -651,11 +670,7 @@ class XScene {
     var nearClip = [ndcX, ndcY, -1, 1];
     var farClip = [ndcX, ndcY,  1, 1];
 
-    var proj = this.matrices.projection.data;
-    var view = this.matrices.view.data;
-    var projView = XMatrix4.multiply(proj, view);
-    var invProjView = XMatrix4.invert(projView);
-
+    var invProjView = XMatrix4.invert(this.currentProjViewMatrix);
     var nw4 = XMatrix4.multiplyWithVector(invProjView, nearClip);
     var fw4 = XMatrix4.multiplyWithVector(invProjView, farClip);
     var nearWorld = [nw4[0] / nw4[3], nw4[1] / nw4[3], nw4[2] / nw4[3]];
@@ -668,17 +683,8 @@ class XScene {
     for (var i = 0; i < this.objects.length; i++) {
       var obj = this.objects[i];
       if (!obj.vertexCount || !obj.isActive) continue;
-
-      if (obj.intersectsRay) {
-        if (obj.intersectsRay(rayOrigin, rayDir)) {
-          hitObjects.push(obj);
-        }
-      } else {
-        var sphere = obj.getBoundingSphere();
-        if (XVector3.rayIntersectsSphere(rayOrigin, rayDir, sphere)) {
-          hitObjects.push(obj);
-        }
-      }
+      if (!obj.intersectsRay(rayOrigin, rayDir)) continue;
+      hitObjects.push(obj);
     }
 
     hitObjects.sort((a, b) => {

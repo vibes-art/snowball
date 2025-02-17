@@ -238,6 +238,78 @@ XMatrix4.lookAt = function (eye, center, up) {
   return out;
 };
 
+XMatrix4.extractFrustumPlanes = function (m) {
+  var planes = [];
+
+  planes.push([
+    m[3] + m[0],
+    m[7] + m[4],
+    m[11] + m[8],
+    m[15] + m[12]
+  ]);
+
+  planes.push([
+    m[3] - m[0],
+    m[7] - m[4],
+    m[11] - m[8],
+    m[15] - m[12]
+  ]);
+
+  planes.push([
+    m[3] + m[1],
+    m[7] + m[5],
+    m[11] + m[9],
+    m[15] + m[13]
+  ]);
+
+  planes.push([
+    m[3] - m[1],
+    m[7] - m[5],
+    m[11] - m[9],
+    m[15] - m[13]
+  ]);
+
+  planes.push([
+    m[3] + m[2],
+    m[7] + m[6],
+    m[11] + m[10],
+    m[15] + m[14]
+  ]);
+
+  planes.push([
+    m[3] - m[2],
+    m[7] - m[6],
+    m[11] - m[10],
+    m[15] - m[14]
+  ]);
+
+  for (var i = 0; i < 6; i++) {
+    var plane = planes[i];
+    var length = XVector3.length(plane);
+    if (length > ZERO_LENGTH) {
+      plane[0] /= length;
+      plane[1] /= length;
+      plane[2] /= length;
+      plane[3] /= length;
+    }
+  }
+
+  return planes;
+};
+
+XMatrix4.isSphereInFrustum = function (sphere, planes) {
+  var center = sphere.center;
+  var radius = sphere.radius;
+
+  for (var i = 0; i < 6; i++) {
+    var plane = planes[i];
+    var distance = plane[0] * center[0] + plane[1] * center[1] + plane[2] * center[2] + plane[3];
+    if (distance < -radius) return false;
+  }
+
+  return true;
+};
+
 XMatrix4.transformPoint = function (m, p) {
   var x = p[0], y = p[1], z = p[2];
   var xPrime = m[0] * x + m[4] * y + m[8] * z  + m[12];

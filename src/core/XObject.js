@@ -222,6 +222,29 @@ class XObject {
     return this.uniforms;
   }
 
+  getWorldVertices () {
+    var worldVertices = [];
+    var modelMatrix = this.matrices && this.matrices.model && this.matrices.model.data;
+
+    for (var i = 0; i < this.vertexCount; i++) {
+      var pos = this.getPosition(i, true);
+      if (modelMatrix) pos = XMatrix4.transformPoint(modelMatrix, pos);
+      worldVertices.push(pos);
+    }
+
+    return worldVertices;
+  }
+
+  intersectsRay (rayOrigin, rayDir) {
+    var sphere = this.getBoundingSphere();
+    return XVector3.rayIntersectsSphere(rayOrigin, rayDir, sphere);
+  }
+
+  isInFrustum (planes) {
+    var sphere = this.getBoundingSphere();
+    return XMatrix4.isSphereInFrustum(sphere, planes);
+  }
+
   getBoundingSphere () {
     return this.computeBoundingSphere();
   }
