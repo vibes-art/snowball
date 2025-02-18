@@ -23,6 +23,11 @@ class XShader {
   }
 
   setShaderSource (opts) {
+    this.defineVertexShader(opts);
+    this.defineFragmentShader(opts);
+  }
+
+  defineVertexShader (opts) {
     this.vertexShaderSource = `#version 300 es
       precision ${PRECISION} float;
 
@@ -51,7 +56,17 @@ class XShader {
         gl_Position = projectionMatrix * (viewMatrix * vWorldPos);
       }
     `;
+  }
 
+  defineFragmentShader (opts) {
+    this.defineFSHeader(opts);
+    this.defineFSLightsHeader(opts);
+    this.defineFSPointLightsHeader(opts);
+    this.defineFSFogHeader(opts);
+    this.defineFSMain(opts);
+  }
+
+  defineFSHeader (opts) {
     this.fragmentShaderSource = `#version 300 es
       precision ${PRECISION} float;
       precision ${PRECISION} sampler2DShadow;
@@ -62,8 +77,27 @@ class XShader {
       in vec4 vColor;
       out vec4 fragColor;
 
+      uniform vec3 ambientColor;
+      uniform float specularShininess;
+      uniform float specularStrength;
+
+      float fresnelSchlick(float cosTheta, float refIndex) {
+        float r0 = (1.0 - refIndex) / (1.0 + refIndex);
+        r0 = r0 * r0;
+        return r0 + (1.0 - r0) * pow(1.0 - cosTheta, 5.0);
+      }
+    `;
+  }
+
+  defineFSLightsHeader (opts) {
+    if (MAX_LIGHTS <= 0) return;
+
+    this.fragmentShaderSource += `
+      uniform float attenConst;
+      uniform float attenLinear;
+      uniform float attenQuad;
+
       const int MAX_LIGHTS = ${MAX_LIGHTS};
-      uniform int lightCount;
       uniform vec3 lightPositions[MAX_LIGHTS];
       uniform vec3 lightColors[MAX_LIGHTS];
       uniform vec3 lightDirections[MAX_LIGHTS];
@@ -72,45 +106,77 @@ class XShader {
       uniform float lightPowers[MAX_LIGHTS];
     `;
 
-    for (var i = 0; i < MAX_LIGHTS; i++) {
-      this.fragmentShaderSource += `
-        uniform sampler2DShadow lightShadowMap${i};`;
-    }
+    this.addFSShadowsHeader(opts);
+
+    this.fragmentShaderSource += `
+      vec3 computeLightColor(int i, vec3 normalDir, vec3 viewDir, float fresnel) {
+        vec3 lightPos = lightPositions[i];
+        vec3 lightDir = lightDirections[i]; // from light to lookAtPoint
+        vec3 lightColor = lightColors[i];
+        float lightPower = lightPowers[i];
+
+        vec3 toFrag = vWorldPos.xyz - lightPos; // from light to frag
+        float toFragDist = length(toFrag);
+        vec3 toFragDir = normalize(toFrag);
+
+        float spotFactor = 1.0;
+        if (lightInnerAngles[i] > 0.0) {
+          float cosAngle = dot(lightDir, toFragDir);
+          float cosInner = cos(lightInnerAngles[i]);
+          float cosOuter = cos(lightOuterAngles[i]);
+          if (cosAngle > cosInner) {
+            spotFactor = 1.0;
+          } else if (cosAngle < cosOuter) {
+            spotFactor = 0.0;
+          } else {
+            spotFactor = smoothstep(cosOuter, cosInner, cosAngle);
+          }
+        }
+
+        float attenDenom = attenConst + attenLinear * toFragDist + attenQuad * toFragDist * toFragDist;
+        float attenuation = lightPower / attenDenom;
+
+        float diffuseFactor = max(dot(normalDir, -lightDir), 0.0);
+        vec3 diffuse = vColor.rgb * lightColor * diffuseFactor;
+
+        vec3 reflectDir = reflect(lightDir, normalDir);
+        float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularShininess);
+        vec3 specular = specularStrength * spec * lightColor * fresnel;
+
+        float shadowFactor = ${(ENABLE_SHADOWS ? 'computeShadow(i)' : '1.0')};
+        return spotFactor * attenuation * shadowFactor * (diffuse + specular);
+      }
+    `;
+  }
+
+  addFSShadowsHeader (opts) {
+    if (!ENABLE_SHADOWS) return;
 
     this.fragmentShaderSource += `
       uniform mat4 lightViewProjMatrices[MAX_LIGHTS];
-
-      const int MAX_POINT_LIGHTS = ${MAX_POINT_LIGHTS};
-      uniform int pointLightCount;
-      uniform vec3 pointLightPositions[MAX_POINT_LIGHTS];
-      uniform vec3 pointLightColors[MAX_POINT_LIGHTS];
-      uniform float pointLightPowers[MAX_POINT_LIGHTS];
-
-      uniform vec3 ambientColor;
-      uniform vec3 fogColor;
-      uniform float fogDensity;
-      uniform float attenConst;
-      uniform float attenLinear;
-      uniform float attenQuad;
-
-      float fresnelSchlick(float cosTheta, float refIndex) {
-        float r0 = (1.0 - refIndex) / (1.0 + refIndex);
-        r0 = r0 * r0;
-        return r0 + (1.0 - r0) * pow(1.0 - cosTheta, 5.0);
-      }
-
-      float textureShadowMap(int i, vec3 uvw) {
     `;
 
+    var shadowMapStr = `
+      uniform sampler2DShadow lightShadowMap{i};
+    `;
     for (var i = 0; i < MAX_LIGHTS; i++) {
-      this.fragmentShaderSource += `
-        if (i == ${i}) return texture(lightShadowMap${i}, uvw);`;
+      this.fragmentShaderSource += shadowMapStr.replace('{i}', i);
     }
 
     this.fragmentShaderSource += `
+      float textureShadowMap(int i, vec3 uvw) {
+    `;
+    for (var i = 0; i < MAX_LIGHTS; i++) {
+      this.fragmentShaderSource += `
+        if (i == ${i}) return texture(lightShadowMap${i}, uvw);
+      `;
+    }
+    this.fragmentShaderSource += `
       }
+    `;
 
-      float computeShadow(int i, vec4 vWorldPos) {
+    this.fragmentShaderSource += `
+      float computeShadow(int i) {
         vec4 lightPos = lightViewProjMatrices[i] * vWorldPos;
         vec3 ndc = lightPos.xyz / lightPos.w;
         vec3 shadowUVdepth = ndc * 0.5 + 0.5;
@@ -134,87 +200,86 @@ class XShader {
         float avgShadow = shadowSum / float(samples);
         return avgShadow;
       }
+    `;
+  }
 
+  defineFSPointLightsHeader (opts) {
+    if (MAX_POINT_LIGHTS <= 0) return;
+
+    this.fragmentShaderSource += `
+      const int MAX_POINT_LIGHTS = ${MAX_POINT_LIGHTS};
+      uniform vec3 pointLightPositions[MAX_POINT_LIGHTS];
+      uniform vec3 pointLightColors[MAX_POINT_LIGHTS];
+      uniform float pointLightPowers[MAX_POINT_LIGHTS];
+
+      vec3 computerPointLightColor(int i, vec3 normalDir, vec3 viewDir, float fresnel) {
+        vec3 pointLightPos = pointLightPositions[i];
+        vec3 pointLightColor = pointLightColors[i];
+        float pointLightPower = pointLightPowers[i];
+
+        vec3 toLight = pointLightPos - vWorldPos.xyz;
+        vec3 lightDir = normalize(toLight);
+        float distance = length(toLight);
+        float attenuation = pointLightPower / (distance * distance);
+
+        float diffuseFactor = max(dot(normalDir, lightDir), 0.0);
+        vec3 diffuse = vColor.rgb * pointLightColor * diffuseFactor;
+
+        vec3 reflectDir = reflect(-lightDir, normalDir);
+        float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularShininess);
+        vec3 specular = specularStrength * spec * pointLightColor * fresnel;
+
+        return attenuation * (diffuse + specular);
+      }
+    `;
+  }
+
+  defineFSFogHeader (opts) {
+    if (!ENABLE_FOG) return;
+
+    this.fragmentShaderSource += `
+      uniform vec3 fogColor;
+      uniform float fogDensity;
+
+      vec3 computeFog(vec3 color) {
+        float distFromView = length(vWorldPos.xyz - vViewPos);
+        float fogFactor = 1.0 - exp(-fogDensity * distFromView * distFromView);
+        return mix(color, fogColor, clamp(fogFactor, 0.0, 1.0));
+      }
+    `;
+  }
+
+  defineFSMain (opts) {
+    this.fragmentShaderSource += `
       void main(void) {
-        float specularShininess = 128.0;
-        float specularStrength = 0.5;
-
         vec3 ambient = vColor.rgb * ambientColor;
         vec3 normalDir = normalize(vNormal.xyz);
         vec3 viewDir = normalize(vViewPos - vWorldPos.xyz); // frag to camera
 
         float cosTheta = dot(viewDir, normalDir);
         float fresnel = fresnelSchlick(cosTheta, 0.05);
-
         vec3 finalColor = ambient;
-        for (int i = 0; i < lightCount; i++) {
-          vec3 lightPos = lightPositions[i];
-          vec3 lightDir = lightDirections[i]; // from light to lookAtPoint
-          vec3 lightColor = lightColors[i];
-          float lightPower = lightPowers[i];
+    `;
 
-          vec3 toFrag = vWorldPos.xyz - lightPos; // from light to frag
-          float toFragDist = length(toFrag);
-          vec3 toFragDir = normalize(toFrag);
+    for (var i = 0; i < MAX_LIGHTS; i++) {
+      this.fragmentShaderSource += `
+        finalColor += computeLightColor(${i}, normalDir, viewDir, fresnel);
+      `;
+    }
 
-          float cosAngle = dot(lightDir, toFragDir);
-          float cosInner = cos(lightInnerAngles[i]);
-          float cosOuter = cos(lightOuterAngles[i]);
+    for (var i = 0; i < MAX_POINT_LIGHTS; i++) {
+      this.fragmentShaderSource += `
+        finalColor += computerPointLightColor(${i}, normalDir, viewDir, fresnel);
+      `;
+    }
 
-          float spotFactor = 1.0;
-          if (lightInnerAngles[i] > 0.0) {
-            if (cosAngle > cosInner) {
-              spotFactor = 1.0;
-            } else if (cosAngle < cosOuter) {
-              spotFactor = 0.0;
-            } else {
-              spotFactor = smoothstep(cosOuter, cosInner, cosAngle);
-            }
-          }
+    if (ENABLE_FOG) {
+      this.fragmentShaderSource += `
+        finalColor = computeFog(finalColor);
+      `;
+    }
 
-          float attenDenom = attenConst + attenLinear * toFragDist + attenQuad * toFragDist * toFragDist;
-          float attenuation = lightPower / attenDenom;
-
-          float diffuseFactor = max(dot(normalDir, -lightDir), 0.0);
-          vec3 diffuse = vColor.rgb * lightColor * diffuseFactor;
-
-          vec3 reflectDir = reflect(lightDir, normalDir);
-          float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularShininess);
-          vec3 specular = specularStrength * spec * lightColor * fresnel;
-
-          float shadowFactor = 1.0;
-          if (${ENABLE_SHADOWS}) {
-            shadowFactor = computeShadow(i, vWorldPos);
-          }
-
-          finalColor += spotFactor * attenuation * shadowFactor * (diffuse + specular);
-        }
-
-        for (int i = 0; i < pointLightCount; i++) {
-          vec3 pointLightPos = pointLightPositions[i];
-          vec3 pointLightColor = pointLightColors[i];
-          float pointLightPower = pointLightPowers[i];
-
-          vec3 toLight = pointLightPos - vWorldPos.xyz;
-          vec3 lightDir = normalize(toLight);
-
-          float distance = length(toLight);
-          float attenuation = pointLightPower / (distance * distance);
-
-          float diffuseFactor = max(dot(normalDir, lightDir), 0.0);
-          vec3 diffuse = vColor.rgb * pointLightColor * diffuseFactor;
-
-          vec3 reflectDir = reflect(-lightDir, normalDir);
-          float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularShininess);
-          vec3 specular = specularStrength * spec * pointLightColor * fresnel;
-
-          vec3 pointLightContrib = attenuation * (diffuse + specular);
-          finalColor += pointLightContrib;
-        }
-
-        float distFromView = length(vWorldPos.xyz - vViewPos);
-        float fogFactor = 1.0 - exp(-fogDensity * distFromView * distFromView);
-        finalColor = mix(finalColor, fogColor, clamp(fogFactor, 0.0, 1.0));
+    this.fragmentShaderSource += `
         fragColor = vec4(finalColor, vColor.a);
       }
     `;

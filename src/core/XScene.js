@@ -59,10 +59,17 @@ class XScene {
   };
 
   initUniforms (opts) {
-    var u = this.uniforms;
-    u.resolution = new XUniform({ key: UNI_KEY_RESOLUTION, components: 2 });
-    u.lightCount = new XUniform({ key: UNI_KEY_DIRECTIONAL_LIGHT_COUNT, components: 1, type: UNI_TYPE_INT });
-    u.pointLightCount = new XUniform({ key: UNI_KEY_POINT_LIGHT_COUNT, components: 1, type: UNI_TYPE_INT });
+    this.addUniform(UNI_KEY_SPECULAR_SHININESS, { components: 1, data: 128.0 });
+    this.addUniform(UNI_KEY_SPECULAR_STRENGTH, { components: 1, data: 0.5 });
+    this.addUniform(UNI_KEY_RESOLUTION, { components: 2 });
+    this.addUniform(UNI_KEY_DIRECTIONAL_LIGHT_COUNT, { components: 1, type: UNI_TYPE_INT });
+    this.addUniform(UNI_KEY_POINT_LIGHT_COUNT, { components: 1, type: UNI_TYPE_INT });
+  }
+
+  addUniform (key, opts) {
+    opts = opts || {};
+    opts.key = key;
+    this.uniforms[key] = new XUniform(opts);
   }
 
   initLights (opts) {
