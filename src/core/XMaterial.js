@@ -47,7 +47,7 @@ class XMaterial {
     this.onAllTexturesLoaded = onLoad;
     this.useTextures = true;
 
-    XGLUtils.loadTexture(gl, `${path}.${type}`, true, t => this.setMaterialTexture(UNI_KEY_ALBEDO_MAP, t));
+    XGLUtils.loadTexture(gl, `${path}.${type}`, ENABLE_HDR, t => this.setMaterialTexture(UNI_KEY_ALBEDO_MAP, t));
     XGLUtils.loadTexture(gl, `${path}_normal.${type}`, false, t => this.setMaterialTexture(UNI_KEY_NORMAL_MAP, t));
     XGLUtils.loadTexture(gl, `${path}_roughness.${type}`, false, t => this.setMaterialTexture(UNI_KEY_ROUGHNESS_MAP, t));
   }

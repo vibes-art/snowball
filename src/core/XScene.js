@@ -63,7 +63,6 @@ class XScene {
     u.resolution = new XUniform({ key: UNI_KEY_RESOLUTION, components: 2 });
     u.lightCount = new XUniform({ key: UNI_KEY_DIRECTIONAL_LIGHT_COUNT, components: 1, type: UNI_TYPE_INT });
     u.pointLightCount = new XUniform({ key: UNI_KEY_POINT_LIGHT_COUNT, components: 1, type: UNI_TYPE_INT });
-    MATERIAL_TEXTURE_BOOLS.forEach((key) => u[key] = new XUniform({ key, components: 1, type: UNI_TYPE_INT }));
   }
 
   initLights (opts) {
@@ -329,6 +328,27 @@ class XScene {
     var frustumPlanes = XMatrix4.extractFrustumPlanes(this.currentProjViewMatrix);
 
     var gl = this.gl;
+
+    if (DEBUG_LOGS) {
+      var ext = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+      if (ext) {
+        if (this.glQuery) {
+          var available = gl.getQueryParameter(this.glQuery, gl.QUERY_RESULT_AVAILABLE);
+          var disjoint = gl.getParameter(ext.GPU_DISJOINT_EXT);
+          if (available && !disjoint) {
+            var timeElapsedNs = gl.getQueryParameter(this.glQuery, gl.QUERY_RESULT);
+            var timeElapsedMs = timeElapsedNs / 1e6;  // convert ns => ms
+            console.log('GPU time for last frame: ' + timeElapsedMs + ' ms');
+            this.glQuery = null;
+          }
+        } else if (frameIndex % 60 === 0) {
+          this.glQuery = gl.createQuery();
+          gl.beginQuery(ext.TIME_ELAPSED_EXT, this.glQuery);
+          this.queryEnded = false;
+        }
+      }
+    }
+
     for (var passIndex = 0; passIndex < this.renderPasses.length; passIndex++) {
       var pass = this.renderPasses[passIndex];
       if (DEBUG_LIGHTS && pass.type !== RENDER_PASS_LIGHTS) continue;
@@ -458,13 +478,6 @@ class XScene {
         // apply material uniforms
         if (material && isNewMaterial) {
           this.applyUniforms(material, shader, isNewShader);
-
-          MATERIAL_TEXTURE_BOOLS.forEach((key, idx) => {
-            var matKey = MATERIAL_TEXTURE_MAPS[idx];
-            this.uniforms[key].data = material[matKey].texture ? 1 : 0;
-            this.applyUniform(this.uniforms[key], shader, isNewShader);
-          });
-
           this.lastMaterial = material;
         }
 
@@ -505,6 +518,13 @@ class XScene {
       console.log(`uniformSkips: ${this.stats.uniformSkips}`);
       console.log(`programCalls: ${this.stats.programCalls}`);
       console.log(`objectsCulled: ${this.stats.objectsCulled}`);
+    }
+
+    if (DEBUG_LOGS) {
+      if (!this.queryEnded) {
+        this.queryEnded = true;
+        ext && gl.endQuery(ext.TIME_ELAPSED_EXT);
+      }
     }
   }
 

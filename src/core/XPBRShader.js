@@ -13,30 +13,38 @@ class XPBRShader extends XShader {
       in vec4 vColor;
       out vec4 fragColor;
 
-      const int MAX_LIGHTS = ${MAX_LIGHTS};
-      uniform int lightCount;
-      uniform vec3 lightPositions[MAX_LIGHTS];
-      uniform vec3 lightColors[MAX_LIGHTS];
-      uniform vec3 lightDirections[MAX_LIGHTS];
-      uniform float lightInnerAngles[MAX_LIGHTS];
-      uniform float lightOuterAngles[MAX_LIGHTS];
-      uniform float lightPowers[MAX_LIGHTS];
     `;
+
+    if (MAX_LIGHTS > 0) {
+      this.fragmentShaderSource += `
+        const int MAX_LIGHTS = ${MAX_LIGHTS};
+        uniform int lightCount;
+        uniform vec3 lightPositions[MAX_LIGHTS];
+        uniform vec3 lightColors[MAX_LIGHTS];
+        uniform vec3 lightDirections[MAX_LIGHTS];
+        uniform float lightInnerAngles[MAX_LIGHTS];
+        uniform float lightOuterAngles[MAX_LIGHTS];
+        uniform float lightPowers[MAX_LIGHTS];
+        uniform mat4 lightViewProjMatrices[MAX_LIGHTS];
+      `;
+    }
 
     for (var i = 0; i < MAX_LIGHTS; i++) {
       this.fragmentShaderSource += `
         uniform sampler2DShadow lightShadowMap${i};`;
     }
 
+    if (MAX_POINT_LIGHTS > 0) {
+      this.fragmentShaderSource += `
+        const int MAX_POINT_LIGHTS = ${MAX_POINT_LIGHTS};
+        uniform int pointLightCount;
+        uniform vec3 pointLightPositions[MAX_POINT_LIGHTS];
+        uniform vec3 pointLightColors[MAX_POINT_LIGHTS];
+        uniform float pointLightPowers[MAX_POINT_LIGHTS];
+      `;
+    }
+
     this.fragmentShaderSource += `
-      uniform mat4 lightViewProjMatrices[MAX_LIGHTS];
-
-      const int MAX_POINT_LIGHTS = ${MAX_POINT_LIGHTS};
-      uniform int pointLightCount;
-      uniform vec3 pointLightPositions[MAX_POINT_LIGHTS];
-      uniform vec3 pointLightColors[MAX_POINT_LIGHTS];
-      uniform float pointLightPowers[MAX_POINT_LIGHTS];
-
       uniform vec3 ambientColor;
       uniform vec3 fogColor;
       uniform float fogDensity;
@@ -74,42 +82,51 @@ class XPBRShader extends XShader {
       vec3 fresnelSchlick(float cosTheta, vec3 F0) {
         return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
       }
-
-      float textureShadowMap(int i, vec3 uvw) {
     `;
+
+    if (MAX_LIGHTS > 0) {
+      this.fragmentShaderSource += `
+        float textureShadowMap(int i, vec3 uvw) {
+      `;
+    }
 
     for (var i = 0; i < MAX_LIGHTS; i++) {
       this.fragmentShaderSource += `
         if (i == ${i}) return texture(lightShadowMap${i}, uvw);`;
     }
 
-    this.fragmentShaderSource += `
-      }
-
-      float computeShadow(int i, vec4 vWorldPos) {
-        vec4 lightPos = lightViewProjMatrices[i] * vWorldPos;
-        vec3 ndc = lightPos.xyz / lightPos.w;
-        vec3 shadowUVdepth = ndc * 0.5 + 0.5;
-
-        float bias = 0.0008;
-        float currentDepth = shadowUVdepth.z - bias;
-
-        float texelSize = 0.5 / ${SHADOW_MAP_SIZE}.0;
-        float shadowSum = 0.0;
-        int samples = 0;
-
-        for (int x = -2; x <= 2; x++) {
-          for (int y = -2; y <= 2; y++) {
-            vec2 offset = vec2(float(x), float(y)) * texelSize;
-            float shadowSample = textureShadowMap(i, vec3(shadowUVdepth.xy + offset, currentDepth));
-            shadowSum += shadowSample;
-            samples++;
-          }
+    if (MAX_LIGHTS > 0) {
+      this.fragmentShaderSource += `
         }
 
-        float avgShadow = shadowSum / float(samples);
-        return avgShadow;
-      }
+        float computeShadow(int i, vec4 vWorldPos) {
+          vec4 lightPos = lightViewProjMatrices[i] * vWorldPos;
+          vec3 ndc = lightPos.xyz / lightPos.w;
+          vec3 shadowUVdepth = ndc * 0.5 + 0.5;
+
+          float bias = 0.0008;
+          float currentDepth = shadowUVdepth.z - bias;
+
+          float texelSize = 0.5 / ${SHADOW_MAP_SIZE}.0;
+          float shadowSum = 0.0;
+          int samples = 0;
+
+          for (int x = -2; x <= 2; x++) {
+            for (int y = -2; y <= 2; y++) {
+              vec2 offset = vec2(float(x), float(y)) * texelSize;
+              float shadowSample = textureShadowMap(i, vec3(shadowUVdepth.xy + offset, currentDepth));
+              shadowSum += shadowSample;
+              samples++;
+            }
+          }
+
+          float avgShadow = shadowSum / float(samples);
+          return avgShadow;
+        }
+      `;
+    }
+
+    this.fragmentShaderSource += `
 
       void main(void) {
         vec3 normalDir = normalize(vNormal.xyz);
@@ -121,16 +138,15 @@ class XPBRShader extends XShader {
         float alpha = baseColor.a;
         float roughnessClamped = clamp(roughness, 0.07, 1.0);
         vec3 F0 = mix(vec3(0.04), tintColor, metallic);
+    `;
 
-        for (int i = 0; i < lightCount; i++) {
-          vec3 lightPos = lightPositions[i];
-          vec3 lightDir = lightDirections[i]; // from light to lookAtPoint
-          vec3 lightColor = lightColors[i];
-          float lightPower = lightPowers[i];
-
-          vec3 toFrag = vWorldPos.xyz - lightPos; // from light to frag
-          float toFragDist = length(toFrag);
-          vec3 toFragDir = normalize(toFrag);
+    for (var i = 0; i < MAX_LIGHTS; i++) {
+      this.fragmentShaderSource += `
+        {
+          vec3 lightPos = lightPositions[${i}];
+          vec3 lightDir = lightDirections[${i}]; // from light to lookAtPoint
+          vec3 lightColor = lightColors[${i}];
+          float lightPower = lightPowers[${i}];
 
           vec3 toLight = lightPos - vWorldPos.xyz; // from frag to light
           float toLightDist = length(toLight);
@@ -153,13 +169,14 @@ class XPBRShader extends XShader {
           vec3 kD = vec3(1.0) - kS;
           kD *= (1.0 - metallic);
 
-          vec3 diffuse = kD * tintColor.rgb / 3.14159265359; 
+          vec3 diffuse = kD * tintColor.rgb / 3.14159265359;
 
-          float cosAngle = dot(lightDir, toFragDir);
-          float cosInner = cos(lightInnerAngles[i]);
-          float cosOuter = cos(lightOuterAngles[i]);
           float spotFactor = 1.0;
-          if (lightInnerAngles[i] > 0.0) {
+          if (lightInnerAngles[${i}] > 0.0) {
+            float cosAngle = dot(lightDir, -toLightDir);
+            float cosInner = cos(lightInnerAngles[${i}]);
+            float cosOuter = cos(lightOuterAngles[${i}]);
+
             if (cosAngle > cosInner) {
               spotFactor = 1.0;
             } else if (cosAngle < cosOuter) {
@@ -168,15 +185,26 @@ class XPBRShader extends XShader {
               spotFactor = smoothstep(cosOuter, cosInner, cosAngle);
             }
           }
+      `;
 
-          float shadowFactor = 1.0;
-          if (${ENABLE_SHADOWS}) {
-            shadowFactor = computeShadow(i, vWorldPos);
+      if (ENABLE_SHADOWS) {
+        this.fragmentShaderSource += `
+            float shadowFactor = computeShadow(${i}, vWorldPos);
+        `;
+      } else {
+        this.fragmentShaderSource += `
+            float shadowFactor = 1.0;
+        `;
+      }
+
+      this.fragmentShaderSource += `
+            finalColor += spotFactor * radiance * shadowFactor * (diffuse + specular) * NdotL;
           }
+      `;
+    }
 
-          finalColor += spotFactor * radiance * shadowFactor * (diffuse + specular) * NdotL;
-        }
-
+    if (MAX_POINT_LIGHTS > 0) {
+      this.fragmentShaderSource += `
         for (int i = 0; i < pointLightCount; i++) {
           vec3 pointLightPos = pointLightPositions[i];
           vec3 pointLightColor = pointLightColors[i];
@@ -188,7 +216,7 @@ class XPBRShader extends XShader {
           vec3 halfDir = normalize(viewDir + toLightDir);
 
           float attenuation = pointLightPower / (toLightDist * toLightDist);
-          vec3 radiance = pointLightColor * attenuation; 
+          vec3 radiance = pointLightColor * attenuation;
 
           // Cook-Torrance BRDF
           float NDF = DistributionGGX(normalDir, halfDir, roughnessClamped);
@@ -202,15 +230,22 @@ class XPBRShader extends XShader {
           vec3 kD = vec3(1.0) - kS;
           kD *= (1.0 - metallic);
 
-          vec3 diffuse = kD * tintColor.rgb / 3.14159265359; 
+          vec3 diffuse = kD * tintColor.rgb / 3.14159265359;
 
           finalColor += radiance * (diffuse + specular) * NdotL;
         }
+      `;
+    }
 
+    if (ENABLE_FOG) {
+      this.fragmentShaderSource += `
         float distFromView = length(vWorldPos.xyz - vViewPos);
         float fogFactor = 1.0 - exp(-fogDensity * distFromView * distFromView);
         finalColor = mix(finalColor, fogColor, clamp(fogFactor, 0.0, 1.0));
+      `;
+    }
 
+    this.fragmentShaderSource += `
         vec3 ambient = ambientColor * tintColor;
         vec3 ambientScale = vec3(1.0 - finalColor.rgb);
         fragColor = vec4(finalColor + ambientScale * ambient, alpha);
