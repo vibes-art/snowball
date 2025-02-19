@@ -60,7 +60,8 @@ class XShader {
 
   defineFragmentShader (opts) {
     this.defineFSHeader(opts);
-    this.defineFSLightsHeader(opts);
+    this.defineFSDirLightsHeader(opts);
+    this.defineFSSpotLightsHeader(opts);
     this.defineFSPointLightsHeader(opts);
     this.defineFSFogHeader(opts);
     this.defineFSMain(opts);
@@ -80,104 +81,106 @@ class XShader {
       uniform vec3 ambientColor;
       uniform float specularShininess;
       uniform float specularStrength;
-
-      float fresnelSchlick(float cosTheta, float refIndex) {
-        float r0 = (1.0 - refIndex) / (1.0 + refIndex);
-        r0 = r0 * r0;
-        return r0 + (1.0 - r0) * pow(1.0 - cosTheta, 5.0);
-      }
+      uniform float attenConst;
     `;
   }
 
-  defineFSLightsHeader (opts) {
-    if (MAX_LIGHTS <= 0) return;
+  defineFSDirLightsHeader (opts) {
+    if (MAX_DIR_LIGHTS <= 0) return;
 
     this.fragmentShaderSource += `
-      uniform float attenConst;
-      uniform float attenLinear;
-      uniform float attenQuad;
-
-      const int MAX_LIGHTS = ${MAX_LIGHTS};
-      uniform vec3 lightPositions[MAX_LIGHTS];
-      uniform vec3 lightColors[MAX_LIGHTS];
-      uniform vec3 lightDirections[MAX_LIGHTS];
-      uniform float lightInnerAngles[MAX_LIGHTS];
-      uniform float lightOuterAngles[MAX_LIGHTS];
-      uniform float lightPowers[MAX_LIGHTS];
+      const int MAX_DIR_LIGHTS = ${MAX_DIR_LIGHTS};
+      uniform vec3 ${UNI_KEY_DIR_LIGHT}Positions[MAX_DIR_LIGHTS];
+      uniform vec3 ${UNI_KEY_DIR_LIGHT}Colors[MAX_DIR_LIGHTS];
+      uniform vec3 ${UNI_KEY_DIR_LIGHT}Directions[MAX_DIR_LIGHTS];
+      uniform float ${UNI_KEY_DIR_LIGHT}Powers[MAX_DIR_LIGHTS];
     `;
 
-    this.addFSShadowsHeader(opts);
+    this.addFSShadowsHeader(UNI_KEY_DIR_LIGHT, MAX_DIR_LIGHTS, opts);
+
+    for (var i = 0; i < MAX_DIR_LIGHTS; i++) {
+      this.addFSLightColorCompute(UNI_KEY_DIR_LIGHT, i);
+    }
+  }
+
+  addFSLightColorCompute (uniKey, i) {
+    this.fragmentShaderSource += `
+      vec3 ${uniKey}ColorCompute${i}(vec3 normalDir, vec3 viewDir) {
+        const int i = ${i};
+        vec3 lightPos = ${uniKey}Positions[i];
+        vec3 lightDir = ${uniKey}Directions[i]; // from light to lookAtPoint
+        vec3 lightColor = ${uniKey}Colors[i];
+        float lightPower = ${uniKey}Powers[i];
+    `;
+
+    if (uniKey === UNI_KEY_SPOT_LIGHT) {
+      this.fragmentShaderSource += `
+        vec3 toFrag = vWorldPos.xyz - lightPos; // from light to frag
+        vec3 toFragDir = normalize(toFrag);
+        float cosAngle = dot(lightDir, toFragDir);
+        float cosInner = ${UNI_KEY_SPOT_LIGHT}InnerAngleCosines[i];
+        float cosOuter = ${UNI_KEY_SPOT_LIGHT}OuterAngleCosines[i];
+        float spotFactor = smoothstep(cosOuter, cosInner, cosAngle);
+      `;
+    } else {
+      this.fragmentShaderSource += `
+        float spotFactor = 1.0;
+      `;
+    }
 
     this.fragmentShaderSource += `
-      vec3 computeLightColor(int i, vec3 normalDir, vec3 viewDir, float fresnel) {
-        vec3 lightPos = lightPositions[i];
-        vec3 lightDir = lightDirections[i]; // from light to lookAtPoint
-        vec3 lightColor = lightColors[i];
-        float lightPower = lightPowers[i];
-
-        vec3 toFrag = vWorldPos.xyz - lightPos; // from light to frag
-        float toFragDist = length(toFrag);
-        vec3 toFragDir = normalize(toFrag);
-
-        float spotFactor = 1.0;
-        if (lightInnerAngles[i] > 0.0) {
-          float cosAngle = dot(lightDir, toFragDir);
-          float cosInner = cos(lightInnerAngles[i]);
-          float cosOuter = cos(lightOuterAngles[i]);
-          if (cosAngle > cosInner) {
-            spotFactor = 1.0;
-          } else if (cosAngle < cosOuter) {
-            spotFactor = 0.0;
-          } else {
-            spotFactor = smoothstep(cosOuter, cosInner, cosAngle);
-          }
-        }
-
-        float attenDenom = attenConst + attenLinear * toFragDist + attenQuad * toFragDist * toFragDist;
-        float attenuation = lightPower / attenDenom;
+        float attenuation = lightPower / attenConst;
 
         float diffuseFactor = max(dot(normalDir, -lightDir), 0.0);
         vec3 diffuse = vColor.rgb * lightColor * diffuseFactor;
 
-        vec3 reflectDir = reflect(lightDir, normalDir);
-        float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularShininess);
-        vec3 specular = specularStrength * spec * lightColor * fresnel;
+        vec3 halfDir = normalize(lightDir + viewDir);
+        float specular = pow(max(dot(normalDir, halfDir), 0.0), specularShininess);
 
-        float shadowFactor = ${(ENABLE_SHADOWS ? 'computeShadow(i)' : '1.0')};
-        return spotFactor * attenuation * shadowFactor * (diffuse + specular);
+        float shadowFactor = ${(ENABLE_SHADOWS ? `${uniKey}ComputeShadow${i}()` : `1.0`)};
+        return attenuation * spotFactor * shadowFactor * (diffuse + specular);
       }
     `;
   }
 
-  addFSShadowsHeader (opts) {
+  defineFSSpotLightsHeader (opts) {
+    if (MAX_SPOT_LIGHTS <= 0) return;
+
+    this.fragmentShaderSource += `
+      const int MAX_SPOT_LIGHTS = ${MAX_SPOT_LIGHTS};
+      uniform vec3 ${UNI_KEY_SPOT_LIGHT}Positions[MAX_SPOT_LIGHTS];
+      uniform vec3 ${UNI_KEY_SPOT_LIGHT}Colors[MAX_SPOT_LIGHTS];
+      uniform vec3 ${UNI_KEY_SPOT_LIGHT}Directions[MAX_SPOT_LIGHTS];
+      uniform float ${UNI_KEY_SPOT_LIGHT}Powers[MAX_SPOT_LIGHTS];
+      uniform float ${UNI_KEY_SPOT_LIGHT}InnerAngleCosines[MAX_SPOT_LIGHTS];
+      uniform float ${UNI_KEY_SPOT_LIGHT}OuterAngleCosines[MAX_SPOT_LIGHTS];
+    `;
+
+    this.addFSShadowsHeader(UNI_KEY_SPOT_LIGHT, MAX_SPOT_LIGHTS, opts);
+
+    for (var i = 0; i < MAX_SPOT_LIGHTS; i++) {
+      this.addFSLightColorCompute(UNI_KEY_SPOT_LIGHT, i);
+    }
+  }
+
+  addFSShadowsHeader (uniKey, maxLights, opts) {
     if (!ENABLE_SHADOWS) return;
 
     this.fragmentShaderSource += `
-      uniform mat4 lightViewProjMatrices[MAX_LIGHTS];
+      uniform mat4 ${uniKey}ViewProjMatrices[${maxLights}];
+      uniform sampler2DShadow ${uniKey}ShadowMap[${maxLights}];
     `;
 
-    var shadowMapStr = `
-      uniform sampler2DShadow lightShadowMap{i};
-    `;
-    for (var i = 0; i < MAX_LIGHTS; i++) {
-      this.fragmentShaderSource += shadowMapStr.replace('{i}', i);
+    for (var i = 0; i < maxLights; i++) {
+      this.addFSShadowsCompute(uniKey, i);
     }
+  }
 
+  addFSShadowsCompute (uniKey, i) {
     this.fragmentShaderSource += `
-      float textureShadowMap(int i, vec3 uvw) {
-    `;
-    for (var i = 0; i < MAX_LIGHTS; i++) {
-      this.fragmentShaderSource += `
-        if (i == ${i}) return texture(lightShadowMap${i}, uvw);
-      `;
-    }
-    this.fragmentShaderSource += `
-      }
-    `;
-
-    this.fragmentShaderSource += `
-      float computeShadow(int i) {
-        vec4 lightPos = lightViewProjMatrices[i] * vWorldPos;
+      float ${uniKey}ComputeShadow${i}() {
+        const int i = ${i};
+        vec4 lightPos = ${uniKey}ViewProjMatrices[i] * vWorldPos;
         vec3 ndc = lightPos.xyz / lightPos.w;
         vec3 shadowUVdepth = ndc * 0.5 + 0.5;
 
@@ -191,7 +194,7 @@ class XShader {
         for (int x = -2; x <= 2; x++) {
           for (int y = -2; y <= 2; y++) {
             vec2 offset = vec2(float(x), float(y)) * texelSize;
-            float shadowSample = textureShadowMap(i, vec3(shadowUVdepth.xy + offset, currentDepth));
+            float shadowSample = texture(${uniKey}ShadowMap[i], vec3(shadowUVdepth.xy + offset, currentDepth));
             shadowSum += shadowSample;
             samples++;
           }
@@ -208,14 +211,14 @@ class XShader {
 
     this.fragmentShaderSource += `
       const int MAX_POINT_LIGHTS = ${MAX_POINT_LIGHTS};
-      uniform vec3 pointLightPositions[MAX_POINT_LIGHTS];
-      uniform vec3 pointLightColors[MAX_POINT_LIGHTS];
-      uniform float pointLightPowers[MAX_POINT_LIGHTS];
+      uniform vec3 ${UNI_KEY_POINT_LIGHT}Positions[MAX_POINT_LIGHTS];
+      uniform vec3 ${UNI_KEY_POINT_LIGHT}Colors[MAX_POINT_LIGHTS];
+      uniform float ${UNI_KEY_POINT_LIGHT}Powers[MAX_POINT_LIGHTS];
 
-      vec3 computerPointLightColor(int i, vec3 normalDir, vec3 viewDir, float fresnel) {
-        vec3 pointLightPos = pointLightPositions[i];
-        vec3 pointLightColor = pointLightColors[i];
-        float pointLightPower = pointLightPowers[i];
+      vec3 computePointLightColor(int i, vec3 normalDir, vec3 viewDir) {
+        vec3 pointLightPos = ${UNI_KEY_POINT_LIGHT}Positions[i];
+        vec3 pointLightColor = ${UNI_KEY_POINT_LIGHT}Colors[i];
+        float pointLightPower = ${UNI_KEY_POINT_LIGHT}Powers[i];
 
         vec3 toLight = pointLightPos - vWorldPos.xyz;
         vec3 lightDir = normalize(toLight);
@@ -225,9 +228,8 @@ class XShader {
         float diffuseFactor = max(dot(normalDir, lightDir), 0.0);
         vec3 diffuse = vColor.rgb * pointLightColor * diffuseFactor;
 
-        vec3 reflectDir = reflect(-lightDir, normalDir);
-        float spec = pow(max(dot(viewDir, reflectDir), 0.0), specularShininess);
-        vec3 specular = specularStrength * spec * pointLightColor * fresnel;
+        vec3 halfDir = normalize(lightDir + viewDir);
+        float specular = pow(max(dot(normalDir, halfDir), 0.0), specularShininess);
 
         return attenuation * (diffuse + specular);
       }
@@ -255,21 +257,24 @@ class XShader {
         vec3 ambient = vColor.rgb * ambientColor;
         vec3 normalDir = normalize(vNormal.xyz);
         vec3 viewDir = normalize(vViewPos - vWorldPos.xyz); // frag to camera
-
-        float cosTheta = dot(viewDir, normalDir);
-        float fresnel = fresnelSchlick(cosTheta, 0.05);
         vec3 finalColor = ambient;
     `;
 
-    for (var i = 0; i < MAX_LIGHTS; i++) {
+    for (var i = 0; i < MAX_DIR_LIGHTS; i++) {
       this.fragmentShaderSource += `
-        finalColor += computeLightColor(${i}, normalDir, viewDir, fresnel);
+        finalColor += ${UNI_KEY_DIR_LIGHT}ColorCompute${i}(normalDir, viewDir);
+      `;
+    }
+
+    for (var i = 0; i < MAX_SPOT_LIGHTS; i++) {
+      this.fragmentShaderSource += `
+        finalColor += ${UNI_KEY_SPOT_LIGHT}ColorCompute${i}(normalDir, viewDir);
       `;
     }
 
     for (var i = 0; i < MAX_POINT_LIGHTS; i++) {
       this.fragmentShaderSource += `
-        finalColor += computerPointLightColor(${i}, normalDir, viewDir, fresnel);
+        finalColor += computePointLightColor(${i}, normalDir, viewDir);
       `;
     }
 

@@ -82,7 +82,7 @@ class XCanvas {
   }
 
   initLights (opts) {
-    this.scene.addLight({
+    this.scene.addDirectionalLight({
       color: [0.5, 0.5, 0.5, 1],
       direction: [-0.5, 1, -0.25]
     });

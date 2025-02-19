@@ -34,35 +34,40 @@ class XEmissiveShader extends XShader {
       out vec4 fragColor;
 
       const int MAX_POINT_LIGHTS = ${MAX_POINT_LIGHTS};
-      uniform int pointLightCount;
-      uniform vec3 pointLightPositions[MAX_POINT_LIGHTS];
-      uniform float pointLightRadii[MAX_POINT_LIGHTS];
+      uniform vec3 ${UNI_KEY_POINT_LIGHT}Positions[MAX_POINT_LIGHTS];
+      uniform float ${UNI_KEY_POINT_LIGHT}Radii[MAX_POINT_LIGHTS];
 
       uniform float emission;
 
-      void main(void) {
-        vec3 finalSphereColor = vec3(0.0);
-        float finalAlpha = 0.0;
+      vec4 computeEmission(int i, vec4 color) {
+        vec3 pointLightPos = ${UNI_KEY_POINT_LIGHT}Positions[i];
+        float pointLightRadius = ${UNI_KEY_POINT_LIGHT}Radii[i];
 
-        for (int i = 0; i < pointLightCount; i++) {
-          vec3 pointLightPos = pointLightPositions[i];
-          float pointLightRadius = pointLightRadii[i];
+        vec3 toFrag = vWorldPos.xyz - pointLightPos;
+        float toFragDist = length(toFrag);
+        vec3 N = normalize(toFrag);
+        vec3 V = normalize(vWorldPos.xyz - vViewPos);
+        float facing = clamp(dot(-N, V), 0.0, 1.0);
 
-          vec3 toFrag = vWorldPos.xyz - pointLightPos;
-          float toFragDist = length(toFrag);
-          vec3 N = normalize(toFrag);
-          vec3 V = normalize(vWorldPos.xyz - vViewPos);
-          float facing = clamp(dot(-N, V), 0.0, 1.0);
-
-          if (toFragDist < pointLightRadius) {
-            finalSphereColor = mix(vColor.rgb, vec3(1.0), facing * facing * facing);
-            finalAlpha = 1.0;
-            break;
-          }
+        if (toFragDist < pointLightRadius) {
+          return vec4(mix(vColor.rgb, vec3(1.0), facing * facing * facing), 1.0);
+        } else {
+          return color;
         }
+      }
 
-        vec3 emissive = finalSphereColor * emission;
-        fragColor = vec4(emissive, finalAlpha);
+      void main(void) {
+        vec4 finalColor = vec4(0.0);
+    `;
+
+    for (var i = 0; i < MAX_POINT_LIGHTS; i++) {
+      this.fragmentShaderSource += `
+        finalColor = computeEmission(${i}, finalColor);
+      `;
+    }
+
+    this.fragmentShaderSource += `
+        fragColor = vec4(finalColor.rgb * emission, finalColor.a);
       }
     `;
   }

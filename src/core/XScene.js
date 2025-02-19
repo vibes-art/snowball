@@ -22,6 +22,7 @@ class XScene {
     this.objects = [];
     this.uniforms = {};
     this.lights = {};
+    this.shadowShaders = {};
     this.matrices = {};
     this.viewport = {};
     this.renderPasses = [];
@@ -47,6 +48,7 @@ class XScene {
 
     this.initUniforms(opts);
     this.initLights(opts);
+    this.initFog(opts);
     this.initMatrices(opts);
 
     // debugging stats
@@ -62,8 +64,6 @@ class XScene {
     this.addUniform(UNI_KEY_SPECULAR_SHININESS, { components: 1, data: 128.0 });
     this.addUniform(UNI_KEY_SPECULAR_STRENGTH, { components: 1, data: 0.5 });
     this.addUniform(UNI_KEY_RESOLUTION, { components: 2 });
-    this.addUniform(UNI_KEY_DIRECTIONAL_LIGHT_COUNT, { components: 1, type: UNI_TYPE_INT });
-    this.addUniform(UNI_KEY_POINT_LIGHT_COUNT, { components: 1, type: UNI_TYPE_INT });
   }
 
   addUniform (key, opts) {
@@ -73,28 +73,37 @@ class XScene {
   }
 
   initLights (opts) {
-    var ambientLightColor = (!SHOW_NORMAL_MAPS && opts.ambientLightColor) || AMBIENT_LIGHT;
-    var backgroundColor = opts.backgroundColor || BG_COLOR;
-    this.lights.ambient = new XLight({ key: UNI_KEY_AMBIENT_LIGHT, color: ambientLightColor });
-    this.lights.background = new XLight({ key: UNI_KEY_BACKGROUND_LIGHT, color: backgroundColor });
-    this.lights.directional = [];
-    this.lights.point = [];
-
-    var fogColor = opts.fogColor || backgroundColor;
-    var fogDensity = opts.fogDensity || 0.0001;
-    this.uniforms.fogColor = new XUniform({ key: UNI_KEY_FOG_COLOR, components: 3, data: fogColor });
-    this.uniforms.fogDensity = new XUniform({ key: UNI_KEY_FOG_DENSITY, components: 1, data: fogDensity });
+    var ambColor = (!SHOW_NORMAL_MAPS && opts.ambientLightColor) || AMBIENT_LIGHT;
+    var bgColor = opts.backgroundColor || BG_COLOR;
+    this.lights[UNI_KEY_AMBIENT_LIGHT] = new XLight({ key: UNI_KEY_AMBIENT_LIGHT, color: ambColor });
+    this.lights[UNI_KEY_BACKGROUND_LIGHT] = new XLight({ key: UNI_KEY_BACKGROUND_LIGHT, color: bgColor });
+    this.lights[UNI_KEY_DIR_LIGHT] = [];
+    this.lights[UNI_KEY_SPOT_LIGHT] = [];
+    this.lights[UNI_KEY_POINT_LIGHT] = [];
 
     var attenConst = opts.attenConst !== undefined ? opts.attenConst : ATTEN_CONST;
-    var attenLinear = opts.attenLinear !== undefined ? opts.attenLinear : ATTEN_LINEAR;
-    var attenQuad = opts.attenQuad !== undefined ? opts.attenQuad : ATTEN_QUAD;
-    this.uniforms.attenConst = new XUniform({ key: UNI_KEY_ATTEN_CONST, components: 1, data: attenConst });
-    this.uniforms.attenLinear = new XUniform({ key: UNI_KEY_ATTEN_LINEAR, components: 1, data: attenLinear });
-    this.uniforms.attenQuad = new XUniform({ key: UNI_KEY_ATTEN_QUAD, components: 1, data: attenQuad });
+    this.addUniform(UNI_KEY_ATTEN_CONST, { components: 1, data: attenConst });
   }
 
-  initShadows () {
-    this.shadowShader = new XShadowShader({ scene: this });
+  initFog (opts) {
+    if (!ENABLE_FOG) return;
+
+    var fogColor = opts.fogColor || bgColor;
+    var fogDensity = opts.fogDensity || 0.0001;
+    this.addUniform(UNI_KEY_FOG_COLOR, { components: 3, data: fogColor });
+    this.addUniform(UNI_KEY_FOG_DENSITY, { components: 1, data: fogDensity });
+  }
+
+  getShadowShader (uniformKey, maxLights) {
+    var shader = this.shadowShaders[uniformKey];
+
+    if (!shader) {
+      shader = this.shadowShaders[uniformKey] = new XShadowShader({
+        scene: this, uniformKey, maxLights
+      });
+    }
+
+    return shader;
   }
 
   initMatrices (opts) {
@@ -220,70 +229,50 @@ class XScene {
     this.haveObjectsChanged = true;
   }
 
-  addLight (opts) {
-    var lights = this.lights.directional;
-    if (lights.length >= MAX_LIGHTS) {
-      console.warn(`MAX_LIGHTS exceeded, ignoring addLight call.`);
-      return;
-    }
+  addDirectionalLight (opts) {
+    return this.addLight(UNI_KEY_DIR_LIGHT, XLight, MAX_DIR_LIGHTS, opts);
+  }
 
-    opts = opts || {};
-    opts.key = UNI_KEY_DIRECTIONAL_LIGHT;
-    opts.index = lights.length;
-
-    var light;
-    if (opts.type === LIGHT_SPOT) {
-      light = new XSpotLight(opts);
-    } else {
-      light = new XLight(opts);
-    }
-
-    if (ENABLE_SHADOWS) {
-      var shadowFBO = XGLUtils.createDepthFramebuffer(this.gl, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
-      light.addShadowMapTexture(shadowFBO.depthTexture, this.reserveTextureUnit());
-
-      if (!this.shadowShader) {
-        this.initShadows();
-      };
-
-      this.addRenderPass(RENDER_PASS_LIGHTS, {
-        framebuffer: shadowFBO.framebuffer,
-        shader: this.shadowShader,
-        uniforms: { lightIndex: light.index },
-        viewport: { width: SHADOW_MAP_SIZE, height: SHADOW_MAP_SIZE },
-        isBeforeMain: true
-      });
-    }
-
-    lights.push(light);
-
-    this.uniforms.lightCount.data = lights.length;
-    this.needsShaderConnect = true;
-
-    return light;
+  addSpotLight (opts) {
+    return this.addLight(UNI_KEY_SPOT_LIGHT, XSpotLight, MAX_SPOT_LIGHTS, opts);
   }
 
   addPointLight (opts) {
-    var pointLights = this.lights.point;
-    if (pointLights.length >= MAX_POINT_LIGHTS) {
-      console.warn(`MAX_POINT_LIGHTS exceeded, ignoring addPointLight call.`);
-      return;
+    return this.addLight(UNI_KEY_POINT_LIGHT, XPointLight, MAX_POINT_LIGHTS, opts);
+  }
+
+  addLight (key, lightClass, maxLights, opts) {
+    var lights = this.lights[key];
+    if (lights.length >= maxLights) {
+      console.warn(`Max ${key} exceeded, ignoring addLight call.`);
+      return null;
     }
 
-    opts = opts || {};
-    opts.key = UNI_KEY_POINT_LIGHT;
-    opts.index = pointLights.length;
-
-    var pos = opts.position || [0, 0, 0];
-    pos[0] *= this.modelScaleX;
-    pos[1] *= this.modelScaleY;
-    pos[2] *= this.modelScaleZ;
-    opts.position = pos;
-
-    pointLights.push(new XLight(opts));
-
-    this.uniforms.pointLightCount.data = pointLights.length;
     this.needsShaderConnect = true;
+
+    opts = opts || {};
+    opts.key = key;
+    opts.index = lights.length;
+
+    var light = new lightClass(opts);
+    if (key !== UNI_KEY_POINT_LIGHT) this.addShadowsForLight(light, maxLights);
+    lights.push(light);
+    return light;
+  }
+
+  addShadowsForLight (light, maxLights) {
+    if (!ENABLE_SHADOWS) return;
+
+    var shadowFBO = XGLUtils.createDepthFramebuffer(this.gl, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+    light.addShadowMapTexture(shadowFBO.depthTexture, this.reserveTextureUnit());
+
+    this.addRenderPass(RENDER_PASS_LIGHTS, {
+      framebuffer: shadowFBO.framebuffer,
+      shader: this.getShadowShader(light.key, maxLights),
+      uniforms: { lightIndex: light.index },
+      viewport: { width: SHADOW_MAP_SIZE, height: SHADOW_MAP_SIZE },
+      isBeforeMain: true
+    });
   }
 
   reserveTextureUnit () {
@@ -376,7 +365,7 @@ class XScene {
       var height = scale * (viewport.height || this.viewport.height);
       gl.viewport(0, 0, width, height);
 
-      var bgc = this.lights.background.getColor();
+      var bgc = this.lights[UNI_KEY_BACKGROUND_LIGHT].getColor();
       gl.clearColor(bgc[0], bgc[1], bgc[2], 1.0);
 
       if (pass.isFirstDraw) {

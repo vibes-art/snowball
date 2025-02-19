@@ -1,6 +1,9 @@
 class XShadowShader extends XShader {
 
   setShaderSource (opts) {
+    var uniformKey = opts.uniformKey;
+    var maxLights = opts.maxLights;
+
     var vertexVars = DEBUG_LIGHTS
       ? `
         in vec4 positions;
@@ -39,8 +42,8 @@ class XShadowShader extends XShader {
       precision ${PRECISION} float;
 
       uniform mat4 modelMatrix;
-      uniform int lightIndex;
-      uniform mat4 lightViewProjMatrices[${MAX_LIGHTS}];
+      uniform int ${uniformKey}Index;
+      uniform mat4 ${uniformKey}ViewProjMatrices[${maxLights}];
 
       ${vertexVars}
 
@@ -48,7 +51,7 @@ class XShadowShader extends XShader {
         position = modelMatrix * positions;
         ${vertexMain}
 
-        gl_Position = lightViewProjMatrices[lightIndex] * position;
+        gl_Position = ${uniformKey}ViewProjMatrices[${uniformKey}Index] * position;
       }
     `;
 

@@ -6,35 +6,30 @@ var SPOT_LIGHT_Z_FAR = CAMERA_Z_FAR;
 class XSpotLight extends XLight {
 
   constructor (opts) {
-    opts.key = UNI_KEY_DIRECTIONAL_LIGHT;
-    opts.type = LIGHT_SPOT;
+    opts.key = UNI_KEY_SPOT_LIGHT;
 
     super(opts);
 
-    var innerKey = `${this.key}InnerAngle`;
-    var outerKey = `${this.key}OuterAngle`;
-
     var index = opts.index;
-    if (index !== undefined) {
-      innerKey = `${this.key}InnerAngles[${index}]`;
-      outerKey = `${this.key}OuterAngles[${index}]`;
-    }
 
     this.innerAngle = new XUniform({
-      key: innerKey,
+      key: `${this.key}InnerAngleCosines[${index}]`,
       components: 1,
-      data: opts.innerAngle || DEFAULT_INNER_ANGLE
+      data: cos(opts.innerAngle || DEFAULT_INNER_ANGLE)
     });
 
     this.outerAngle = new XUniform({
-      key: outerKey,
+      key: `${this.key}OuterAngleCosines[${index}]`,
       components: 1,
-      data: opts.outerAngle || DEFAULT_OUTER_ANGLE
+      data: cos(opts.outerAngle || DEFAULT_OUTER_ANGLE)
     });
   }
 
   getUniforms () {
-    return super.getUniforms().concat([this.innerAngle, this.outerAngle]);
+    var uniforms = super.getUniforms();
+    uniforms.push(this.innerAngle);
+    uniforms.push(this.outerAngle);
+    return uniforms;
   }
 
   calculateViewMatrix (edgeAccuracyMult) {

@@ -15,21 +15,21 @@ class XPBRShader extends XShader {
 
     `;
 
-    if (MAX_LIGHTS > 0) {
+    if (MAX_DIR_LIGHTS > 0) {
       this.fragmentShaderSource += `
-        const int MAX_LIGHTS = ${MAX_LIGHTS};
+        const int MAX_DIR_LIGHTS = ${MAX_DIR_LIGHTS};
         uniform int lightCount;
-        uniform vec3 lightPositions[MAX_LIGHTS];
-        uniform vec3 lightColors[MAX_LIGHTS];
-        uniform vec3 lightDirections[MAX_LIGHTS];
-        uniform float lightInnerAngles[MAX_LIGHTS];
-        uniform float lightOuterAngles[MAX_LIGHTS];
-        uniform float lightPowers[MAX_LIGHTS];
-        uniform mat4 lightViewProjMatrices[MAX_LIGHTS];
+        uniform vec3 lightPositions[MAX_DIR_LIGHTS];
+        uniform vec3 lightColors[MAX_DIR_LIGHTS];
+        uniform vec3 lightDirections[MAX_DIR_LIGHTS];
+        uniform float lightInnerAngles[MAX_DIR_LIGHTS];
+        uniform float lightOuterAngles[MAX_DIR_LIGHTS];
+        uniform float lightPowers[MAX_DIR_LIGHTS];
+        uniform mat4 lightViewProjMatrices[MAX_DIR_LIGHTS];
       `;
     }
 
-    for (var i = 0; i < MAX_LIGHTS; i++) {
+    for (var i = 0; i < MAX_DIR_LIGHTS; i++) {
       this.fragmentShaderSource += `
         uniform sampler2DShadow lightShadowMap${i};`;
     }
@@ -84,18 +84,18 @@ class XPBRShader extends XShader {
       }
     `;
 
-    if (MAX_LIGHTS > 0) {
+    if (MAX_DIR_LIGHTS > 0) {
       this.fragmentShaderSource += `
         float textureShadowMap(int i, vec3 uvw) {
       `;
     }
 
-    for (var i = 0; i < MAX_LIGHTS; i++) {
+    for (var i = 0; i < MAX_DIR_LIGHTS; i++) {
       this.fragmentShaderSource += `
         if (i == ${i}) return texture(lightShadowMap${i}, uvw);`;
     }
 
-    if (MAX_LIGHTS > 0) {
+    if (MAX_DIR_LIGHTS > 0) {
       this.fragmentShaderSource += `
         }
 
@@ -140,7 +140,7 @@ class XPBRShader extends XShader {
         vec3 F0 = mix(vec3(0.04), tintColor, metallic);
     `;
 
-    for (var i = 0; i < MAX_LIGHTS; i++) {
+    for (var i = 0; i < MAX_DIR_LIGHTS; i++) {
       this.fragmentShaderSource += `
         {
           vec3 lightPos = lightPositions[${i}];

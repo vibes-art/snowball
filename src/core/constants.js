@@ -72,12 +72,11 @@ var CAMERA_Z_FAR = 100.0;
 var UP_VECTOR = [0, 1, 0];
 var AA_SUPERSAMPLE = 4;
 var AMBIENT_LIGHT = [0.8, 0.8, 0.8];
-var MAX_LIGHTS = 9;
+var MAX_DIR_LIGHTS = 1;
+var MAX_SPOT_LIGHTS = 3;
 var MAX_POINT_LIGHTS = 9;
 var SHADOW_MAP_SIZE = 4096;
 var ATTEN_CONST = 1.0;
-var ATTEN_LINEAR = 0.09;
-var ATTEN_QUAD = 0.032;
 var SHARED_TEXTURE_UNIT = 0;
 var BASE_SCENE_TEXTURE_UNIT = 1;
 var NO_SHADER_LOCATION = -1;
@@ -97,10 +96,6 @@ var RENDER_PASS_BLOOM_BLUR_HORZ = 'bloomBlurHorz';
 var RENDER_PASS_BLOOM_BLUR_VERT = 'bloomBlurVert';
 var RENDER_PASS_COMBINE_EMISSIVE = 'combineEmissive';
 var RENDER_PASS_COMBINE_BLOOM = 'combineBloom';
-
-var LIGHT_DIRECTIONAL = 'directional';
-var LIGHT_POINT = 'point';
-var LIGHT_SPOT = 'spot';
 
 var ATTR_KEY_POSITIONS = 'positions';
 var ATTR_KEY_NORMALS = 'normals';
@@ -123,17 +118,14 @@ var UNI_KEY_NORMAL_MATRIX = 'normalMatrix';
 var UNI_KEY_RESOLUTION = 'resolution';
 var UNI_KEY_AMBIENT_LIGHT = 'ambient';
 var UNI_KEY_BACKGROUND_LIGHT = 'background';
-var UNI_KEY_DIRECTIONAL_LIGHT = 'light';
+var UNI_KEY_DIR_LIGHT = 'dirLight';
+var UNI_KEY_SPOT_LIGHT = 'spotLight';
 var UNI_KEY_POINT_LIGHT = 'pointLight';
 var UNI_KEY_SPECULAR_SHININESS = 'specularShininess';
 var UNI_KEY_SPECULAR_STRENGTH = 'specularStrength';
-var UNI_KEY_DIRECTIONAL_LIGHT_COUNT = 'lightCount';
-var UNI_KEY_POINT_LIGHT_COUNT = 'pointLightCount';
 var UNI_KEY_FOG_COLOR = 'fogColor';
 var UNI_KEY_FOG_DENSITY = 'fogDensity';
 var UNI_KEY_ATTEN_CONST = 'attenConst';
-var UNI_KEY_ATTEN_LINEAR = 'attenLinear';
-var UNI_KEY_ATTEN_QUAD = 'attenQuad';
 
 // PBRShader
 var UNI_KEY_BASE_COLOR = 'baseColor';
