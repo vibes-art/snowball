@@ -138,9 +138,8 @@ var UNI_KEY_ROUGHNESS_MAP = 'roughnessMap';
 // PBRTexShader
 var MATERIAL_TEXTURE_MAPS = [UNI_KEY_ALBEDO_MAP, UNI_KEY_NORMAL_MAP, UNI_KEY_ROUGHNESS_MAP];
 
-// Effect Shaders
-var UNI_KEY_COLORS_TEXTURE = 'colorsTexture';
-var UNI_KEY_SOURCE_TEXTURE = 'sourceTexture';
+var UNI_KEY_SOURCE_TEXTURE = `sourceTexture`;
+var UNI_KEY_COLORS_TEXTURE = `${ATTR_KEY_COLORS}Texture`;
 var UNI_KEY_THRESHOLD = 'threshold';
 var UNI_KEY_COMBINE_TEXTURE = 'combineTexture';
 var UNI_KEY_INTENSITY = 'intensity';

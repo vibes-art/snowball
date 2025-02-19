@@ -1,26 +1,19 @@
-class XFinalColorShader extends XShader {
+class XFinalColorShader extends XSourceTexShader {
 
-  setShaderSource (opts) {
-    this.vertexShaderSource = `#version 300 es
-      precision ${PRECISION} float;
+  defineFragmentShader (opts) {
+    super.defineFragmentShader(opts);
 
-      in vec2 positions;
-      out vec2 vUV;
+    this.fragmentShaderSource = this.fragmentShaderSource.replace(
+      new RegExp(UNI_KEY_SOURCE_TEXTURE, 'g'),
+      UNI_KEY_COLORS_TEXTURE
+    );
+  }
 
-      void main() {
-        vUV = (positions * 0.5) + 0.5;
-        gl_Position = vec4(positions, 0.0, 1.0);
-      }
-    `;
+  defineFSHeader (opts) {
+    super.defineFSHeader(opts);
 
-    this.fragmentShaderSource = `#version 300 es
-      precision ${PRECISION} float;
-
-      in vec2 vUV;
-      out vec4 fragColor;
-
-      uniform float exposure;
-      uniform sampler2D colorsTexture;
+    this.fragmentShaderSource += `
+      uniform float ${UNI_KEY_EXPOSURE};
 
       vec3 ACESFilm(vec3 x) {
         float a = 2.51;
@@ -30,15 +23,16 @@ class XFinalColorShader extends XShader {
         float e = 0.14;
         return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
       }
-
-      void main(void) {
-        vec3 finalColor = texture(colorsTexture, vUV).rgb;
     `;
+  }
+
+  addFSMainHeader (opts) {
+    super.addFSMainHeader(opts);
 
     if (ENABLE_TONE_MAPPING) {
       this.fragmentShaderSource += `
-        if (exposure > 0.0) {
-          finalColor *= exposure;
+        if (${UNI_KEY_EXPOSURE} > 0.0) {
+          finalColor *= ${UNI_KEY_EXPOSURE};
         }
 
         finalColor = ACESFilm(finalColor);
@@ -50,11 +44,6 @@ class XFinalColorShader extends XShader {
         finalColor = pow(finalColor, vec3(1.0 / 2.2));
       `;
     }
-
-    this.fragmentShaderSource += `
-        fragColor = vec4(finalColor, 1.0);
-      }
-    `;
   }
 
   connect () {

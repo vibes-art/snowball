@@ -36,15 +36,16 @@ class XShader {
     this.vertexShaderSource = `#version 300 es
       precision ${PRECISION} float;
 
-      uniform mat4 viewMatrix;
-      uniform mat4 modelMatrix;
-      uniform mat4 normalMatrix;
-      uniform mat4 projectionMatrix;
+      uniform mat4 ${UNI_KEY_VIEW_MATRIX};
+      uniform mat4 ${UNI_KEY_MODEL_MATRIX};
+      uniform mat4 ${UNI_KEY_NORMAL_MATRIX};
+      uniform mat4 ${UNI_KEY_PROJ_MATRIX};
 
-      in vec4 positions;
-      in vec3 normals;
-      in vec4 colors;
-      in vec2 texCoords;
+      in vec4 ${ATTR_KEY_POSITIONS};
+      in vec3 ${ATTR_KEY_NORMALS};
+      in vec4 ${ATTR_KEY_COLORS};
+      in vec2 ${ATTR_KEY_TEX_COORDS};
+
       out vec3 vViewPos;
       out vec4 vWorldPos;
       out vec4 vNormal;
@@ -53,32 +54,28 @@ class XShader {
     `;
   }
 
+  addVSMainHeader (opts) {
+    this.vertexShaderSource += `
+      void main() {
+        vViewPos = inverse(${UNI_KEY_VIEW_MATRIX})[3].xyz;
+        vWorldPos = ${UNI_KEY_MODEL_MATRIX} * ${ATTR_KEY_POSITIONS};
+        vNormal = ${UNI_KEY_NORMAL_MATRIX} * vec4(${ATTR_KEY_NORMALS}, 1.0);
+        vColor = ${ATTR_KEY_COLORS};
+        vUV = ${ATTR_KEY_TEX_COORDS};
+    `;
+  }
+
   defineVSMain (opts) {
     this.addVSMainHeader(opts);
 
     this.vertexShaderSource += `
-        gl_Position = projectionMatrix * (viewMatrix * vWorldPos);
+        gl_Position = ${UNI_KEY_PROJ_MATRIX} * (${UNI_KEY_VIEW_MATRIX} * vWorldPos);
       }
-    `;
-  }
-
-  addVSMainHeader (opts) {
-    this.vertexShaderSource += `
-      void main(void) {
-        vViewPos = inverse(viewMatrix)[3].xyz;
-        vWorldPos = modelMatrix * positions;
-        vNormal = normalMatrix * vec4(normals, 1.0);
-        vColor = colors;
-        vUV = texCoords;
     `;
   }
 
   defineFragmentShader (opts) {
     this.defineFSHeader(opts);
-    this.defineFSDirLightsHeader(opts);
-    this.defineFSSpotLightsHeader(opts);
-    this.defineFSPointLightsHeader(opts);
-    this.defineFSFogHeader(opts);
     this.defineFSMain(opts);
   }
 
@@ -93,14 +90,22 @@ class XShader {
       in vec4 vColor;
       out vec4 fragColor;
 
-      uniform vec3 ambientColor;
-      uniform float specularShininess;
-      uniform float specularStrength;
-      uniform float attenConst;
+      uniform vec3 ${UNI_KEY_AMBIENT_LIGHT}Color;
+      uniform float ${UNI_KEY_SPECULAR_SHININESS};
+      uniform float ${UNI_KEY_SPECULAR_STRENGTH};
+      uniform float ${UNI_KEY_ATTEN_CONST};
     `;
+
+    this.addFSFunctionHeader(opts);
+    this.addFSDirLightsHeader(opts);
+    this.addFSSpotLightsHeader(opts);
+    this.addFSPointLightsHeader(opts);
+    this.addFSFogHeader(opts);
   }
 
-  defineFSDirLightsHeader (opts) {
+  addFSFunctionHeader (opts) { /* useful override */ }
+
+  addFSDirLightsHeader (opts) {
     if (MAX_DIR_LIGHTS <= 0) return;
 
     this.fragmentShaderSource += `
@@ -144,21 +149,22 @@ class XShader {
     }
 
     this.fragmentShaderSource += `
-        float attenuation = lightPower / attenConst;
+        float attenuation = lightPower / ${UNI_KEY_ATTEN_CONST};
 
         float diffuseFactor = max(dot(normalDir, -lightDir), 0.0);
         vec3 diffuse = vColor.rgb * lightColor * diffuseFactor;
 
         vec3 halfDir = normalize(lightDir + viewDir);
-        float specular = pow(max(dot(normalDir, halfDir), 0.0), specularShininess);
+        float specular = pow(max(dot(normalDir, halfDir), 0.0), ${UNI_KEY_SPECULAR_SHININESS});
+        specular *= ${UNI_KEY_SPECULAR_STRENGTH};
 
-        float shadowFactor = ${(ENABLE_SHADOWS ? `${uniKey}ComputeShadow${i}()` : `1.0`)};
+        float shadowFactor = ${(ENABLE_SHADOWS ? `${uniKey}ShadowCompute${i}()` : `1.0`)};
         return attenuation * spotFactor * shadowFactor * (diffuse + specular);
       }
     `;
   }
 
-  defineFSSpotLightsHeader (opts) {
+  addFSSpotLightsHeader (opts) {
     if (MAX_SPOT_LIGHTS <= 0) return;
 
     this.fragmentShaderSource += `
@@ -193,7 +199,7 @@ class XShader {
 
   addFSShadowsCompute (uniKey, i) {
     this.fragmentShaderSource += `
-      float ${uniKey}ComputeShadow${i}() {
+      float ${uniKey}ShadowCompute${i}() {
         const int i = ${i};
         vec4 lightPos = ${uniKey}ViewProjMatrices[i] * vWorldPos;
         vec3 ndc = lightPos.xyz / lightPos.w;
@@ -201,7 +207,6 @@ class XShader {
 
         float bias = 0.0008;
         float currentDepth = shadowUVdepth.z - bias;
-
         float texelSize = 0.5 / ${SHADOW_MAP_SIZE}.0;
         float shadowSum = 0.0;
         int samples = 0;
@@ -221,7 +226,7 @@ class XShader {
     `;
   }
 
-  defineFSPointLightsHeader (opts) {
+  addFSPointLightsHeader (opts) {
     if (MAX_POINT_LIGHTS <= 0) return;
 
     this.fragmentShaderSource += `
@@ -230,7 +235,7 @@ class XShader {
       uniform vec3 ${UNI_KEY_POINT_LIGHT}Colors[MAX_POINT_LIGHTS];
       uniform float ${UNI_KEY_POINT_LIGHT}Powers[MAX_POINT_LIGHTS];
 
-      vec3 computePointLightColor(int i, vec3 normalDir, vec3 viewDir) {
+      vec3 ${UNI_KEY_POINT_LIGHT}ColorCompute(int i, vec3 normalDir, vec3 viewDir) {
         vec3 pointLightPos = ${UNI_KEY_POINT_LIGHT}Positions[i];
         vec3 pointLightColor = ${UNI_KEY_POINT_LIGHT}Colors[i];
         float pointLightPower = ${UNI_KEY_POINT_LIGHT}Powers[i] / 3.5; // rough PBR adjust
@@ -244,25 +249,36 @@ class XShader {
         vec3 diffuse = vColor.rgb * pointLightColor * diffuseFactor;
 
         vec3 halfDir = normalize(lightDir + viewDir);
-        float specular = pow(max(dot(normalDir, halfDir), 0.0), specularShininess);
+        float specular = pow(max(dot(normalDir, halfDir), 0.0), ${UNI_KEY_SPECULAR_SHININESS});
+        specular *= ${UNI_KEY_SPECULAR_STRENGTH};
 
         return attenuation * (diffuse + specular);
       }
     `;
   }
 
-  defineFSFogHeader (opts) {
+  addFSFogHeader (opts) {
     if (!ENABLE_FOG) return;
 
     this.fragmentShaderSource += `
-      uniform vec3 fogColor;
-      uniform float fogDensity;
+      uniform vec3 ${UNI_KEY_FOG_COLOR};
+      uniform float ${UNI_KEY_FOG_DENSITY};
 
-      vec3 computeFog(vec3 color) {
+      vec3 fogCompute(vec3 color) {
         float distFromView = length(vWorldPos.xyz - vViewPos);
-        float fogFactor = 1.0 - exp(-fogDensity * distFromView * distFromView);
-        return mix(color, fogColor, clamp(fogFactor, 0.0, 1.0));
+        float fogFactor = 1.0 - exp(-${UNI_KEY_FOG_DENSITY} * distFromView * distFromView);
+        return mix(color, ${UNI_KEY_FOG_COLOR}, clamp(fogFactor, 0.0, 1.0));
       }
+    `;
+  }
+
+  addFSMainHeader (opts) {
+    this.fragmentShaderSource += `
+      void main() {
+        vec3 ambient = vColor.rgb * ${UNI_KEY_AMBIENT_LIGHT}Color;
+        vec3 normalDir = normalize(vNormal.xyz);
+        vec3 viewDir = normalize(vViewPos - vWorldPos.xyz); // frag to camera
+        vec3 finalColor = ambient;
     `;
   }
 
@@ -283,29 +299,19 @@ class XShader {
 
     for (var i = 0; i < MAX_POINT_LIGHTS; i++) {
       this.fragmentShaderSource += `
-        finalColor += computePointLightColor(${i}, normalDir, viewDir);
+        finalColor += ${UNI_KEY_POINT_LIGHT}ColorCompute(${i}, normalDir, viewDir);
       `;
     }
 
     if (ENABLE_FOG) {
       this.fragmentShaderSource += `
-        finalColor = computeFog(finalColor);
+        finalColor = fogCompute(finalColor);
       `;
     }
 
     this.fragmentShaderSource += `
         fragColor = vec4(finalColor, vColor.a);
       }
-    `;
-  }
-
-  addFSMainHeader (opts) {
-    this.fragmentShaderSource += `
-      void main(void) {
-        vec3 ambient = vColor.rgb * ambientColor;
-        vec3 normalDir = normalize(vNormal.xyz);
-        vec3 viewDir = normalize(vViewPos - vWorldPos.xyz); // frag to camera
-        vec3 finalColor = ambient;
     `;
   }
 

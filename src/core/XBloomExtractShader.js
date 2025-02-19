@@ -1,38 +1,25 @@
-class XBloomExtractShader extends XShader {
+class XBloomExtractShader extends XSourceTexShader {
 
-  setShaderSource () {
-    this.vertexShaderSource = `#version 300 es
-      precision ${PRECISION} float;
+  defineFSHeader (opts) {
+    super.defineFSHeader(opts);
 
-      in vec2 positions;
-      out vec2 vUV;
-
-      void main(void) {
-        vUV = (positions * 0.5) + 0.5;
-        gl_Position = vec4(positions, 0.0, 1.0);
-      }
+    this.fragmentShaderSource += `
+      uniform float ${UNI_KEY_THRESHOLD};
     `;
+  }
 
-    this.fragmentShaderSource = `#version 300 es
-      precision ${PRECISION} float;
+  addFSMainHeader (opts) {
+    super.addFSMainHeader(opts);
 
-      in vec2 vUV;
-      out vec4 fragColor;
-
-      uniform sampler2D sourceTexture;
-      uniform float threshold;
-
-      void main(void) {
-        vec3 color = texture(sourceTexture, vUV).rgb;
-        float brightness = max(color.r, max(color.g, color.b));
-        float softFactor = smoothstep(threshold, threshold + 0.3, brightness);
-        fragColor = vec4(color * softFactor, 1.0);
-      }
+    this.fragmentShaderSource += `
+        float brightness = max(finalColor.r, max(finalColor.g, finalColor.b));
+        float softFactor = smoothstep(${UNI_KEY_THRESHOLD}, ${UNI_KEY_THRESHOLD} + 0.3, brightness);
+        finalColor *= softFactor;
     `;
   }
 
   connect () {
-    this.setUniformLocation(UNI_KEY_SOURCE_TEXTURE);
+    super.connect();
     this.setUniformLocation(UNI_KEY_THRESHOLD);
   }
 
