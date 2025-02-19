@@ -28,6 +28,11 @@ class XShader {
   }
 
   defineVertexShader (opts) {
+    this.defineVSHeader(opts);
+    this.defineVSMain(opts);
+  }
+
+  defineVSHeader (opts) {
     this.vertexShaderSource = `#version 300 es
       precision ${PRECISION} float;
 
@@ -45,16 +50,26 @@ class XShader {
       out vec4 vNormal;
       out vec4 vColor;
       out vec2 vUV;
+    `;
+  }
 
+  defineVSMain (opts) {
+    this.addVSMainHeader(opts);
+
+    this.vertexShaderSource += `
+        gl_Position = projectionMatrix * (viewMatrix * vWorldPos);
+      }
+    `;
+  }
+
+  addVSMainHeader (opts) {
+    this.vertexShaderSource += `
       void main(void) {
         vViewPos = inverse(viewMatrix)[3].xyz;
         vWorldPos = modelMatrix * positions;
         vNormal = normalMatrix * vec4(normals, 1.0);
         vColor = colors;
         vUV = texCoords;
-
-        gl_Position = projectionMatrix * (viewMatrix * vWorldPos);
-      }
     `;
   }
 
@@ -110,7 +125,7 @@ class XShader {
         vec3 lightPos = ${uniKey}Positions[i];
         vec3 lightDir = ${uniKey}Directions[i]; // from light to lookAtPoint
         vec3 lightColor = ${uniKey}Colors[i];
-        float lightPower = ${uniKey}Powers[i];
+        float lightPower = ${uniKey}Powers[i] / 3.5; // rough PBR adjust
     `;
 
     if (uniKey === UNI_KEY_SPOT_LIGHT) {
@@ -218,7 +233,7 @@ class XShader {
       vec3 computePointLightColor(int i, vec3 normalDir, vec3 viewDir) {
         vec3 pointLightPos = ${UNI_KEY_POINT_LIGHT}Positions[i];
         vec3 pointLightColor = ${UNI_KEY_POINT_LIGHT}Colors[i];
-        float pointLightPower = ${UNI_KEY_POINT_LIGHT}Powers[i];
+        float pointLightPower = ${UNI_KEY_POINT_LIGHT}Powers[i] / 3.5; // rough PBR adjust
 
         vec3 toLight = pointLightPos - vWorldPos.xyz;
         vec3 lightDir = normalize(toLight);
@@ -252,13 +267,7 @@ class XShader {
   }
 
   defineFSMain (opts) {
-    this.fragmentShaderSource += `
-      void main(void) {
-        vec3 ambient = vColor.rgb * ambientColor;
-        vec3 normalDir = normalize(vNormal.xyz);
-        vec3 viewDir = normalize(vViewPos - vWorldPos.xyz); // frag to camera
-        vec3 finalColor = ambient;
-    `;
+    this.addFSMainHeader(opts);
 
     for (var i = 0; i < MAX_DIR_LIGHTS; i++) {
       this.fragmentShaderSource += `
@@ -287,6 +296,16 @@ class XShader {
     this.fragmentShaderSource += `
         fragColor = vec4(finalColor, vColor.a);
       }
+    `;
+  }
+
+  addFSMainHeader (opts) {
+    this.fragmentShaderSource += `
+      void main(void) {
+        vec3 ambient = vColor.rgb * ambientColor;
+        vec3 normalDir = normalize(vNormal.xyz);
+        vec3 viewDir = normalize(vViewPos - vWorldPos.xyz); // frag to camera
+        vec3 finalColor = ambient;
     `;
   }
 

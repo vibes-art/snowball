@@ -95,7 +95,7 @@ class XCanvas {
         this.textureShader = new XPBRTexShader({ scene: this.scene });
       } else {
         this.shader = new XShader({ scene: this.scene });
-        this.textureShader = null;
+        this.textureShader = new XTexShader({ scene: this.scene });
       }
     }
 

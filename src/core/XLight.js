@@ -7,8 +7,12 @@ class XLight {
 
     var index = opts.index;
 
+    // color is a special case used by ambient and background sometimes
+    var colorKey = `${this.key}Color`;
+    if (index !== undefined) colorKey = `${this.key}Colors[${index}]`;
+
     this.position = new XUniform({ key: `${this.key}Positions[${index}]`, components: 3 });
-    this.color = new XUniform({ key: `${this.key}Colors[${index}]`, components: 3 });
+    this.color = new XUniform({ key: colorKey, components: 3 });
     this.power = new XUniform({ key: `${this.key}Powers[${index}]`, components: 1 });
 
     if (this.key !== UNI_KEY_POINT_LIGHT) {
