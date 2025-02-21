@@ -26,6 +26,7 @@ var GLD = (1 + sqrt(5)) / 2;
 var GLD_RECT = 1 / GLD;
 
 var IS_MOBILE = false;
+var IS_IOS = false;
 var IS_HEADLESS = false;
 
 function detectDevicePerformance () {
@@ -44,6 +45,7 @@ function detectDevicePerformance () {
   }
 
   IS_MOBILE = isMobile || isLowMemory;
+  IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   IS_HEADLESS = /\bHeadlessChrome\//.test(navigator.userAgent);
 
   ENABLE_LOGS && console.log(`IS_MOBILE: ${IS_MOBILE}, Mobile detection: ${isMobile}, Memory (GB): ${deviceMemory}`);

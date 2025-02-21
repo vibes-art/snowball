@@ -90,6 +90,8 @@ class _XClock {
       if (listener) listener(dt, dtReal);
     }
 
+    XGLUtils.processLoadQueue();
+
     this.lastTimestamp = timestamp;
     this._requestAnimationFrame();
   }

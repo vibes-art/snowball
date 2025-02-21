@@ -1,6 +1,11 @@
 var MAX_IMAGE_RETRIES = 3;
+var MAX_CONCURRENT_LOADS = 4;
 
 var XGLUtils = {};
+
+// global image loading queue
+XGLUtils.loadQueue = [];
+XGLUtils.loadsActive = 0;
 
 // global texture cache
 XGLUtils.textureCache = {};
@@ -167,6 +172,13 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries) {
     return cacheEntry.texture;
   }
 
+  if (XGLUtils.loadsActive >= MAX_CONCURRENT_LOADS) {
+    XGLUtils.loadQueue.push({ gl, url, sRGB, onLoad, retries });
+    return null;
+  }
+
+  XGLUtils.loadsActive++;
+
   var texture = gl.createTexture();
   texture.url = url;
   cacheEntry = XGLUtils.textureCache[url] = {
@@ -191,12 +203,13 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries) {
   var pixel = new Uint8Array([255, 255, 255, 255]);
   gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, width, height, border, srcFormat, srcType, pixel);
 
-  var image = new Image();
-  image.onload = function () {
-    XGLUtils.bindTexture(gl, SHARED_TEXTURE_UNIT, texture);
-    gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, srcFormat, srcType, image);
+  gl.bindTexture(gl.TEXTURE_2D, null);
 
-    var isPowerOf2 = XUtils.isPowerOf2(image.width) && XUtils.isPowerOf2(image.height);
+  function uploadToGPU (img) {
+    XGLUtils.bindTexture(gl, SHARED_TEXTURE_UNIT, texture);
+    gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, srcFormat, srcType, img);
+
+    var isPowerOf2 = XUtils.isPowerOf2(img.width) && XUtils.isPowerOf2(img.height);
     if (isPowerOf2) {
       gl.generateMipmap(gl.TEXTURE_2D);
     } else {
@@ -208,34 +221,53 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries) {
     gl.bindTexture(gl.TEXTURE_2D, null);
 
     cacheEntry.isLoaded = true;
-    cacheEntry.width = image.width;
-    cacheEntry.height = image.height;
+    cacheEntry.width = img.width;
+    cacheEntry.height = img.height;
     cacheEntry.lastUsedTime = performance.now();
 
     // estimate GPU memory usage, width * height * 4 (RGBA)
-    var sizeInBytes = ceil((isPowerOf2 ? 1.33 : 1) * image.width * image.height * 4);
+    var sizeInBytes = ceil((isPowerOf2 ? 1.33 : 1) * img.width * img.height * 4);
     XGLUtils.currentTextureMemory += sizeInBytes;
     cacheEntry.sizeInBytes = sizeInBytes;
     XGLUtils.maybeUnloadTextures(gl);
 
+    XGLUtils.loadsActive--;
+
     onLoad && onLoad(texture);
+  }
+
+  function loadWithImage () {
+    var image = new Image();
+    image.onload = () => uploadToGPU(image);
+    image.onerror = () => {
+      delete XGLUtils.textureCache[url];
+      console.error(`Error loading image: ${url}`);
+      if (retries < MAX_IMAGE_RETRIES) {
+        setTimeout(() => XGLUtils.loadTexture(gl, url, sRGB, onLoad, retries), 100 * retries++);
+      } else {
+        console.error(`Failed to load ${url} after ${maxRetries} retries.`);
+      }
+    };
+
+    image.crossOrigin = 'anonymous';
+    image.src = url;
   };
 
-  image.onerror = function () {
-    delete XGLUtils.textureCache[url];
-    console.error(`Error loading image: ${url}`);
-
-    if (retries < MAX_IMAGE_RETRIES) {
-      setTimeout(() => XGLUtils.loadTexture(gl, url, sRGB, onLoad, retries), 100 * retries++);
-    } else {
-      console.error(`Failed to load ${url} after ${maxRetries} retries.`);
-    }
-  };
-
-  image.crossOrigin = 'anonymous';
-  image.src = url;
-
-  gl.bindTexture(gl.TEXTURE_2D, null);
+  if (window.createImageBitmap && !IS_IOS) {
+    fetch(url, { mode: 'cors' })
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
+        return response.blob();
+      })
+      .then(blob => createImageBitmap(blob))
+      .then(bitmap => {
+        uploadToGPU(bitmap);
+        bitmap.close();
+      })
+      .catch(err => loadWithImage());
+  } else {
+    loadWithImage();
+  }
 
   return texture;
 };
@@ -262,6 +294,13 @@ XGLUtils.unloadTexture = function (gl, texture) {
   }
 
   gl.deleteTexture(texture);
+};
+
+XGLUtils.processLoadQueue = function () {
+  while (XGLUtils.loadQueue.length > 0 && XGLUtils.loadsActive < MAX_CONCURRENT_LOADS) {
+    var t = XGLUtils.loadQueue.shift();
+    XGLUtils.loadTexture(t.gl, t.url, t.sRGB, t.onLoad, t.retries);
+  }
 };
 
 XGLUtils.initShaderProgram = function (gl, vertexShaderSource, fragmentShaderSource) {
