@@ -67,7 +67,36 @@ class XObject {
     this.scene.updateObjectShader(this);
   }
 
-  generate (opts) { /* override */ }
+  generate (opts) {
+    var vertices = opts.vertices || this.vertices;
+    if (!vertices) return;
+
+    this.vertexCount = vertices.length;
+
+    var hasTexCoords = this.hasAttribute(ATTR_KEY_TEX_COORDS);
+    var hasNormals = this.hasAttribute(ATTR_KEY_NORMALS);
+    var hasTangents = this.hasAttribute(ATTR_KEY_TANGENTS);
+    var hasColors = this.hasAttribute(ATTR_KEY_COLORS);
+
+    // set positions and tex coords first
+    for (var i = 0; i < this.vertexCount; i++) {
+      var vertex = vertices[i];
+      this.setPosition(i, vertex.position);
+      hasTexCoords && this.setAttribute(ATTR_KEY_TEX_COORDS, i, this.calculateTextureCoord(i));
+    }
+
+    // calculate normals and tangents after
+    var vectors = this.getVertexVectors();
+    for (var i = 0; i < this.vertexCount; i++) {
+      hasNormals && this.setAttribute(ATTR_KEY_NORMALS, i, vectors.normals[i]);
+      hasTangents && this.setAttribute(ATTR_KEY_TANGENTS, i, vectors.tangents[i]);
+    }
+
+    // colors may depend on normals, so do them last
+    for (var i = 0; i < this.vertexCount; i++) {
+      hasColors && this.setAttribute(ATTR_KEY_COLORS, i, this.calculateColor(i));
+    }
+  }
 
   enableRenderPass (type, isEnabled) {
     this.renderPasses[type] = isEnabled !== undefined ? isEnabled : true;
@@ -84,6 +113,10 @@ class XObject {
     }
 
     return this.attributes[key] = new XAttribute(opts);
+  }
+
+  hasAttribute (key) {
+    return !!this.attributes[key];
   }
 
   addUniform (key, opts) {
@@ -220,6 +253,75 @@ class XObject {
 
   getUniforms () {
     return this.uniforms;
+  }
+
+  getVertexVectors (indices) {
+    indices = indices || this.indices;
+
+    var hasTexCoords = this.hasAttribute(ATTR_KEY_TEX_COORDS);
+    var hasNormals = this.hasAttribute(ATTR_KEY_NORMALS);
+    var hasTangents = this.hasAttribute(ATTR_KEY_TANGENTS);
+    if (!hasNormals && !hasTangents) return;
+
+    var result = {
+      normals: [],
+      tangents: []
+    };
+
+    for (var i = 0; i < this.vertexCount; i++) {
+      result.normals.push([0, 0, 0]);
+      result.tangents.push([0, 0, 0]);
+    }
+
+    for (var t = 0; t < indices.length; t += 3) {
+      var idx0 = indices[t + 0];
+      var idx1 = indices[t + 1];
+      var idx2 = indices[t + 2];
+
+      var p0 = this.getPosition(idx0);
+      var p1 = this.getPosition(idx1);
+      var p2 = this.getPosition(idx2);
+      var e1 = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
+      var e2 = [p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]];
+
+      var nx = e1[1] * e2[2] - e1[2] * e2[1];
+      var ny = e1[2] * e2[0] - e1[0] * e2[2];
+      var nz = e1[0] * e2[1] - e1[1] * e2[0];
+      var normal = XUtils.normalize([nx, ny, nz]);
+
+      var tangent = [0, 0, 0];
+      if (hasTexCoords) {
+        var uv0 = this.getAttribute(ATTR_KEY_TEX_COORDS, idx0);
+        var uv1 = this.getAttribute(ATTR_KEY_TEX_COORDS, idx1);
+        var uv2 = this.getAttribute(ATTR_KEY_TEX_COORDS, idx2);
+        var dUV1 = [uv1[0] - uv0[0], uv1[1] - uv0[1]];
+        var dUV2 = [uv2[0] - uv0[0], uv2[1] - uv0[1]];
+
+        var f = dUV1[0] * dUV2[1] - dUV1[1] * dUV2[0];
+        f = abs(f) < ZERO_LENGTH ? 1 : 1 / f;
+
+        var tx = f * (e1[0] * dUV2[1] - e2[0] * dUV1[1]);
+        var ty = f * (e1[1] * dUV2[1] - e2[1] * dUV1[1]);
+        var tz = f * (e1[2] * dUV2[1] - e2[2] * dUV1[1]);
+        tangent = XUtils.normalize([tx, ty, tz]);
+      }
+
+      [idx0, idx1, idx2].forEach((vi) => {
+        result.normals[vi][0] += normal[0];
+        result.normals[vi][1] += normal[1];
+        result.normals[vi][2] += normal[2];
+        result.tangents[vi][0] += tangent[0];
+        result.tangents[vi][1] += tangent[1];
+        result.tangents[vi][2] += tangent[2];
+      });
+    }
+
+    for (var i = 0; i < this.vertexCount; i++) {
+      result.normals[i] = XUtils.normalize(result.normals[i]);
+      result.tangents[i] = XUtils.normalize(result.tangents[i]);
+    }
+
+    return result;
   }
 
   getWorldVertices () {
