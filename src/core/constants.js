@@ -104,7 +104,6 @@ var ATTR_KEY_NORMALS = 'normals';
 var ATTR_KEY_COLORS = 'colors';
 var ATTR_KEY_TEX_COORDS = 'texCoords';
 var ATTR_KEY_TANGENTS = 'tangents';
-var ATTR_KEY_BITANGENTS = 'bitangents';
 
 var UNI_TYPE_FLOAT = 0;
 var UNI_TYPE_INT = 1;

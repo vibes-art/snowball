@@ -27,7 +27,6 @@ class XSphere extends XObject {
 
     this.generatedNormals = [];
     this.generatedTangents = [];
-    this.generatedBitangents = [];
 
     super.initialize(opts);
   }
@@ -39,7 +38,6 @@ class XSphere extends XObject {
     this.addAttribute(ATTR_KEY_COLORS, { components: 4 });
     this.addAttribute(ATTR_KEY_TEX_COORDS, { components: 2 });
     this.addAttribute(ATTR_KEY_TANGENTS, { components: 3 });
-    this.addAttribute(ATTR_KEY_BITANGENTS, { components: 3 });
   }
 
   generate (opts) {
@@ -92,7 +90,6 @@ class XSphere extends XObject {
     for (var i = 0; i < vertices.length; i++) {
       this.setAttribute(ATTR_KEY_NORMALS, i, this.generatedNormals[i]);
       this.setAttribute(ATTR_KEY_TANGENTS, i, this.generatedTangents[i]);
-      this.setAttribute(ATTR_KEY_BITANGENTS, i, this.generatedBitangents[i]);
     }
 
     // colors may depend on normals, so do them last
@@ -123,12 +120,10 @@ class XSphere extends XObject {
   generateAllVectors () {
     this.generatedNormals.length = 0;
     this.generatedTangents.length = 0;
-    this.generatedBitangents.length = 0;
 
     for (var i = 0; i < this.vertexCount; i++) {
       this.generatedNormals.push([0, 0, 0]);
       this.generatedTangents.push([0, 0, 0]);
-      this.generatedBitangents.push([0, 0, 0]);
     }
 
     for (var i = 0; i < this.indices.length; i += 3) {
@@ -161,11 +156,6 @@ class XSphere extends XObject {
       var tz = f * (e1[2] * dUV2[1] - e2[2] * dUV1[1]);
       var tangent = XUtils.normalize([tx, ty, tz]);
 
-      var bx = f * (e2[0] * dUV1[0] - e1[0] * dUV2[0]);
-      var by = f * (e2[1] * dUV1[0] - e1[1] * dUV2[0]);
-      var bz = f * (e2[2] * dUV1[0] - e1[2] * dUV2[0]);
-      var bitangent = XUtils.normalize([bx, by, bz]);
-
       [idx0, idx1, idx2].forEach((vi) => {
         this.generatedNormals[vi][0] += normal[0];
         this.generatedNormals[vi][1] += normal[1];
@@ -173,16 +163,12 @@ class XSphere extends XObject {
         this.generatedTangents[vi][0] += tangent[0];
         this.generatedTangents[vi][1] += tangent[1];
         this.generatedTangents[vi][2] += tangent[2];
-        this.generatedBitangents[vi][0] += bitangent[0];
-        this.generatedBitangents[vi][1] += bitangent[1];
-        this.generatedBitangents[vi][2] += bitangent[2];
       });
     }
 
     for (var i = 0; i < this.vertexCount; i++) {
       this.generatedNormals[i] = XUtils.normalize(this.generatedNormals[i]);
       this.generatedTangents[i] = XUtils.normalize(this.generatedTangents[i]);
-      this.generatedBitangents[i] = XUtils.normalize(this.generatedBitangents[i]);
     }
   }
 
