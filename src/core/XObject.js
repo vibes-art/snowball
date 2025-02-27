@@ -181,8 +181,8 @@ class XObject {
     var offset = 0;
 
     if (this.useIndices) {
-      var indexType = gl.UNSIGNED_INT;
-      gl.drawElements(primitiveType, count, indexType, offset);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+      gl.drawElements(primitiveType, count, gl.UNSIGNED_INT, offset);
     } else {
       gl.drawArrays(primitiveType, offset, count);
     }
