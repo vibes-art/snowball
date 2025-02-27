@@ -59,6 +59,17 @@ class XAttribute {
     this.bufferLength = 0;
   }
 
+  updateVertexCount (count) {
+    this.count = count;
+    this.data = new Float32Array(this.components * this.count);
+
+    this.buffer && XGLUtils.deleteBuffer(this.gl, this.buffer);
+    this.buffer = null;
+    this.bufferOffset = 0;
+    this.bufferLength = 0;
+    this.isDirty = true;
+  }
+
   setTexture (texture, textureUniform) {
     this.texture = texture;
     this.useTexture = !!texture;
@@ -132,15 +143,11 @@ class XAttribute {
   }
 
   remove () {
-    if (this.buffer) {
-      XGLUtils.deleteBuffer(this.gl, this.buffer);
-      this.buffer = null;
-    }
+    this.buffer && XGLUtils.deleteBuffer(this.gl, this.buffer);
+    this.buffer = null;
 
-    if (this.texture) {
-      XGLUtils.unloadTexture(this.gl, this.texture);
-      this.texture = null;
-    }
+    this.texture && XGLUtils.unloadTexture(this.gl, this.texture);
+    this.texture = null;
   }
 
 }

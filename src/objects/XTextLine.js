@@ -1,27 +1,62 @@
+var TEXT_ALIGN_LEFT = 'left';
+var TEXT_ALIGN_RIGHT = 'right';
+var TEXT_ALIGN_CENTER = 'center';
+
 class XTextLine extends XObject {
 
   constructor (opts) {
-    var font = opts.font;
-    var text = opts.text || "";
-    var glyphs = font.getGlyphsForText(text);
+    opts.type = opts.gl.TRIANGLE_STRIP;
+    super(opts);
+
+    this.font = opts.font;
+    this.scale = opts.scale || 1;
+    this._align = opts.align || TEXT_ALIGN_CENTER;
+
+    this.setText(opts.text);
+
+    this.enableRenderPass(RENDER_PASS_LIGHTS, false);
+    this.enableRenderPass(RENDER_PASS_EMISSIVE, false);
+  }
+
+  setText (text) {
+    this.text = text = text || '';
+
+    var glyphs = this.font.getGlyphsForText(text);
 
     // 4 verts per glyph, plus 2 degenerate between each
     var totalVertices = 4 * glyphs.length;
     var totalIndices = glyphs.length > 0 ? 4 + 6 * (glyphs.length - 1) : 0;
 
-    console.log(`text vertices: ${totalVertices}`);
-    console.log(`text indices: ${totalIndices}`);
+    this.vertexCount = totalVertices;
+    this.indexCount = totalIndices;
+    this.useIndices = true;
+    this.glyphs = glyphs;
 
-    opts.type = opts.gl.TRIANGLE_STRIP;
-    opts.vertexCount = totalVertices;
-    opts.indexCount = totalIndices;
-    opts.useIndices = true;
-    opts.glyphs = glyphs;
+    this.indices = new Uint32Array(this.indexCount);
+    this.indexBuffer && XGLUtils.deleteBuffer(this.gl, this.indexBuffer);
+    this.indexBuffer = null;
 
-    super(opts);
+    this.updateAttributes();
 
-    this.enableRenderPass(RENDER_PASS_LIGHTS, false);
-    this.enableRenderPass(RENDER_PASS_EMISSIVE, false);
+    var width = 0;
+    if (glyphs.length) {
+      var lastGlyph = glyphs[glyphs.length - 1];
+      width = lastGlyph.offsetX + lastGlyph.advanceX;
+    }
+
+    this.width = width;
+    this.align = this.align; // trigger update
+  }
+
+  get align () {
+    return this._align;
+  }
+
+  set align (value) {
+    var oldValue = this._align;
+    this._align = value;
+    this.updateAlignment(oldValue);
+    return value;
   }
 
   defineAttributes (opts) {
@@ -39,11 +74,12 @@ class XTextLine extends XObject {
     this.uniforms[UNI_KEY_SOURCE_TEXTURE] = opts.font.sourceTexture;
   }
 
-  generate (opts) {
-    this.font = opts.font;
-    this.glyphs = opts.glyphs;
-    this.text = opts.text || "";
-    this.scale = opts.scale || 1;
+  generate (opts) {}
+
+  updateAttributes () {
+    for (var key in this.attributes) {
+      this.attributes[key].updateVertexCount(this.vertexCount);
+    }
 
     var positions = [];
     var texCoords = [];
@@ -104,9 +140,8 @@ class XTextLine extends XObject {
       this.setAttribute(ATTR_KEY_COLORS, i, colors[i]);
     }
 
-    console.log(`vertices updated: ${positions.length}`);
-
     this.generateIndices();
+    this.updateVertexAttributes();
   }
 
   generateIndices () {
@@ -128,8 +163,6 @@ class XTextLine extends XObject {
     }
 
     this.indicesDirty = true;
-
-    console.log(`text generated indices: ${count}`);
   }
 
   isInFrustum (planes) {
@@ -153,6 +186,27 @@ class XTextLine extends XObject {
     }
 
     return true;
+  }
+
+  updateAlignment (oldAlign) {
+    var offsetX = 0;
+    var width = this.width * this.scale;
+
+    switch (oldAlign) {
+      case TEXT_ALIGN_RIGHT: offsetX += width; break;
+      case TEXT_ALIGN_CENTER: offsetX += width / 2; break;
+    }
+
+    switch (this.align) {
+      case TEXT_ALIGN_RIGHT: offsetX -= width; break;
+      case TEXT_ALIGN_CENTER: offsetX -= width / 2; break;
+    }
+
+    for (var i = 0; i < this.vertexCount; i++) {
+      var pos = this.getPosition(i);
+      pos[0] += offsetX;
+      this.setPosition(i, pos);
+    }
   }
 
 }

@@ -425,6 +425,9 @@ class XObject {
       this.uniforms[key].remove(this.gl);
     }
 
+    this.indexBuffer && XGLUtils.deleteBuffer(this.gl, this.indexBuffer);
+    this.indexBuffer = null;
+
     // we don't remove XMaterials here bc they are shared
   }
 
