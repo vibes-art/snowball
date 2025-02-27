@@ -68,6 +68,7 @@ class XTexShader extends XShader {
         vec4 texColor = texture(${UNI_KEY_ALBEDO_MAP}, vUV);
         vec3 ambient = texColor.rgb * ${UNI_KEY_AMBIENT_LIGHT}Color;
         vec3 finalColor = ambient;
+        float alpha = texColor.a;
     `;
   }
 
