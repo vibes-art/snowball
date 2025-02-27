@@ -22,6 +22,7 @@ class XScene {
     this.objects = [];
     this.uniforms = {};
     this.lights = {};
+    this.fonts = {};
     this.shadowShaders = {};
     this.matrices = {};
     this.viewport = {};
@@ -287,6 +288,25 @@ class XScene {
     this.isDrawing = isEnabled;
   }
 
+  getFont (path, onLoad, type) {
+    type = type || 'png';
+
+    var cachedFont = this.fonts[path];
+    if (cachedFont) {
+      return onLoad(cachedFont);
+    }
+
+    XUtils.fetchJSON(`${path}data.json`, data => {
+      var font = this.fonts[path] = new XFont({
+        gl: this.gl,
+        data: data,
+        atlasPath: `${path}atlas.${type}`
+      });
+
+      onLoad(font);
+    });
+  }
+
   onResize (width, height, projectionMatrix) {
     this.viewport.width = width;
     this.viewport.height = height;
@@ -372,8 +392,6 @@ class XScene {
         pass.isFirstDraw = false;
         gl.clearDepth(1.0);
         gl.enable(gl.BLEND);
-        // TODO: allow passes or objects to control this
-        // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
       }
@@ -381,8 +399,10 @@ class XScene {
       if (pass.type === RENDER_PASS_MAIN) {
         gl.enable(gl.CULL_FACE);
         gl.cullFace(gl.BACK);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       } else {
         gl.disable(gl.CULL_FACE);
+        gl.blendFunc(gl.ONE, gl.ZERO);
       }
 
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);

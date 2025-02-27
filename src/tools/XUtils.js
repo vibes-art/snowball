@@ -507,3 +507,10 @@ XUtils.reduceImage = function (img, w, h) {
   dCtx.putImageData(destData, 0, 0);
   return destCan;
 };
+
+XUtils.fetchJSON = function (path, onLoad) {
+  fetch(path)
+    .then(response => response.json())
+    .then(data => onLoad(data))
+    .catch(error => console.error('Error fetching data:', error));
+};

@@ -34,3 +34,8 @@ localhost:8000
 ## Blank Canvas
 
 By default, the engine serves a simple example, found in projects/blank.
+
+## Credits
+
+* [MSDF Text Rendering](https://github.com/Chlumsky/msdf-atlas-gen) by Viktor Chlumský
+* [Kubelka-Munk Color Blending](https://github.com/rvanwijnen/spectral.js) by Ronald van Wijnen

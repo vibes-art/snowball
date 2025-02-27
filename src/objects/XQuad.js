@@ -83,7 +83,7 @@ class XQuad extends XObject {
         if (dist < 0) outCount++;
       }
 
-      if (outCount === 4) {
+      if (outCount === worldVertices.length) {
         return false;
       }
     }

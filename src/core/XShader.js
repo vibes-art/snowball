@@ -41,7 +41,7 @@ class XShader {
       uniform mat4 ${UNI_KEY_NORMAL_MATRIX};
       uniform mat4 ${UNI_KEY_PROJ_MATRIX};
 
-      in vec4 ${ATTR_KEY_POSITIONS};
+      in vec3 ${ATTR_KEY_POSITIONS};
       in vec3 ${ATTR_KEY_NORMALS};
       in vec4 ${ATTR_KEY_COLORS};
       in vec2 ${ATTR_KEY_TEX_COORDS};
@@ -58,7 +58,7 @@ class XShader {
     this.vertexShaderSource += `
       void main() {
         vViewPos = inverse(${UNI_KEY_VIEW_MATRIX})[3].xyz;
-        vWorldPos = ${UNI_KEY_MODEL_MATRIX} * ${ATTR_KEY_POSITIONS};
+        vWorldPos = ${UNI_KEY_MODEL_MATRIX} * vec4(${ATTR_KEY_POSITIONS}, 1.0);
         vNormal = ${UNI_KEY_NORMAL_MATRIX} * vec4(${ATTR_KEY_NORMALS}, 1.0);
         vColor = ${ATTR_KEY_COLORS};
         vUV = ${ATTR_KEY_TEX_COORDS};
@@ -279,6 +279,7 @@ class XShader {
         vec3 normalDir = normalize(vNormal.xyz);
         vec3 viewDir = normalize(vViewPos - vWorldPos.xyz); // frag to camera
         vec3 finalColor = ambient;
+        float alpha = vColor.a;
     `;
   }
 
@@ -310,7 +311,7 @@ class XShader {
     }
 
     this.fragmentShaderSource += `
-        fragColor = vec4(finalColor, vColor.a);
+        fragColor = vec4(finalColor, alpha);
       }
     `;
   }

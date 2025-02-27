@@ -111,7 +111,7 @@ var UNI_TYPE_UINT = 2;
 var UNI_TYPE_MATRIX = 3;
 var UNI_TYPE_TEXTURE = 4;
 
-// XShader
+// shader uniform keys
 var UNI_KEY_PROJ_MATRIX = 'projectionMatrix';
 var UNI_KEY_MODEL_MATRIX = 'modelMatrix';
 var UNI_KEY_VIEW_MATRIX = 'viewMatrix';
@@ -127,18 +127,13 @@ var UNI_KEY_SPECULAR_STRENGTH = 'specularStrength';
 var UNI_KEY_FOG_COLOR = 'fogColor';
 var UNI_KEY_FOG_DENSITY = 'fogDensity';
 var UNI_KEY_ATTEN_CONST = 'attenConst';
-
-// PBRShader
 var UNI_KEY_BASE_COLOR = 'baseColor';
 var UNI_KEY_METALLIC = 'metallic';
 var UNI_KEY_ROUGHNESS = 'roughness';
 var UNI_KEY_ALBEDO_MAP = 'albedoMap';
 var UNI_KEY_NORMAL_MAP = 'normalMap';
 var UNI_KEY_ROUGHNESS_MAP = 'roughnessMap';
-
-// PBRTexShader
 var MATERIAL_TEXTURE_MAPS = [UNI_KEY_ALBEDO_MAP, UNI_KEY_NORMAL_MAP, UNI_KEY_ROUGHNESS_MAP];
-
 var UNI_KEY_SOURCE_TEXTURE = `sourceTexture`;
 var UNI_KEY_COLORS_TEXTURE = `${ATTR_KEY_COLORS}Texture`;
 var UNI_KEY_THRESHOLD = 'threshold';
