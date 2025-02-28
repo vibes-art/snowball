@@ -317,7 +317,7 @@ XMatrix4.transformPoint = function (m, p) {
   var zPrime = m[2] * x + m[6] * y + m[10] * z + m[14];
   var wPrime = m[3] * x + m[7] * y + m[11] * z + m[15];
 
-  if (abs(wPrime) > 1e-8) {
+  if (abs(wPrime) > ZERO_LENGTH) {
     xPrime /= wPrime;
     yPrime /= wPrime;
     zPrime /= wPrime;

@@ -724,17 +724,14 @@ class XScene {
     for (var i = 0; i < this.objects.length; i++) {
       var obj = this.objects[i];
       if (!obj.vertexCount || !obj.isActive) continue;
-      if (!obj.intersectsRay(rayOrigin, rayDir)) continue;
-      hitObjects.push(obj);
+
+      var collisionDist = obj.intersectsRay(rayOrigin, rayDir);
+      if (collisionDist === null) continue;
+
+      hitObjects.push({ obj, collisionDist });
     }
 
-    hitObjects.sort((a, b) => {
-      var sphA = a.getBoundingSphere();
-      var sphB = b.getBoundingSphere();
-      var distA = XVector3.distance(rayOrigin, sphA.center);
-      var distB = XVector3.distance(rayOrigin, sphB.center);
-      return distA - distB;
-    });
+    hitObjects.sort((a, b) => a.collisionDist - b.collisionDist);
 
     return hitObjects;
   }

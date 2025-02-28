@@ -55,17 +55,26 @@ class XQuad extends XObject {
 
   intersectsRay (rayOrigin, rayDir) {
     var v = this.getWorldVertices();
+    var tMin = MAX_SAFE_INTEGER;
+    var hit = false;
 
-    for (var t = 0; t < QUAD_TRIANGLE_INDICES.length; t += 3) {
-      var idx0 = QUAD_TRIANGLE_INDICES[t + 0];
-      var idx1 = QUAD_TRIANGLE_INDICES[t + 1];
-      var idx2 = QUAD_TRIANGLE_INDICES[t + 2];
-      if (XVector3.rayIntersectsTriangle(rayOrigin, rayDir, v[idx0], v[idx1], v[idx2])) {
-        return true;
+    for (var i = 0; i < QUAD_TRIANGLE_INDICES.length; i += 3) {
+      var idx0 = QUAD_TRIANGLE_INDICES[i + 0];
+      var idx1 = QUAD_TRIANGLE_INDICES[i + 1];
+      var idx2 = QUAD_TRIANGLE_INDICES[i + 2];
+
+      var t = XVector3.rayIntersectsTriangle(rayOrigin, rayDir, v[idx0], v[idx1], v[idx2]);
+      if (t !== null && t >= 0 && t < tMin) {
+        tMin = t;
+        hit = true;
       }
     }
 
-    return false;
+    if (!hit) {
+      return null;
+    } else {
+      return tMin;
+    }
   }
 
   isInFrustum (planes) {
