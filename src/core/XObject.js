@@ -10,7 +10,6 @@ class XObject {
     this.useIndices = opts.useIndices || false;
     this.useNormalColors = opts.useNormalColors || false;
     this.useRandomColors = opts.useRandomColors || false;
-    this.positionOffset = opts.positionOffset || [0, 0, 0];
     this.frontFace = opts.frontFace || opts.gl.CCW;
 
     this.attributes = {};
@@ -48,7 +47,7 @@ class XObject {
   }
 
   defineUniforms (opts) {
-    this.setMatrices(opts.modelMatrix);
+    this.setModelMatrix(opts.modelMatrix);
     this.addUniform(UNI_KEY_EMISSION, { components: 1, data: 0 });
   }
 
@@ -80,7 +79,7 @@ class XObject {
     // set positions and tex coords first
     for (var i = 0; i < this.vertexCount; i++) {
       var vertex = vertices[i];
-      this.setPosition(i, vertex.position);
+      this.setAttribute(ATTR_KEY_POSITIONS, i, vertex.position);
       hasTexCoords && this.setAttribute(ATTR_KEY_TEX_COORDS, i, this.calculateTextureCoord(i));
     }
 
@@ -148,16 +147,25 @@ class XObject {
     return uniform;
   }
 
-  setMatrices (modelMatrix) {
+  setModelMatrix (modelMatrix) {
     if (!modelMatrix) return;
 
-    this.matrices = {};
-    this.matrices.model = new XUniform({ key: UNI_KEY_MODEL_MATRIX, type: UNI_TYPE_MATRIX });
-    this.matrices.normal = new XUniform({ key: UNI_KEY_NORMAL_MATRIX, type: UNI_TYPE_MATRIX });
+    if (!this.matrices) {
+      this.matrices = {};
+      this.matrices.model = new XUniform({ key: UNI_KEY_MODEL_MATRIX, type: UNI_TYPE_MATRIX });
+      this.matrices.normal = new XUniform({ key: UNI_KEY_NORMAL_MATRIX, type: UNI_TYPE_MATRIX });
+    }
 
     this.matrices.model.data = modelMatrix;
-    this.matrices.normal.data = XMatrix4.invert(this.matrices.model.data);
-    this.matrices.normal.data = XMatrix4.transpose(this.matrices.normal.data);
+    this.matrices.normal.data = XMatrix4.transpose(XMatrix4.invert(modelMatrix));
+  }
+
+  getModelMatrix () {
+    if (this.matrices) {
+      return this.matrices.model.data;
+    } else {
+      return XMatrix4.get();
+    }
   }
 
   updateVertexAttributes () {
@@ -249,25 +257,6 @@ class XObject {
     this.attributes[key].setData(vertexIndex, data);
   }
 
-  getPosition (vertexIndex, includeOffset) {
-    var position = this.getAttribute(ATTR_KEY_POSITIONS, vertexIndex);
-    if (!includeOffset) {
-      var offset = this.positionOffset;
-      position[0] -= offset[0];
-      position[1] -= offset[1];
-      position[2] -= offset[2];
-    }
-    return position;
-  }
-
-  setPosition (vertexIndex, position) {
-    var offset = this.positionOffset;
-    position[0] += offset[0];
-    position[1] += offset[1];
-    position[2] += offset[2];
-    this.setAttribute(ATTR_KEY_POSITIONS, vertexIndex, position);
-  }
-
   getUniforms () {
     return this.uniforms;
   }
@@ -295,9 +284,9 @@ class XObject {
       var idx1 = indices[t + 1];
       var idx2 = indices[t + 2];
 
-      var p0 = this.getPosition(idx0);
-      var p1 = this.getPosition(idx1);
-      var p2 = this.getPosition(idx2);
+      var p0 = this.getAttribute(ATTR_KEY_POSITIONS, idx0);
+      var p1 = this.getAttribute(ATTR_KEY_POSITIONS, idx1);
+      var p2 = this.getAttribute(ATTR_KEY_POSITIONS, idx2);
       var e1 = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
       var e2 = [p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]];
 
@@ -343,10 +332,10 @@ class XObject {
 
   getWorldVertices () {
     var worldVertices = [];
-    var modelMatrix = this.matrices && this.matrices.model && this.matrices.model.data;
+    var modelMatrix = this.matrices ? this.getModelMatrix() : null;
 
     for (var i = 0; i < this.vertexCount; i++) {
-      var pos = this.getPosition(i, true);
+      var pos = this.getAttribute(ATTR_KEY_POSITIONS, i);
       if (modelMatrix) pos = XMatrix4.transformPoint(modelMatrix, pos);
       worldVertices.push(pos);
     }
@@ -373,7 +362,7 @@ class XObject {
     var maxBounds = [MIN_SAFE_INTEGER, MIN_SAFE_INTEGER, MIN_SAFE_INTEGER];
 
     for (var i = 0; i < this.vertexCount; i++) {
-      var pos = this.getPosition(i);
+      var pos = this.getAttribute(ATTR_KEY_POSITIONS, i);
       minBounds[0] = min(minBounds[0], pos[0]);
       minBounds[1] = min(minBounds[1], pos[1]);
       minBounds[2] = min(minBounds[2], pos[2]);
@@ -390,15 +379,16 @@ class XObject {
 
     var radius = 0;
     for (var i = 0; i < this.vertexCount; i++) {
-      var pos = this.getPosition(i);
+      var pos = this.getAttribute(ATTR_KEY_POSITIONS, i);
       var dist = XVector3.distance(pos, center);
       if (dist > radius) radius = dist;
     }
 
-    if (this.matrices && this.matrices.model && this.matrices.model.data) {
-      center = XMatrix4.transformPoint(this.matrices.model.data, center);
-      var origin = XMatrix4.transformPoint(this.matrices.model.data, [0, 0, 0]);
-      var unitX = XMatrix4.transformPoint(this.matrices.model.data, [1, 0, 0]);
+    var modelMatrix = this.matrices ? this.getModelMatrix() : null;
+    if (modelMatrix) {
+      center = XMatrix4.transformPoint(modelMatrix, center);
+      var origin = XMatrix4.transformPoint(modelMatrix, [0, 0, 0]);
+      var unitX = XMatrix4.transformPoint(modelMatrix, [1, 0, 0]);
       var scaleFactor = XVector3.distance(origin, unitX);
       radius *= scaleFactor;
     }

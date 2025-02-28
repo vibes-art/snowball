@@ -9,11 +9,8 @@ class XSphere extends XObject {
   }
 
   get center () {
-    return this.positionOffset.slice();
-  }
-
-  set center (center) {
-    return this.positionOffset = center.slice();
+    var m = this.getModelMatrix();
+    return [m[12], m[13], m[14]];
   }
 
   initialize (opts) {

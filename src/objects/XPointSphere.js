@@ -16,7 +16,7 @@ class XPointSphere extends XObject {
 
     for (var i = 0; i < vertexCount; i++) {
       var unitPos = this.calculateUnitPosition(i);
-      this.setPosition(i, this.calculatePosition(i, unitPos));
+      this.setAttribute(ATTR_KEY_POSITIONS, i, this.calculatePosition(i, unitPos));
       this.setNormal(i, this.calculateNormal(i, unitPos));
       this.setColor(i, this.calculateColor(i, unitPos));
     }

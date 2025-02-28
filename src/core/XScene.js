@@ -120,12 +120,12 @@ class XScene {
 
     this.matrices.projection.data = opts.projectionMatrix || XMatrix4.get();
 
-    var msx = this.modelScaleX = opts.modelScaleX || 1;
-    var msy = this.modelScaleY = opts.modelScaleY || 1;
-    var msz = this.modelScaleZ = opts.modelScaleZ || 1;
-    this.matrices.model.data = XMatrix4.scale(this.matrices.model.data, msx, msy, msz);
     this.matrices.normal.data = XMatrix4.invert(this.matrices.model.data);
     this.matrices.normal.data = XMatrix4.transpose(this.matrices.normal.data);
+  }
+
+  setViewMatrix (viewMatrix) {
+    this.matrices.view.data = viewMatrix;
   }
 
   addRenderPass (type, opts) {

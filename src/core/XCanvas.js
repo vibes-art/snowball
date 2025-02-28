@@ -460,7 +460,7 @@ class XCanvas {
 
   updateCamera (dt) {
     this.camera.onTick(dt, this.keysDown);
-    this.scene.matrices.view.data = this.camera.getViewMatrix();
+    this.scene.setViewMatrix(this.camera.getViewMatrix());
   }
 
   draw (dt, dtReal) {

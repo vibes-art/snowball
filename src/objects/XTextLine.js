@@ -133,7 +133,7 @@ class XTextLine extends XObject {
     }
 
     for (var i = 0; i < positions.length; i++) {
-      this.setPosition(i, positions[i]);
+      this.setAttribute(ATTR_KEY_POSITIONS, i, positions[i]);
       this.setAttribute(ATTR_KEY_TEX_COORDS, i, texCoords[i]);
       this.setAttribute(ATTR_KEY_NORMALS, i, normals[i]);
       this.setAttribute(ATTR_KEY_TANGENTS, i, tangents[i]);
@@ -202,11 +202,8 @@ class XTextLine extends XObject {
       case TEXT_ALIGN_CENTER: offsetX -= width / 2; break;
     }
 
-    for (var i = 0; i < this.vertexCount; i++) {
-      var pos = this.getPosition(i);
-      pos[0] += offsetX;
-      this.setPosition(i, pos);
-    }
+    var modelMatrix = this.getModelMatrix();
+    this.setModelMatrix(XMatrix4.translate(modelMatrix, offsetX, 0, 0));
   }
 
 }

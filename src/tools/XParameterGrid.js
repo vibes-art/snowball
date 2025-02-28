@@ -20,11 +20,11 @@ class XParameterGrid {
     this.addParameter(params, x, this.parameterX);
     this.addParameter(params, z, this.parameterZ);
 
-    params.positionOffset = [
+    params.modelMatrix = XMatrix4.getTranslation(
       x * this.parameterX.offset,
       0,
       z * this.parameterZ.offset
-    ];
+    );
 
     return params;
   }
