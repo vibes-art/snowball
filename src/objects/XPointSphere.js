@@ -61,7 +61,7 @@ class XPointSphere extends XObject {
       r: 1 + unitPos.x / 2,
       g: 1 + unitPos.y / 2,
       b: 1 + unitPos.z / 2,
-      a: this.alpha
+      a: 1
     };
   }
 
@@ -122,7 +122,7 @@ class XRainbowSphere extends XPointSphere {
       r: 0.35 * rgb.r + 0.65 * ((1 + x) / 2),
       g: 0.35 * rgb.g + 0.65 * ((1 + y) / 2),
       b: 0.35 * rgb.b + 0.65 * ((1 + z) / 2),
-      a: this.alpha
+      a: 1
     };
   }
 

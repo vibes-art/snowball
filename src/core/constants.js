@@ -89,7 +89,7 @@ var QUILT_RECURSION_CHANCE = 0.8;
 var QUILT_RECURSION_DECREMENT = 0.1;
 
 var PRECISION = IS_MOBILE ? 'lowp' : 'highp';
-var RENDER_PASS_LIGHTS = 'lights';
+var RENDER_PASS_SHADOWS = 'shadows';
 var RENDER_PASS_MAIN = 'main';
 var RENDER_PASS_EMISSIVE = 'emissive';
 var RENDER_PASS_ANTIALIAS = 'antialias';

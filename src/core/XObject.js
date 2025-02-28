@@ -7,7 +7,6 @@ class XObject {
     this.type = opts.type || opts.gl.POINTS;
     this.vertexCount = opts.vertexCount || 0;
     this.indexCount = opts.indexCount || 0;
-    this.alpha = opts.alpha || 1.0;
     this.useIndices = opts.useIndices || false;
     this.useNormalColors = opts.useNormalColors || false;
     this.useRandomColors = opts.useRandomColors || false;
@@ -39,7 +38,7 @@ class XObject {
     this.updateVertexAttributes();
     this.scene.addObject(this);
 
-    this.enableRenderPass(RENDER_PASS_LIGHTS, true);
+    this.enableRenderPass(RENDER_PASS_SHADOWS, true);
     this.enableRenderPass(RENDER_PASS_MAIN, true);
     this.enableRenderPass(RENDER_PASS_EMISSIVE, true);
   }
@@ -186,6 +185,24 @@ class XObject {
     } else {
       gl.drawArrays(primitiveType, offset, count);
     }
+  }
+
+  get alpha () {
+    return this._alpha !== undefined ? this._alpha : 1;
+  }
+
+  set alpha (value) {
+    value = max(0, min(1, value));
+
+    this._alpha = value;
+
+    if (this.hasAttribute(ATTR_KEY_COLORS)) {
+      for (var i = 0; i < this.vertexCount; i++) {
+        this.setValue(ATTR_KEY_COLORS, i, 3, value);
+      }
+    }
+
+    return value;
   }
 
   get isDirty () {

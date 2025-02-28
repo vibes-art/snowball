@@ -225,7 +225,7 @@ class XHeightMap extends XObject {
         color.r / 255,
         color.g / 255,
         color.b / 255,
-        color.a || this.alpha
+        color.a !== undefined ? color.a : 1
       ];
     }
 
@@ -250,7 +250,7 @@ class XHeightMap extends XObject {
       (pct * currColor.r + inv * lastColor.r) / 255,
       (pct * currColor.g + inv * lastColor.g) / 255,
       (pct * currColor.b + inv * lastColor.b) / 255,
-      this.alpha
+      currColor.a !== undefined ? currColor.a : 1
     ];
   };
 

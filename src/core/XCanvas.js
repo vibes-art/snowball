@@ -129,7 +129,7 @@ class XCanvas {
       ]
     });
 
-    this.fullscreenQuad.enableRenderPass(RENDER_PASS_LIGHTS, false);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_SHADOWS, false);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_MAIN, false);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_EMISSIVE, false);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_EXTRACT, true);

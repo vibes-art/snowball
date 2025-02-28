@@ -29,7 +29,7 @@ class XTextShader extends XShader {
         float screenPxDistance = screenPxRange() * (signedDistance - 0.5);
         float opacity = clamp(screenPxDistance + 0.5, 0.0, 1.0);
         finalColor = mix(vec3(0.0), vec3(1.0), opacity);
-        alpha = opacity;
+        alpha *= opacity;
     `;
   }
 

@@ -6,6 +6,7 @@ class XTextLine extends XObject {
 
   constructor (opts) {
     opts.type = opts.gl.TRIANGLE_STRIP;
+    opts.shader = opts.scene.getTextShader();
     super(opts);
 
     this.font = opts.font;
@@ -14,8 +15,7 @@ class XTextLine extends XObject {
 
     this.setText(opts.text);
 
-    this.enableRenderPass(RENDER_PASS_LIGHTS, false);
-    this.enableRenderPass(RENDER_PASS_EMISSIVE, false);
+    this.enableRenderPass(RENDER_PASS_SHADOWS, false);
   }
 
   setText (text) {

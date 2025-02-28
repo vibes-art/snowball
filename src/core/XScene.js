@@ -107,6 +107,11 @@ class XScene {
     return shader;
   }
 
+  getTextShader () {
+    if (this.textShader) return this.textShader;
+    return this.textShader = new XTextShader({ scene: this });
+  }
+
   initMatrices (opts) {
     this.matrices.projection = new XUniform({ key: UNI_KEY_PROJ_MATRIX, type: UNI_TYPE_MATRIX });
     this.matrices.model = new XUniform({ key: UNI_KEY_MODEL_MATRIX, type: UNI_TYPE_MATRIX });
@@ -267,7 +272,7 @@ class XScene {
     var shadowFBO = XGLUtils.createDepthFramebuffer(this.gl, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
     light.addShadowMapTexture(shadowFBO.depthTexture, this.reserveTextureUnit());
 
-    this.addRenderPass(RENDER_PASS_LIGHTS, {
+    this.addRenderPass(RENDER_PASS_SHADOWS, {
       framebuffer: shadowFBO.framebuffer,
       shader: this.getShadowShader(light.key, maxLights),
       uniforms: { lightIndex: light.index },
@@ -367,7 +372,7 @@ class XScene {
 
     for (var passIndex = 0; passIndex < this.renderPasses.length; passIndex++) {
       var pass = this.renderPasses[passIndex];
-      if (DEBUG_LIGHTS && pass.type !== RENDER_PASS_LIGHTS) continue;
+      if (DEBUG_LIGHTS && pass.type !== RENDER_PASS_SHADOWS) continue;
 
       var framebuffer = pass.framebuffer || null;
       if (pass.framebufferKey) {
