@@ -9,16 +9,18 @@ class XMaterial {
     this.onAllTexturesLoaded = null;
 
     this.baseColor = new XUniform({ key: UNI_KEY_BASE_COLOR, data: opts.baseColor || [1, 1, 1, 1] });
+    this.emissiveColor = new XUniform({ key: UNI_KEY_EMISSIVE_COLOR, data: opts.emissiveColor || [0, 0, 0, 1] });
     this.metallic = new XUniform({ key: UNI_KEY_METALLIC, components: 1, data: opts.metallic || 0 });
     this.roughness = new XUniform({ key: UNI_KEY_ROUGHNESS, components: 1, data: opts.roughness || 0 });
 
     this.uniforms = {
       baseColor: this.baseColor,
+      emissiveColor: this.emissiveColor,
       metallic: this.metallic,
       roughness: this.roughness
     };
 
-    MATERIAL_TEXTURE_MAPS.forEach((key) => {
+    MATERIAL_TEXTURE_MAPS.forEach(key => {
       this[key] = new XUniform({ key, components: 1, type: UNI_TYPE_INT });
       this.uniforms[key] = this[key];
       opts[key] && this.setMaterialTexture(key, opts[key]);

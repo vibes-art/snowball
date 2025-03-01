@@ -11,6 +11,7 @@ class XObject {
     this.useNormalColors = opts.useNormalColors || false;
     this.useRandomColors = opts.useRandomColors || false;
     this.frontFace = opts.frontFace || opts.gl.CCW;
+    this.invertNormals = opts.invertNormals || false;
 
     this.attributes = {};
     this.uniforms = {};
@@ -18,6 +19,7 @@ class XObject {
     this.material = null;
     this.parentObject = null;
     this.isActive = false;
+    this.distanceFromCamera = 0;
 
     this.indices = this.useIndices ? new Uint32Array(this.indexCount) : null;
     this.indexBuffer = null;
@@ -39,7 +41,10 @@ class XObject {
 
     this.enableRenderPass(RENDER_PASS_SHADOWS, true);
     this.enableRenderPass(RENDER_PASS_MAIN, true);
-    this.enableRenderPass(RENDER_PASS_EMISSIVE, true);
+
+    if (opts.alpha !== undefined) {
+      this.alpha = opts.alpha;
+    }
   }
 
   defineAttributes (opts) {
@@ -48,7 +53,6 @@ class XObject {
 
   defineUniforms (opts) {
     this.setModelMatrix(opts.modelMatrix);
-    this.addUniform(UNI_KEY_EMISSION, { components: 1, data: 0 });
   }
 
   setShader (opts) {
@@ -63,6 +67,10 @@ class XObject {
     var material = opts.material || null;
     this.material = material;
     this.scene.updateObjectShader(this);
+
+    if (this.material && this.material.baseColor.data[3] !== 1) {
+      this.alpha = this.material.baseColor.data[3];
+    }
   }
 
   generate (opts) {
@@ -181,6 +189,11 @@ class XObject {
     }
   }
 
+  updateCameraDistance (cameraPosition) {
+    var sphere = this.getBoundingSphere();
+    this.distanceFromCamera = XVector3.distance(sphere.center, cameraPosition);
+  }
+
   draw () {
     var gl = this.gl;
     var primitiveType = this.type;
@@ -204,7 +217,7 @@ class XObject {
 
     this._alpha = value;
 
-    if (this.hasAttribute(ATTR_KEY_COLORS)) {
+    if (!this.material && this.hasAttribute(ATTR_KEY_COLORS)) {
       for (var i = 0; i < this.vertexCount; i++) {
         this.setValue(ATTR_KEY_COLORS, i, 3, value);
       }
@@ -293,7 +306,8 @@ class XObject {
       var nx = e1[1] * e2[2] - e1[2] * e2[1];
       var ny = e1[2] * e2[0] - e1[0] * e2[2];
       var nz = e1[0] * e2[1] - e1[1] * e2[0];
-      var normal = XUtils.normalize([nx, ny, nz]);
+      var nm = this.invertNormals ? -1 : 1;
+      var normal = XUtils.normalize([nm * nx, nm * ny, nm * nz]);
 
       var tangent = [0, 0, 0];
       if (hasTexCoords) {

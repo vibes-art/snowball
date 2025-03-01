@@ -1,16 +1,25 @@
 var frameIndex = 0;
 
 var OBJECT_RENDER_SORT = function (a, b) {
-  var shaderDiff = a.shader.uid - b.shader.uid;
-  if (shaderDiff === 0) {
-    var aMatUID = (a.material && a.material.uid) || 0;
-    var bMatUID = (b.material && b.material.uid) || 0;
-    return aMatUID - bMatUID;
+  if (a.alpha >= 1 && b.alpha >= 1) {
+    // performance optimization for opaque objects
+    var shaderDiff = a.shader.uid - b.shader.uid;
+    if (shaderDiff === 0) {
+      var aMatUID = (a.material && a.material.uid) || 0;
+      var bMatUID = (b.material && b.material.uid) || 0;
+      return aMatUID - bMatUID;
+    }
+    return shaderDiff;
+  } else if (a.alpha >= 1) {
+    return -1;
+  } else if (b.alpha >= 1) {
+    return 1;
+  } else {
+    return b.distanceFromCamera - a.distanceFromCamera;
   }
-  return shaderDiff;
 };
 
-var FRUSTUM_CULL_PASSES = [RENDER_PASS_MAIN, RENDER_PASS_EMISSIVE];
+var FRUSTUM_CULL_PASSES = [RENDER_PASS_MAIN];
 
 class XScene {
 
@@ -126,6 +135,9 @@ class XScene {
 
   setViewMatrix (viewMatrix) {
     this.matrices.view.data = viewMatrix;
+
+    var invView = XMatrix4.invert(viewMatrix);
+    this.cameraPosition = [invView[12], invView[13], invView[14]];
   }
 
   addRenderPass (type, opts) {
@@ -404,7 +416,7 @@ class XScene {
       if (pass.type === RENDER_PASS_MAIN) {
         gl.enable(gl.CULL_FACE);
         gl.cullFace(gl.BACK);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
       } else {
         gl.disable(gl.CULL_FACE);
         gl.blendFunc(gl.ONE, gl.ZERO);
@@ -453,6 +465,7 @@ class XScene {
 
       var isNewPass = true;
 
+      objects.forEach(obj => obj.updateCameraDistance(this.cameraPosition));
       objects.sort(OBJECT_RENDER_SORT);
 
       for (var i = 0; i < objects.length; i++) {

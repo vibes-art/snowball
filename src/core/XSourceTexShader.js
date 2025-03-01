@@ -39,7 +39,9 @@ class XSourceTexShader extends XShader {
   addFSMainHeader (opts) {
     this.fragmentShaderSource += `
       void main() {
-        vec3 finalColor = texture(${UNI_KEY_SOURCE_TEXTURE}, vUV).rgb;
+        vec4 texColor = texture(${UNI_KEY_SOURCE_TEXTURE}, vUV);
+        vec3 finalColor = texColor.rgb;
+        float alpha = texColor.a;
     `;
   }
 
@@ -47,7 +49,7 @@ class XSourceTexShader extends XShader {
     this.addFSMainHeader(opts);
 
     this.fragmentShaderSource += `
-        fragColor = vec4(finalColor, 1.0);
+        fragColor = vec4(finalColor, alpha);
       }
     `;
   }

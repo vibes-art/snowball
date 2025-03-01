@@ -3,6 +3,7 @@ class XPBRShader extends XShader {
   addFSFunctionHeader (opts) {
     this.fragmentShaderSource += `
       uniform vec4 ${UNI_KEY_BASE_COLOR};
+      uniform vec4 ${UNI_KEY_EMISSIVE_COLOR};
       uniform float ${UNI_KEY_METALLIC};
       uniform float ${UNI_KEY_ROUGHNESS};
 
@@ -132,7 +133,7 @@ class XPBRShader extends XShader {
         vec3 normalDir = normalize(vNormal.xyz);
         vec3 viewDir = normalize(vViewPos - vWorldPos.xyz);
         vec3 tintColor = ${UNI_KEY_BASE_COLOR}.rgb * vColor.rgb;
-        vec3 finalColor = vec3(0.0);
+        vec3 finalColor = ${UNI_KEY_EMISSIVE_COLOR}.rgb;
 
         float alpha = ${UNI_KEY_BASE_COLOR}.a;
         float metal = ${UNI_KEY_METALLIC};
@@ -170,7 +171,7 @@ class XPBRShader extends XShader {
 
     this.fragmentShaderSource += `
         vec3 ambient = ${UNI_KEY_AMBIENT_LIGHT}Color * tintColor;
-        vec3 ambientScale = vec3(1.0 - finalColor.rgb);
+        vec3 ambientScale = vec3(clamp(1.0 - finalColor.rgb, 0.0, 1.0));
         fragColor = vec4(finalColor + ambientScale * ambient, alpha);
       }
     `;

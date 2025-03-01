@@ -131,12 +131,10 @@ class XCanvas {
 
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_SHADOWS, false);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_MAIN, false);
-    this.fullscreenQuad.enableRenderPass(RENDER_PASS_EMISSIVE, false);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_EXTRACT, true);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_BLUR_HORZ, true);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_BLUR_VERT, true);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_COMBINE_BLOOM, true);
-    this.fullscreenQuad.enableRenderPass(RENDER_PASS_COMBINE_EMISSIVE, true);
     this.fullscreenQuad.enableRenderPass(RENDER_PASS_ANTIALIAS, true);
 
     // get the final framebuffer before antialiasing as our source color

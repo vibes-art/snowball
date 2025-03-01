@@ -12,8 +12,8 @@ class XBloomExtractShader extends XSourceTexShader {
     super.addFSMainHeader(opts);
 
     this.fragmentShaderSource += `
-        float brightness = max(finalColor.r, max(finalColor.g, finalColor.b));
-        float softFactor = smoothstep(${UNI_KEY_THRESHOLD}, ${UNI_KEY_THRESHOLD} + 0.3, brightness);
+        float brightness = dot(finalColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+        float softFactor = smoothstep(${UNI_KEY_THRESHOLD} - 0.2, ${UNI_KEY_THRESHOLD} + 0.2, brightness);
         finalColor *= softFactor;
     `;
   }
