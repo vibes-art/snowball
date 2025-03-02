@@ -72,6 +72,9 @@ class XTextLine extends XObject {
   defineUniforms (opts) {
     super.defineUniforms(opts);
 
+    this.addUniform(UNI_KEY_BASE_COLOR, { data: opts.baseColor || [1, 1, 1, 1] });
+    this.addUniform(UNI_KEY_THICKNESS, { components: 1, data: opts.thickness || 0 });
+    this.addUniform(UNI_KEY_SOFTNESS, { components: 1, data: opts.softness || 0 });
     this.uniforms[UNI_KEY_SOURCE_TEXTURE] = opts.font.sourceTexture;
   }
 

@@ -140,6 +140,8 @@ var UNI_KEY_COMBINE_TEXTURE = 'combineTexture';
 var UNI_KEY_INTENSITY = 'intensity';
 var UNI_KEY_TEXTURE_SIZE = 'textureSize';
 var UNI_KEY_EXPOSURE = 'exposure';
+var UNI_KEY_THICKNESS = 'thickness';
+var UNI_KEY_SOFTNESS = 'softness';
 
 var NOISE_TYPE_HEIGHT = 'height';
 var NOISE_TYPE_COLOR_HEIGHT_OFFSET = 'colorHeightOffset';
