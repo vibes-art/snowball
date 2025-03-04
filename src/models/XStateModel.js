@@ -24,6 +24,10 @@ class XStateModel {
     var dimensions = opts.dimensions || [];
     var values = opts.values || {};
 
+    // allow simpler config by automatically from values
+    if (!states.length) states = Object.keys(values);
+    if (!attributes.length) attributes = Object.keys(values[states[0]]);
+
     attributes.forEach((attrKey, i) => {
       this.attributes.push(attrKey);
       this.values[attrKey] = new XMultiplex({
@@ -38,6 +42,17 @@ class XStateModel {
         multiplier: this.stateIndex === index ? 1 : 0
       });
     });
+
+    // allow "always on" global states to offset values
+    var globalValues = opts.globalValues;
+    if (globalValues) {
+      for (var stateKey in globalValues) {
+        this.addState(stateKey, {
+          values: globalValues[stateKey],
+          multiplier: 1
+        });
+      }
+    }
   }
 
   isState (stateKey) {
@@ -112,6 +127,14 @@ class XStateModel {
 
       var multiplier = opts.multiplier || 0;
       multiplex.addVector(vector, multiplier);
+    });
+  }
+
+  setMultiplier (stateKey, multiplier) {
+    var stateIndex = this.states.indexOf(stateKey);
+    this.attributes.forEach(attrKey => {
+      var multiplex = this.values[attrKey];
+      multiplex.multipliers[stateIndex] = multiplier;
     });
   }
 

@@ -293,6 +293,10 @@ class XScene {
     });
   }
 
+  getLight (key, index) {
+    return this.lights[key][index];
+  }
+
   reserveTextureUnit () {
     return this.reservedTextureUnitIndex++;
   }

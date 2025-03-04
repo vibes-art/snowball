@@ -11,18 +11,12 @@ class XSpotLight extends XLight {
     super(opts);
 
     var index = opts.index;
+    this.innerAngle = new XUniform({ key: `${this.key}InnerAngleCosines[${index}]`, components: 1 });
+    this.outerAngle = new XUniform({ key: `${this.key}OuterAngleCosines[${index}]`, components: 1 });
 
-    this.innerAngle = new XUniform({
-      key: `${this.key}InnerAngleCosines[${index}]`,
-      components: 1,
-      data: cos(opts.innerAngle || DEFAULT_INNER_ANGLE)
-    });
-
-    this.outerAngle = new XUniform({
-      key: `${this.key}OuterAngleCosines[${index}]`,
-      components: 1,
-      data: cos(opts.outerAngle || DEFAULT_OUTER_ANGLE)
-    });
+    this.setInnerAngle(opts.innerAngle);
+    this.setOuterAngle(opts.outerAngle);
+    this.calculateViewMatrix();
   }
 
   getUniforms () {
@@ -33,10 +27,22 @@ class XSpotLight extends XLight {
   }
 
   calculateViewMatrix (edgeAccuracyMult) {
+    if (!this.innerAngle) return;
+
     edgeAccuracyMult = edgeAccuracyMult || 5;
     var fov = edgeAccuracyMult * this.outerAngle.data;
     var projectionMatrix = XMatrix4.perspective(fov, 1, SPOT_LIGHT_Z_NEAR, SPOT_LIGHT_Z_FAR);
     this.viewProjMatrix.data = XMatrix4.multiply(projectionMatrix, this.lookAtMatrix);
+  }
+
+  setInnerAngle (angle) {
+    angle = angle !== undefined ? angle : DEFAULT_INNER_ANGLE;
+    this.innerAngle.data = cos(angle);
+  }
+
+  setOuterAngle (angle) {
+    angle = angle !== undefined ? angle : DEFAULT_OUTER_ANGLE;
+    this.outerAngle.data = cos(angle);
   }
 
 }

@@ -2,7 +2,7 @@ class XLight {
 
   constructor (opts) {
     this.key = opts.key || UNI_KEY_DIR_LIGHT;
-    this.baseColor = opts.color;
+    this.baseColor = opts.color || [1, 1, 1, 1];
     this.brightness = opts.brightness !== undefined ? opts.brightness : 1;
 
     var index = opts.index;
@@ -46,7 +46,9 @@ class XLight {
   }
 
   lookAt (lookAtPoint) {
-    if (!lookAtPoint) return;
+    if (!this.direction) return;
+
+    lookAtPoint = lookAtPoint || [0, 0, 0];
 
     this.lookAtPoint = lookAtPoint.slice();
 
@@ -59,6 +61,7 @@ class XLight {
 
     this.lookAtMatrix = XMatrix4.lookAt(pos, this.lookAtPoint, UP_VECTOR);
     this.setDirection(dir);
+    this.calculateViewMatrix();
   }
 
   addShadowMapTexture (depthTexture, textureUnit) {
