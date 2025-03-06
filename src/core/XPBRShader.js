@@ -6,38 +6,42 @@ class XPBRShader extends XShader {
       uniform vec4 ${UNI_KEY_EMISSIVE_COLOR};
       uniform float ${UNI_KEY_METALLIC};
       uniform float ${UNI_KEY_ROUGHNESS};
-
-      float DistributionGGX(vec3 N, vec3 H, float rough) {
-        float a = rough * rough;
-        float a2 = a * a;
-        float NdotH = max(dot(N, H), 0.0);
-        float denom = (NdotH * NdotH) * (a2 - 1.0) + 1.0;
-        return a2 / (3.14159265359 * denom * denom);
-      }
-
-      float GeometrySchlickGGX(float NdotV, float rough) {
-        float r = (rough + 1.0);
-        float k = (r * r) / 8.0;
-        float denom = NdotV * (1.0 - k) + k;
-        return NdotV / denom;
-      }
-
-      float GeometrySmith(vec3 N, vec3 V, vec3 L, float rough) {
-        float NdotV = max(dot(N, V), 0.0);
-        float NdotL = max(dot(N, L), 0.0);
-        float ggx2 = GeometrySchlickGGX(NdotV, rough);
-        float ggx1 = GeometrySchlickGGX(NdotL, rough);
-        return ggx1 * ggx2;
-      }
-
-      vec3 fresnelSchlick(float cosTheta, vec3 F0) {
-        return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
-      }
     `;
+
+    if (!opts.disableLights) {
+      this.fragmentShaderSource += `
+        float DistributionGGX(vec3 N, vec3 H, float rough) {
+          float a = rough * rough;
+          float a2 = a * a;
+          float NdotH = max(dot(N, H), 0.0);
+          float denom = (NdotH * NdotH) * (a2 - 1.0) + 1.0;
+          return a2 / (3.14159265359 * denom * denom);
+        }
+
+        float GeometrySchlickGGX(float NdotV, float rough) {
+          float r = (rough + 1.0);
+          float k = (r * r) / 8.0;
+          float denom = NdotV * (1.0 - k) + k;
+          return NdotV / denom;
+        }
+
+        float GeometrySmith(vec3 N, vec3 V, vec3 L, float rough) {
+          float NdotV = max(dot(N, V), 0.0);
+          float NdotL = max(dot(N, L), 0.0);
+          float ggx2 = GeometrySchlickGGX(NdotV, rough);
+          float ggx1 = GeometrySchlickGGX(NdotL, rough);
+          return ggx1 * ggx2;
+        }
+
+        vec3 fresnelSchlick(float cosTheta, vec3 F0) {
+          return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+        }
+      `;
+    }
   }
 
   addFSPointLightsHeader (opts) {
-    if (MAX_POINT_LIGHTS <= 0) return;
+    if (MAX_POINT_LIGHTS <= 0 || opts.disableLights) return;
 
     this.fragmentShaderSource += `
       const int MAX_POINT_LIGHTS = ${MAX_POINT_LIGHTS};
@@ -132,7 +136,7 @@ class XPBRShader extends XShader {
       void main() {
         vec3 normalDir = normalize(vNormal.xyz);
         vec3 viewDir = normalize(vViewPos - vWorldPos.xyz);
-        vec3 tintColor = ${UNI_KEY_BASE_COLOR}.rgb * vColor.rgb;
+        vec3 tintColor = ${UNI_KEY_BASE_COLOR}.rgb;
         vec3 finalColor = ${UNI_KEY_EMISSIVE_COLOR}.rgb;
 
         float alpha = ${UNI_KEY_BASE_COLOR}.a;
@@ -145,21 +149,27 @@ class XPBRShader extends XShader {
   defineFSMain (opts) {
     this.addFSMainHeader(opts);
 
-    for (var i = 0; i < MAX_DIR_LIGHTS; i++) {
-      this.fragmentShaderSource += `
+    if (!opts.disableLights) {
+      for (var i = 0; i < MAX_DIR_LIGHTS; i++) {
+        this.fragmentShaderSource += `
         finalColor += ${UNI_KEY_DIR_LIGHT}ColorCompute${i}(tintColor, normalDir, viewDir, rough, metal, F0);
-      `;
-    }
+        `;
+      }
 
-    for (var i = 0; i < MAX_SPOT_LIGHTS; i++) {
-      this.fragmentShaderSource += `
+      for (var i = 0; i < MAX_SPOT_LIGHTS; i++) {
+        this.fragmentShaderSource += `
         finalColor += ${UNI_KEY_SPOT_LIGHT}ColorCompute${i}(tintColor, normalDir, viewDir, rough, metal, F0);
-      `;
-    }
+        `;
+      }
 
-    for (var i = 0; i < MAX_POINT_LIGHTS; i++) {
-      this.fragmentShaderSource += `
+      for (var i = 0; i < MAX_POINT_LIGHTS; i++) {
+        this.fragmentShaderSource += `
         finalColor += ${UNI_KEY_POINT_LIGHT}ColorCompute${i}(tintColor, normalDir, viewDir, rough, metal, F0);
+        `;
+      }
+    } else {
+      this.fragmentShaderSource += `
+        finalColor = tintColor;
       `;
     }
 
@@ -169,12 +179,20 @@ class XPBRShader extends XShader {
       `;
     }
 
-    this.fragmentShaderSource += `
+    if (!opts.disableLights) {
+      this.fragmentShaderSource += `
         vec3 ambient = ${UNI_KEY_AMBIENT_LIGHT}Color * tintColor;
         vec3 ambientScale = vec3(clamp(1.0 - finalColor.rgb, 0.0, 1.0));
         fragColor = vec4(finalColor + ambientScale * ambient, alpha);
       }
-    `;
+      `;
+    } else {
+      this.fragmentShaderSource += `
+        vec3 ambient = ${UNI_KEY_AMBIENT_LIGHT}Color * finalColor;
+        fragColor = vec4(ambient, alpha);
+      }
+      `;
+    }
   }
 
 }

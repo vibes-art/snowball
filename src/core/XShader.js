@@ -106,7 +106,7 @@ class XShader {
   addFSFunctionHeader (opts) { /* useful override */ }
 
   addFSDirLightsHeader (opts) {
-    if (MAX_DIR_LIGHTS <= 0) return;
+    if (MAX_DIR_LIGHTS <= 0 || opts.disableLights) return;
 
     this.fragmentShaderSource += `
       const int MAX_DIR_LIGHTS = ${MAX_DIR_LIGHTS};
@@ -165,7 +165,7 @@ class XShader {
   }
 
   addFSSpotLightsHeader (opts) {
-    if (MAX_SPOT_LIGHTS <= 0) return;
+    if (MAX_SPOT_LIGHTS <= 0 || opts.disableLights) return;
 
     this.fragmentShaderSource += `
       const int MAX_SPOT_LIGHTS = ${MAX_SPOT_LIGHTS};
@@ -227,7 +227,7 @@ class XShader {
   }
 
   addFSPointLightsHeader (opts) {
-    if (MAX_POINT_LIGHTS <= 0) return;
+    if (MAX_POINT_LIGHTS <= 0 || opts.disableLights) return;
 
     this.fragmentShaderSource += `
       const int MAX_POINT_LIGHTS = ${MAX_POINT_LIGHTS};
@@ -286,22 +286,24 @@ class XShader {
   defineFSMain (opts) {
     this.addFSMainHeader(opts);
 
-    for (var i = 0; i < MAX_DIR_LIGHTS; i++) {
-      this.fragmentShaderSource += `
+    if (!opts.disableLights) {
+      for (var i = 0; i < MAX_DIR_LIGHTS; i++) {
+        this.fragmentShaderSource += `
         finalColor += ${UNI_KEY_DIR_LIGHT}ColorCompute${i}(normalDir, viewDir);
-      `;
-    }
+        `;
+      }
 
-    for (var i = 0; i < MAX_SPOT_LIGHTS; i++) {
-      this.fragmentShaderSource += `
+      for (var i = 0; i < MAX_SPOT_LIGHTS; i++) {
+        this.fragmentShaderSource += `
         finalColor += ${UNI_KEY_SPOT_LIGHT}ColorCompute${i}(normalDir, viewDir);
-      `;
-    }
+        `;
+      }
 
-    for (var i = 0; i < MAX_POINT_LIGHTS; i++) {
-      this.fragmentShaderSource += `
+      for (var i = 0; i < MAX_POINT_LIGHTS; i++) {
+        this.fragmentShaderSource += `
         finalColor += ${UNI_KEY_POINT_LIGHT}ColorCompute(${i}, normalDir, viewDir);
-      `;
+        `;
+      }
     }
 
     if (ENABLE_FOG) {

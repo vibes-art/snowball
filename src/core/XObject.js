@@ -33,8 +33,8 @@ class XObject {
   initialize (opts) {
     this.defineAttributes(opts);
     this.defineUniforms(opts);
-    this.setShader(opts);
     this.setMaterial(opts);
+    this.setShader(opts);
     this.generate(opts);
     this.updateVertexAttributes();
     this.scene.addObject(this);
