@@ -158,7 +158,7 @@ XGLUtils.bindTexture = function (gl, textureUnit, texture) {
   gl.bindTexture(gl.TEXTURE_2D, texture);
 };
 
-XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries) {
+XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries, data) {
   sRGB = sRGB || false;
   onLoad = onLoad || null;
   retries = retries || 0;
@@ -173,7 +173,7 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries) {
   }
 
   if (XGLUtils.loadsActive >= MAX_CONCURRENT_LOADS) {
-    XGLUtils.loadQueue.push({ gl, url, sRGB, onLoad, retries });
+    XGLUtils.loadQueue.push({ gl, url, sRGB, onLoad, retries, data });
     return null;
   }
 
@@ -243,17 +243,17 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries) {
       delete XGLUtils.textureCache[url];
       console.error(`Error loading image: ${url}`);
       if (retries < MAX_IMAGE_RETRIES) {
-        setTimeout(() => XGLUtils.loadTexture(gl, url, sRGB, onLoad, retries), 100 * retries++);
+        setTimeout(() => XGLUtils.loadTexture(gl, url, sRGB, onLoad, retries, data), 100 * retries++);
       } else {
         console.error(`Failed to load ${url} after ${maxRetries} retries.`);
       }
     };
 
     image.crossOrigin = 'anonymous';
-    image.src = url;
+    image.src = data || url;
   };
 
-  if (window.createImageBitmap && !IS_IOS) {
+  if (!data && window.createImageBitmap && !IS_IOS) {
     fetch(url, { mode: 'cors' })
       .then(response => {
         if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
@@ -299,7 +299,7 @@ XGLUtils.unloadTexture = function (gl, texture) {
 XGLUtils.processLoadQueue = function () {
   while (XGLUtils.loadQueue.length > 0 && XGLUtils.loadsActive < MAX_CONCURRENT_LOADS) {
     var t = XGLUtils.loadQueue.shift();
-    XGLUtils.loadTexture(t.gl, t.url, t.sRGB, t.onLoad, t.retries);
+    XGLUtils.loadTexture(t.gl, t.url, t.sRGB, t.onLoad, t.retries, t.data);
   }
 };
 
