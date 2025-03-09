@@ -41,17 +41,19 @@ class XMaterial {
     }
   }
 
-  loadAllTextures (gl, path, onLoad, type) {
+  loadAllTextures (gl, path, onLoad, type, nPath, rPath) {
     onLoad = onLoad || null;
     type = type || 'png';
+    nPath = nPath || `${path}_normal`;
+    rPath = rPath || `${path}_roughness`;
 
     this.loadCount = 0;
     this.onAllTexturesLoaded = onLoad;
     this.useTextures = true;
 
     XGLUtils.loadTexture(gl, `${path}.${type}`, ENABLE_HDR, t => this.setMaterialTexture(UNI_KEY_ALBEDO_MAP, t));
-    XGLUtils.loadTexture(gl, `${path}_normal.${type}`, false, t => this.setMaterialTexture(UNI_KEY_NORMAL_MAP, t));
-    XGLUtils.loadTexture(gl, `${path}_roughness.${type}`, false, t => this.setMaterialTexture(UNI_KEY_ROUGHNESS_MAP, t));
+    XGLUtils.loadTexture(gl, `${nPath}.${type}`, false, t => this.setMaterialTexture(UNI_KEY_NORMAL_MAP, t));
+    XGLUtils.loadTexture(gl, `${rPath}.${type}`, false, t => this.setMaterialTexture(UNI_KEY_ROUGHNESS_MAP, t));
   }
 
   getUniforms () {

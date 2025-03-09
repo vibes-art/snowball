@@ -27,7 +27,7 @@ class XSpotLight extends XLight {
   }
 
   calculateViewMatrix (edgeAccuracyMult) {
-    if (!this.innerAngle) return;
+    if (!ENABLE_SHADOWS || !this.innerAngle) return;
 
     edgeAccuracyMult = edgeAccuracyMult || 5;
     var fov = edgeAccuracyMult * this.outerAngle.data;

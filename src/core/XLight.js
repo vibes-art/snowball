@@ -72,6 +72,8 @@ class XLight {
   }
 
   calculateViewMatrix () {
+    if (!ENABLE_SHADOWS) return;
+
     var boundingBox = CAMERA_Z_FAR / 2;
     var corners = [
       [-boundingBox, -boundingBox, -boundingBox],
