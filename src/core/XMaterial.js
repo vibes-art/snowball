@@ -7,6 +7,9 @@ class XMaterial {
     this.loadCount = 0;
     this.useTextures = false;
     this.onAllTexturesLoaded = null;
+    this.albedoPath = '';
+    this.normalPath = '';
+    this.roughnessPath = '';
 
     this.baseColor = new XUniform({ key: UNI_KEY_BASE_COLOR, data: opts.baseColor || [1, 1, 1, 1] });
     this.emissiveColor = new XUniform({ key: UNI_KEY_EMISSIVE_COLOR, data: opts.emissiveColor || [0, 0, 0, 1] });
@@ -51,9 +54,24 @@ class XMaterial {
     this.onAllTexturesLoaded = onLoad;
     this.useTextures = true;
 
-    XGLUtils.loadTexture(gl, `${path}.${type}`, ENABLE_HDR, t => this.setMaterialTexture(UNI_KEY_ALBEDO_MAP, t));
-    XGLUtils.loadTexture(gl, `${nPath}.${type}`, false, t => this.setMaterialTexture(UNI_KEY_NORMAL_MAP, t));
-    XGLUtils.loadTexture(gl, `${rPath}.${type}`, false, t => this.setMaterialTexture(UNI_KEY_ROUGHNESS_MAP, t));
+    var albedoPath = this.albedoPath = `${path}.${type}`;
+    var normalPath = this.normalPath = `${nPath}.${type}`;
+    var roughnessPath = this.roughnessPath = `${rPath}.${type}`;
+
+    XGLUtils.loadTexture(gl, this.albedoPath, ENABLE_HDR, t => {
+      if (albedoPath !== this.albedoPath) return;
+      this.setMaterialTexture(UNI_KEY_ALBEDO_MAP, t);
+    });
+
+    XGLUtils.loadTexture(gl, this.normalPath, false, t => {
+      if (normalPath !== this.normalPath) return;
+      this.setMaterialTexture(UNI_KEY_NORMAL_MAP, t);
+    });
+
+    XGLUtils.loadTexture(gl, this.roughnessPath, false, t => {
+      if (roughnessPath !== this.roughnessPath) return;
+      this.setMaterialTexture(UNI_KEY_ROUGHNESS_MAP, t);
+    });
   }
 
   getUniforms () {
