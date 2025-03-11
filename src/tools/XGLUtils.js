@@ -212,10 +212,19 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries, data) {
     var isPowerOf2 = XUtils.isPowerOf2(img.width) && XUtils.isPowerOf2(img.height);
     if (isPowerOf2) {
       gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+      var ext = gl.getExtension("EXT_texture_filter_anisotropic");
+      if (ext) {
+        var maxAniso = gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT) || 8;
+        gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, maxAniso);
+      }
     } else {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     }
 
     gl.bindTexture(gl.TEXTURE_2D, null);
@@ -245,7 +254,7 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries, data) {
       if (retries < MAX_IMAGE_RETRIES) {
         setTimeout(() => XGLUtils.loadTexture(gl, url, sRGB, onLoad, retries, data), 100 * retries++);
       } else {
-        console.error(`Failed to load ${url} after ${maxRetries} retries.`);
+        console.error(`Failed to load ${url} after ${MAX_IMAGE_RETRIES} retries.`);
       }
     };
 
