@@ -15,7 +15,6 @@ class XAttribute {
 
     this.buffer = null;
     this.texture = null;
-    this.textureUniform = opts.textureUniform || null;
 
     this.data = new Float32Array(this.components * this.count);
     this.bufferOffset = 0;
@@ -26,13 +25,16 @@ class XAttribute {
   }
 
   bind (scene, location = NO_SHADER_LOCATION) {
-    if (this.useTextures) {
-      this.updateTexture();
-      XGLUtils.bindTexture(this.gl, scene.getDrawingTextureUnit(), this.texture);
-    } else if (location !== NO_SHADER_LOCATION && location !== null) {
-      this.updateBuffer();
-      XGLUtils.bindVertexAttributeArray(this.gl, location, this.components);
-      return true;
+    if (location !== NO_SHADER_LOCATION && location !== null) {
+      if (this.useTexture) {
+        this.updateTexture();
+        this.texture.uniform.data = scene.getDrawingTextureUnit();
+        this.texture.bind(location);
+      } else {
+        this.updateBuffer();
+        XGLUtils.bindVertexAttributeArray(this.gl, location, this.components);
+        return true;
+      }
     }
 
     // return whether or not we used vertex attribute array
@@ -40,7 +42,7 @@ class XAttribute {
   }
 
   update () {
-    if (this.useTextures) {
+    if (this.useTexture) {
       this.updateTexture();
     } else {
       this.updateBuffer();
@@ -70,13 +72,10 @@ class XAttribute {
     this.isDirty = true;
   }
 
-  setTexture (texture, textureUniform) {
+  setTexture (texture) {
     this.texture = texture;
     this.useTexture = !!texture;
     this.isExternalTexture = !!texture;
-
-    if (textureUniform) this.textureUniform = textureUniform;
-    if (this.textureUniform) this.textureUniform.setTexture(texture);
   }
 
   updateTexture () {
@@ -87,10 +86,10 @@ class XAttribute {
     var height = this.textureHeight;
     var components = this.components;
     if (!this.texture) {
-      this.texture = XGLUtils.createTexture(this.gl, this.data, width, height, components);
-      if (this.textureUniform) this.textureUniform.setTexture(this.texture);
+      this.texture = new XTexture({ gl: this.gl, key: this.key + 'Texture' });
+      this.texture.setGLTexture(XGLUtils.createTexture(this.gl, this.data, width, height, components));
     } else {
-      XGLUtils.updateTexture(this.gl, this.texture, this.data, width, height, components);
+      XGLUtils.updateTexture(this.gl, this.texture.glTexture, this.data, width, height, components);
     }
   }
 
@@ -146,7 +145,7 @@ class XAttribute {
     this.buffer && XGLUtils.deleteBuffer(this.gl, this.buffer);
     this.buffer = null;
 
-    this.texture && XGLUtils.unloadTexture(this.gl, this.texture);
+    this.texture && XGLUtils.unloadTexture(this.gl, this.texture.glTexture);
     this.texture = null;
   }
 

@@ -12,7 +12,7 @@ class XFramebufferObject {
     this.colorsTexture = null;
 
     this.linkedAttributes = [];
-    this.linkedUniforms = [];
+    this.linkedTextures = [];
 
     this.init();
   }
@@ -42,16 +42,21 @@ class XFramebufferObject {
 
     attrib.textureWidth = width;
     attrib.textureHeight = height;
-    obj.setTextureForAttribute(this.colorsTexture, key);
+
+    var texture = new XTexture({ gl: this.gl, key: key + 'Texture' });
+    texture.setGLTexture(this.colorsTexture);
+    obj.setTextureForAttribute(texture, key);
   }
 
-  linkUniform (uniform) {
-    this.linkedUniforms.push(uniform);
-    this.updateLinkedUniform(uniform);
+  getLinkedTextureForUniform (key) {
+    var texture = new XTexture({ gl: this.gl, key });
+    this.linkedTextures.push(texture);
+    this.updateLinkedTexture(texture);
+    return texture;
   }
 
-  updateLinkedUniform (uniform) {
-    uniform.setTexture(this.colorsTexture);
+  updateLinkedTexture (texture) {
+    texture.setGLTexture(this.colorsTexture);
   }
 
   onResize (width, height) {
@@ -60,17 +65,17 @@ class XFramebufferObject {
 
     // preserve links since resize isn't a full removal
     var linkedAttribs = this.linkedAttributes;
-    var linkedUniforms = this.linkedUniforms;
+    var linkedTextures = this.linkedTextures;
 
     this.remove();
 
     this.linkedAttributes = linkedAttribs;
-    this.linkedUniforms = linkedUniforms;
+    this.linkedTextures = linkedTextures;
 
     this.init();
 
     linkedAttribs.forEach(link => this.updateLinkedAttribute(link));
-    linkedUniforms.forEach(uniform => this.updateLinkedUniform(uniform));
+    linkedTextures.forEach(texture => this.updateLinkedTexture(texture));
   }
 
   remove () {
@@ -83,7 +88,7 @@ class XFramebufferObject {
     this.colorsTexture = null;
 
     this.linkedAttributes = [];
-    this.linkedUniforms = [];
+    this.linkedTextures = [];
   }
 
 }

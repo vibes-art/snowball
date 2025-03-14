@@ -132,7 +132,6 @@ var UNI_KEY_ROUGHNESS = 'roughness';
 var UNI_KEY_ALBEDO_MAP = 'albedoMap';
 var UNI_KEY_NORMAL_MAP = 'normalMap';
 var UNI_KEY_ROUGHNESS_MAP = 'roughnessMap';
-var MATERIAL_TEXTURE_MAPS = [UNI_KEY_ALBEDO_MAP, UNI_KEY_NORMAL_MAP, UNI_KEY_ROUGHNESS_MAP];
 var UNI_KEY_SOURCE_TEXTURE = `sourceTexture`;
 var UNI_KEY_COLORS_TEXTURE = `${ATTR_KEY_COLORS}Texture`;
 var UNI_KEY_THRESHOLD = 'threshold';

@@ -348,6 +348,11 @@ class XShader {
       this.setUniformLocation(key);
     }
 
+    for (var key in obj.textures) {
+      var texture = obj.textures[key];
+      this.setUniformLocation(texture.uniform.key);
+    }
+
     if (obj.material) {
       this.locateUniforms(obj.material);
     }
@@ -356,6 +361,10 @@ class XShader {
   locateGlobalUniforms (dictionary) {
     for (var key in dictionary) {
       var uniform = dictionary[key];
+
+      if (uniform.getTextures) {
+        this.locateGlobalUniforms(uniform.getTextures());
+      }
 
       if (uniform.getUniforms) {
         this.locateGlobalUniforms(uniform.getUniforms());
@@ -367,7 +376,9 @@ class XShader {
         continue;
       }
 
-      this.setUniformLocation(uniform.key);
+      if (uniform.key) {
+        this.setUniformLocation(uniform.key);
+      }
     }
   }
 

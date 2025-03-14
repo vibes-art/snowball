@@ -1,6 +1,7 @@
 class XLight {
 
   constructor (opts) {
+    this.gl = opts.gl;
     this.key = opts.key || UNI_KEY_DIR_LIGHT;
     this.baseColor = opts.color || [1, 1, 1, 1];
     this.brightness = opts.brightness !== undefined ? opts.brightness : 1;
@@ -21,7 +22,7 @@ class XLight {
       if (ENABLE_SHADOWS) {
         this.index = new XUniform({ key: `${this.key}Index`, components: 1, type: UNI_TYPE_INT, data: index });
         this.viewProjMatrix = new XUniform({ key: `${this.key}ViewProjMatrices[${index}]`, type: UNI_TYPE_MATRIX });
-        this.shadowMap = new XUniform({ key: `${this.key}ShadowMap[${index}]`, components: 1, type: UNI_TYPE_INT });
+        this.shadowMap = new XTexture({ gl: this.gl, key: `${this.key}ShadowMap[${index}]` });
       }
     }
 
@@ -39,10 +40,17 @@ class XLight {
       if (ENABLE_SHADOWS) {
         uniforms.push(this.index);
         uniforms.push(this.viewProjMatrix);
-        uniforms.push(this.shadowMap);
       }
     }
     return uniforms;
+  }
+
+  getTextures () {
+    var textures = [];
+    if (ENABLE_SHADOWS && this.key !== UNI_KEY_POINT_LIGHT) {
+      textures.push(this.shadowMap);
+    }
+    return textures;
   }
 
   lookAt (lookAtPoint) {
@@ -65,9 +73,8 @@ class XLight {
   }
 
   addShadowMapTexture (depthTexture, textureUnit) {
-    this.shadowMap.data = textureUnit;
-    this.shadowMap.texture = depthTexture;
-    this.shadowMap.isReservedTextureUnit = true;
+    this.shadowMap.reserveTextureUnit(textureUnit);
+    this.shadowMap.setGLTexture(depthTexture);
     this.calculateViewMatrix();
   }
 

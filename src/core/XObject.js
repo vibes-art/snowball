@@ -15,6 +15,8 @@ class XObject {
 
     this.attributes = {};
     this.uniforms = {};
+    this.textures = {};
+
     this.matrices = null;
     this.material = null;
     this.parentObject = null;
@@ -33,6 +35,7 @@ class XObject {
   initialize (opts) {
     this.defineAttributes(opts);
     this.defineUniforms(opts);
+    this.defineTextures(opts);
     this.setMaterial(opts);
     this.setShader(opts);
     this.generate(opts);
@@ -55,22 +58,27 @@ class XObject {
     this.setModelMatrix(opts.modelMatrix);
   }
 
-  setShader (opts) {
-    var shader = opts.shader;
-    if (!shader) return;
-
-    this.shader = shader;
-    this.shader.connectObject(this);
-  }
+  defineTextures (opts) {}
 
   setMaterial (opts) {
     var material = opts.material || null;
     this.material = material;
     this.scene.updateObjectShader(this);
 
-    if (this.material && this.material.baseColor.data[3] !== 1) {
-      this.alpha = this.material.baseColor.data[3];
+    if (this.material) {
+      var baseColor = this.material.getUniformValue(UNI_KEY_BASE_COLOR);
+      if (this.alpha !== baseColor[3]) {
+        this.alpha = baseColor[3];
+      }
     }
+  }
+
+  setShader (opts) {
+    var shader = opts.shader;
+    if (!shader) return;
+
+    this.shader = shader;
+    this.shader.connectObject(this);
   }
 
   generate (opts) {
@@ -113,11 +121,6 @@ class XObject {
     opts.key = key;
     opts.gl = this.gl;
     opts.count = this.vertexCount;
-
-    if (opts.useTexture || opts.texture) {
-      opts.textureUniform = this.getTextureUniformForAttribute(key, opts);
-    }
-
     return this.attributes[key] = new XAttribute(opts);
   }
 
@@ -128,31 +131,17 @@ class XObject {
   addUniform (key, opts) {
     opts = opts || {};
     opts.key = key;
-
     return this.uniforms[key] = new XUniform(opts);
   }
 
-  setTextureForAttribute (texture, attribKey) {
-    var attrib = this.attributes[attribKey];
-    var uniform = this.getTextureUniformForAttribute(attribKey, { texture });
-    attrib.setTexture(texture, uniform);
+  addTexture (key, opts) {
+    opts = opts || {};
+    opts.key = key;
+    return this.textures[key] = new XTexture(opts);
   }
 
-  getTextureUniformForAttribute (attribKey, opts) {
-    opts = opts || {};
-
-    var uniformKey = `${attribKey}Texture`;
-    var uniform = this.uniforms[uniformKey];
-
-    if (!uniform) {
-      var uniformOpts = {};
-      uniformOpts.type = UNI_TYPE_INT;
-      uniformOpts.components = 1;
-      uniformOpts.texture = opts.texture || null;
-      uniform = this.addUniform(uniformKey, uniformOpts);
-    }
-
-    return uniform;
+  setTextureForAttribute (texture, attribKey) {
+    this.attributes[attribKey].setTexture(texture);
   }
 
   setModelMatrix (modelMatrix) {
@@ -272,6 +261,11 @@ class XObject {
 
   getUniforms () {
     return this.uniforms;
+  }
+
+  getTextures () {
+    // NOTE: XMaterial textures handled separately
+    return this.textures;
   }
 
   getVertexVectors (indices) {
@@ -415,10 +409,17 @@ class XObject {
 
     for (var key in this.attributes) {
       this.attributes[key].isDirty = false;
+
+      var texture = this.attributes[key].texture;
+      if (texture) texture.uniform.isDirty = false;
     }
 
     for (var key in this.uniforms) {
       this.uniforms[key].isDirty = false;
+    }
+
+    for (var key in this.textures) {
+      this.textures[key].uniform.isDirty = false;
     }
 
     if (this.matrices) {
@@ -431,6 +432,11 @@ class XObject {
       var uniforms = this.material.getUniforms();
       for (var key in uniforms) {
         uniforms[key].isDirty = false;
+      }
+
+      var textures = this.material.getTextures();
+      for (var key in textures) {
+        textures[key].uniform.isDirty = false;
       }
     }
   }

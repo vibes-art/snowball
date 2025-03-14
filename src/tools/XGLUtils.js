@@ -242,7 +242,7 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries, data) {
 
     XGLUtils.loadsActive--;
 
-    onLoad && onLoad(texture);
+    onLoad && onLoad(texture, img.width, img.height);
   }
 
   function loadWithImage () {
@@ -303,6 +303,7 @@ XGLUtils.unloadTexture = function (gl, texture) {
   }
 
   gl.deleteTexture(texture);
+  texture.isDeleted = true;
 };
 
 XGLUtils.processLoadQueue = function () {
@@ -412,4 +413,12 @@ XGLUtils.createDepthFramebuffer = function (gl, width, height) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
   return { framebuffer, depthTexture, debugColorTex };
+};
+
+XGLUtils.debug = function (gl) {
+  var error = gl.getError();
+  if (error !== gl.NO_ERROR) {
+    console.error(`WebGL error 0x${error.toString(16)}`);
+    debugger;
+  }
 };

@@ -15,10 +15,6 @@ class XBloomEffect {
     var threshold = opts.threshold || 1;
     var intensity = opts.intensity || 0.01;
 
-    var uniTexOpts = {};
-    uniTexOpts.type = UNI_TYPE_INT;
-    uniTexOpts.components = 1;
-
     var bloomOpts = {};
     bloomOpts.width = this.width;
     bloomOpts.height = this.height;
@@ -34,69 +30,71 @@ class XBloomEffect {
     var bloomHeight = round(bloomOpts.height * bloomOpts.scale);
 
     var extractUniforms = {};
-    extractUniforms[UNI_KEY_SOURCE_TEXTURE] = new XUniform({ key: UNI_KEY_SOURCE_TEXTURE, ...uniTexOpts });
     extractUniforms[UNI_KEY_THRESHOLD] = new XUniform({ key: UNI_KEY_THRESHOLD, data: threshold, components: 1 });
 
-    sourceFBO.linkUniform(extractUniforms[UNI_KEY_SOURCE_TEXTURE]);
+    var extractTextures = {};
+    extractTextures[UNI_KEY_SOURCE_TEXTURE] = sourceFBO.getLinkedTextureForUniform(UNI_KEY_SOURCE_TEXTURE);
 
     scene.addRenderPass(RENDER_PASS_BLOOM_EXTRACT, {
       framebufferKey: RENDER_PASS_BLOOM_EXTRACT,
       shader: new XBloomExtractShader({ scene: scene }),
       uniforms: extractUniforms,
+      textures: extractTextures,
       viewport: { scale: this.scale }
     });
 
     var blurHorzUniforms = {};
-    blurHorzUniforms[UNI_KEY_SOURCE_TEXTURE] = new XUniform({ key: UNI_KEY_SOURCE_TEXTURE, ...uniTexOpts });
-    extractFBO.linkUniform(blurHorzUniforms[UNI_KEY_SOURCE_TEXTURE]);
-
     blurHorzUniforms[UNI_KEY_TEXTURE_SIZE] = new XUniform({
       key: UNI_KEY_TEXTURE_SIZE,
       components: 1,
       data: bloomWidth
     });
-
     // save for update on resize
     this.uniforms.blurHorzUniforms = blurHorzUniforms;
+
+    var blurHorzTextures = {};
+    blurHorzTextures[UNI_KEY_SOURCE_TEXTURE] = extractFBO.getLinkedTextureForUniform(UNI_KEY_SOURCE_TEXTURE);
 
     scene.addRenderPass(RENDER_PASS_BLOOM_BLUR_HORZ, {
       framebufferKey: RENDER_PASS_BLOOM_BLUR_HORZ,
       shader: new XBloomBlurShader({ scene: scene, isHorizontal: true }),
       uniforms: blurHorzUniforms,
+      textures: blurHorzTextures,
       viewport: { scale: this.scale }
     });
 
     var blurVertUniforms = {};
-    blurVertUniforms[UNI_KEY_SOURCE_TEXTURE] = new XUniform({ key: UNI_KEY_SOURCE_TEXTURE, ...uniTexOpts });
-    blurHorzFBO.linkUniform(blurVertUniforms[UNI_KEY_SOURCE_TEXTURE]);
-
     blurVertUniforms[UNI_KEY_TEXTURE_SIZE] = new XUniform({
       key: UNI_KEY_TEXTURE_SIZE,
       components: 1,
       data: bloomHeight
     });
-
     // save for update on resize
     this.uniforms.blurVertUniforms = blurVertUniforms;
+
+    var blurVertTextures = {};
+    blurVertTextures[UNI_KEY_SOURCE_TEXTURE] = blurHorzFBO.getLinkedTextureForUniform(UNI_KEY_SOURCE_TEXTURE);
 
     scene.addRenderPass(RENDER_PASS_BLOOM_BLUR_VERT, {
       framebufferKey: RENDER_PASS_BLOOM_BLUR_VERT,
       shader: new XBloomBlurShader({ scene: scene, isHorizontal: false }),
       uniforms: blurVertUniforms,
+      textures: blurVertTextures,
       viewport: { scale: this.scale }
     });
 
     var combineUniforms = {};
-    combineUniforms[UNI_KEY_SOURCE_TEXTURE] = new XUniform({ key: UNI_KEY_SOURCE_TEXTURE, ...uniTexOpts });
-    combineUniforms[UNI_KEY_COMBINE_TEXTURE] = new XUniform({ key: UNI_KEY_COMBINE_TEXTURE, ...uniTexOpts });
     combineUniforms[UNI_KEY_INTENSITY] = new XUniform({ key: UNI_KEY_INTENSITY, data: intensity, components: 1 });
-    blurVertFBO.linkUniform(combineUniforms[UNI_KEY_COMBINE_TEXTURE]);
-    sourceFBO.linkUniform(combineUniforms[UNI_KEY_SOURCE_TEXTURE]);
+
+    var combineTextures = {};
+    combineTextures[UNI_KEY_COMBINE_TEXTURE] = blurVertFBO.getLinkedTextureForUniform(UNI_KEY_COMBINE_TEXTURE);
+    combineTextures[UNI_KEY_SOURCE_TEXTURE] = sourceFBO.getLinkedTextureForUniform(UNI_KEY_SOURCE_TEXTURE);
 
     scene.addRenderPass(RENDER_PASS_COMBINE_BLOOM, {
       framebufferKey: RENDER_PASS_COMBINE_BLOOM,
       shader: new XCombineShader({ scene: scene }),
-      uniforms: combineUniforms
+      uniforms: combineUniforms,
+      textures: combineTextures
     });
   }
 

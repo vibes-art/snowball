@@ -85,8 +85,8 @@ class XScene {
   initLights (opts) {
     var ambColor = (!SHOW_NORMAL_MAPS && opts.ambientLightColor) || AMBIENT_LIGHT;
     var bgColor = opts.backgroundColor || BG_COLOR;
-    this.lights[UNI_KEY_AMBIENT_LIGHT] = new XLight({ key: UNI_KEY_AMBIENT_LIGHT, color: ambColor });
-    this.lights[UNI_KEY_BACKGROUND_LIGHT] = new XLight({ key: UNI_KEY_BACKGROUND_LIGHT, color: bgColor });
+    this.lights[UNI_KEY_AMBIENT_LIGHT] = new XLight({ gl: this.gl, key: UNI_KEY_AMBIENT_LIGHT, color: ambColor });
+    this.lights[UNI_KEY_BACKGROUND_LIGHT] = new XLight({ gl: this.gl, key: UNI_KEY_BACKGROUND_LIGHT, color: bgColor });
     this.lights[UNI_KEY_DIR_LIGHT] = [];
     this.lights[UNI_KEY_SPOT_LIGHT] = [];
     this.lights[UNI_KEY_POINT_LIGHT] = [];
@@ -144,6 +144,7 @@ class XScene {
   addRenderPass (type, opts) {
     opts = opts || {};
     opts.uniforms = opts.uniforms || {};
+    opts.textures = opts.textures || {};
 
     var isBeforeMain = opts.isBeforeMain || false;
     var pass = { type, ...opts, isFirstDraw: true };
@@ -270,6 +271,7 @@ class XScene {
     this.needsShaderConnect = true;
 
     opts = opts || {};
+    opts.gl = this.gl;
     opts.key = key;
     opts.index = lights.length;
 
@@ -506,6 +508,7 @@ class XScene {
           this.applyUniforms(this.uniforms, shader, isNewShader);
           // render pass uniforms applied last to override any defaults
           this.applyUniforms(pass.uniforms, shader, isNewShader);
+          this.bindTextures(pass.textures, shader, isNewShader);
         }
 
         // apply object matrices, or switch back to scene matrices
@@ -644,6 +647,10 @@ class XScene {
   applyUniforms (dictionary, shader, force) {
     if (!dictionary) return;
 
+    if (dictionary.getTextures) {
+      this.bindTextures(dictionary.getTextures(), shader, force);
+    }
+
     if (dictionary.getUniforms) {
       this.applyUniforms(dictionary.getUniforms(), shader, force);
     } else {
@@ -658,6 +665,11 @@ class XScene {
 
     for (var i = 0; i < list.length; i++) {
       var item = list[i];
+
+      if (item.getTextures) {
+        this.bindTextures(item.getTextures(), shader, force);
+      }
+
       if (item.getUniforms) {
         this.applyUniformsList(item.getUniforms(), shader, force);
       } else {
@@ -666,11 +678,41 @@ class XScene {
     }
   }
 
-  applyUniform (uniform, shader, force) {
-    var location = shader.uniformLocations[uniform.key];
-    if (location === NO_SHADER_LOCATION || location === null) return;
+  bindTextures (textures, shader, force) {
+    if (textures.length) {
+      textures.forEach((texture) => this.bindTexture(texture, shader, force));
+    } else {
+      for (var key in textures) {
+        this.bindTexture(textures[key], shader, force);
+      }
+    }
+  }
 
-    if (uniform.texture && !uniform.isReservedTextureUnit) {
+  bindTexture (texture, shader, force) {
+    var uniform = texture.uniform;
+    if (!this.shouldApplyUniform(uniform, shader, force, !texture.isReservedTextureUnit)) return;
+
+    var location = shader.uniformLocations[uniform.key];
+    texture.bind(location);
+  }
+
+  applyUniform (uniform, shader, force) {
+    if (!this.shouldApplyUniform(uniform, shader, force, false)) return;
+
+    var location = shader.uniformLocations[uniform.key];
+    uniform.apply(this.gl, location);
+
+    this.stats.uniformCalls++;
+    VERBOSE && location && console.log(`uniform: ${uniform.key}, ${location}, ${uniform.data}`);
+  }
+
+  shouldApplyUniform (uniform, shader, force, isDrawingTextureUnit) {
+    var location = shader.uniformLocations[uniform.key];
+    if (location === NO_SHADER_LOCATION || location === null) {
+      return false;
+    }
+
+    if (isDrawingTextureUnit) {
       uniform.data = this.getDrawingTextureUnit();
     }
 
@@ -686,14 +728,12 @@ class XScene {
       if (lastUniform && XUtils.areValuesEqual(lastUniform.data, uniform.data)) {
         VERBOSE && console.log(`uniform SKIPPED: ${uniform.key}, ${location}, ${uniform.data}`);
         this.stats.uniformSkips++;
-        return;
+        return false;
       }
     }
 
     uniformMap.set(location, uniform);
-    uniform.apply(this.gl, location);
-    this.stats.uniformCalls++;
-    VERBOSE && location && console.log(`uniform: ${uniform.key}, ${location}, ${uniform.data}`);
+    return true;
   }
 
   applyAttributes (obj, shader) {
@@ -702,7 +742,9 @@ class XScene {
 
     for (var key in attributes) {
       var attribute = attributes[key];
-      var location = shader.attributeLocations[key];
+      var locKey = attribute.useTexture ? attribute.texture.uniform.key : key;
+      var locSrc = attribute.useTexture ? shader.uniformLocations : shader.attributeLocations;
+      var location = locSrc[locKey];
       var usedAttribs = attribute.bind(this, location);
       usedAttribs && attribs.push(location);
     }

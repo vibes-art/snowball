@@ -4,8 +4,6 @@ class XUniform {
     this.key = opts.key;
     this.type = opts.type || UNI_TYPE_FLOAT;
     this.components = opts.components || 4;
-    this.texture = null;
-    this.isReservedTextureUnit = false;
 
     this.fvData = null;
     this.ivData = null;
@@ -17,7 +15,6 @@ class XUniform {
     DEBUG_LOGS && this.validateData();
 
     if (opts.data !== undefined) this.data = opts.data;
-    if (opts.texture) this.setTexture(opts.texture);
   }
 
   initializeData () {
@@ -78,21 +75,8 @@ class XUniform {
     this.isDirty = true;
   }
 
-  setTexture (texture) {
-    this.texture = texture;
-    this.isDirty = true;
-  }
-
   apply (gl, location) {
     XGLUtils.applyUniform(gl, this.type, this.components, this.data, location);
-    this.texture && XGLUtils.bindTexture(gl, this.data, this.texture);
-  }
-
-  remove (gl) {
-    if (this.texture) {
-      XGLUtils.unloadTexture(gl, this.texture);
-      this.texture = null;
-    }
   }
 
 }

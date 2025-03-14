@@ -19,9 +19,7 @@ class XFont {
     data.glyphs.forEach(g => glyphs[g.unicode] = g);
     this.glyphs = glyphs;
 
-    this.sourceTexture = new XUniform({ key: UNI_KEY_SOURCE_TEXTURE, components: 1, type: UNI_TYPE_INT });
-
-    XGLUtils.loadTexture(gl, atlasPath, false, t => this.onFontAtlasLoaded(t));
+    this.sourceTexture = new XTexture({ gl, key: UNI_KEY_SOURCE_TEXTURE, url: atlasPath });
   }
 
   getGlyphsForText (text) {
@@ -50,10 +48,6 @@ class XFont {
   getGlyphByIndex (text, index) {
     var c = text.charCodeAt(index);
     return this.glyphs[c] || this.glyphs[ASCII_SPACE];
-  }
-
-  onFontAtlasLoaded (texture) {
-    this.sourceTexture.setTexture(texture);
   }
 
 }

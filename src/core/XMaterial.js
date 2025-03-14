@@ -3,83 +3,87 @@ var _materialUID = 1;
 class XMaterial {
 
   constructor (opts) {
+    this.gl = opts.gl;
+
     this.uid = _materialUID++;
-    this.loadCount = 0;
     this.useTextures = false;
-    this.onAllTexturesLoaded = null;
-    this.albedoPath = '';
-    this.normalPath = '';
-    this.roughnessPath = '';
+    this.isLoading = false;
+    this.isLoaded = false;
 
-    this.baseColor = new XUniform({ key: UNI_KEY_BASE_COLOR, data: opts.baseColor || [1, 1, 1, 1] });
-    this.emissiveColor = new XUniform({ key: UNI_KEY_EMISSIVE_COLOR, data: opts.emissiveColor || [0, 0, 0, 1] });
-    this.metallic = new XUniform({ key: UNI_KEY_METALLIC, components: 1, data: opts.metallic || 0 });
-    this.roughness = new XUniform({ key: UNI_KEY_ROUGHNESS, components: 1, data: opts.roughness || 0 });
+    this.uniforms = {};
+    this.textures = {};
 
-    this.uniforms = {
-      baseColor: this.baseColor,
-      emissiveColor: this.emissiveColor,
-      metallic: this.metallic,
-      roughness: this.roughness
+    this.addUniform(UNI_KEY_BASE_COLOR, { ...opts, defaultValue: [1, 1, 1, 1] });
+    this.addUniform(UNI_KEY_EMISSIVE_COLOR, { ...opts, defaultValue: [0, 0, 0, 1] });
+    this.addUniform(UNI_KEY_METALLIC, { ...opts, components: 1, defaultValue: 0 });
+    this.addUniform(UNI_KEY_ROUGHNESS, { ...opts, components: 1, defaultValue: 0 });
+
+    this.addTexture(UNI_KEY_ALBEDO_MAP, { sRGB: ENABLE_HDR });
+    this.addTexture(UNI_KEY_NORMAL_MAP);
+    this.addTexture(UNI_KEY_ROUGHNESS_MAP);
+
+    opts.path && this.loadAllTextures(opts.path, opts);
+  }
+
+  addUniform (key, opts) {
+    opts = opts || {};
+    opts.key = key;
+    opts.data = opts[key] !== undefined ? opts[key] : opts.defaultValue;
+    this.uniforms[key] = new XUniform(opts);
+  }
+
+  addTexture (key, opts) {
+    opts = opts || {};
+    opts.gl = this.gl;
+    opts.key = key;
+    opts.url = opts[key] || '';
+    this.textures[key] = new XTexture(opts);
+  }
+
+  loadAllTextures (path, opts) {
+    var onLoad = opts.onLoad || null;
+    var fileType = opts.fileType || 'png';
+    var normalPath = opts.normalPath || `${path}_normal`;
+    var roughnessPath = opts.roughnessPath || `${path}_roughness`;
+
+    var loadCount = 0;
+    var onLoadCallback = () => {
+      if (++loadCount === 3) {
+        this.isLoading = false;
+        this.isLoaded = true;
+        onLoad && onLoad();
+      }
     };
 
-    MATERIAL_TEXTURE_MAPS.forEach(key => {
-      this[key] = new XUniform({ key, components: 1, type: UNI_TYPE_INT });
-      this.uniforms[key] = this[key];
-      opts[key] && this.setMaterialTexture(key, opts[key]);
-    });
-  }
-
-  setMaterialTexture (key, texture) {
-    var uniform = this[key];
-    if (!uniform) return console.error(`Missing XMaterial texture for key: ${key}`);
-
     this.useTextures = true;
-    uniform.setTexture(texture);
+    this.isLoading = true;
+    this.isLoaded = false;
 
-    this.loadCount++;
-
-    if (this.onAllTexturesLoaded && this.loadCount === MATERIAL_TEXTURE_MAPS.length) {
-      this.onAllTexturesLoaded();
-    }
-  }
-
-  loadAllTextures (gl, path, onLoad, type, nPath, rPath) {
-    onLoad = onLoad || null;
-    type = type || 'png';
-    nPath = nPath || `${path}_normal`;
-    rPath = rPath || `${path}_roughness`;
-
-    this.loadCount = 0;
-    this.onAllTexturesLoaded = onLoad;
-    this.useTextures = true;
-
-    var albedoPath = this.albedoPath = `${path}.${type}`;
-    var normalPath = this.normalPath = `${nPath}.${type}`;
-    var roughnessPath = this.roughnessPath = `${rPath}.${type}`;
-
-    XGLUtils.loadTexture(gl, this.albedoPath, ENABLE_HDR, t => {
-      if (albedoPath !== this.albedoPath) return;
-      this.setMaterialTexture(UNI_KEY_ALBEDO_MAP, t);
-    });
-
-    XGLUtils.loadTexture(gl, this.normalPath, false, t => {
-      if (normalPath !== this.normalPath) return;
-      this.setMaterialTexture(UNI_KEY_NORMAL_MAP, t);
-    });
-
-    XGLUtils.loadTexture(gl, this.roughnessPath, false, t => {
-      if (roughnessPath !== this.roughnessPath) return;
-      this.setMaterialTexture(UNI_KEY_ROUGHNESS_MAP, t);
-    });
+    this.textures[UNI_KEY_ALBEDO_MAP].setURL(`${path}.${fileType}`, onLoadCallback);
+    this.textures[UNI_KEY_NORMAL_MAP].setURL(`${normalPath}.${fileType}`, onLoadCallback);
+    this.textures[UNI_KEY_ROUGHNESS_MAP].setURL(`${roughnessPath}.${fileType}`, onLoadCallback);
   }
 
   getUniforms () {
     return this.uniforms;
   }
 
-  remove (gl) {
-    MATERIAL_TEXTURE_MAPS.forEach((key) => this[key].remove(gl));
+  getTextures () {
+    return this.textures;
+  }
+
+  getUniformValue (key) {
+    return this.uniforms[key].data;
+  }
+
+  setUniformValue (key, value) {
+    return this.uniforms[key].data = value;
+  }
+
+  remove () {
+    for (var key in this.textures) {
+      this.textures[key].remove();
+    }
   }
 
 }
