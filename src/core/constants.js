@@ -44,7 +44,7 @@ function detectDevicePerformance () {
     }
   }
 
-  IS_MOBILE = isMobile || isLowMemory;
+  IS_MOBILE = isMobile;
   IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   IS_HEADLESS = /\bHeadlessChrome\//.test(navigator.userAgent);
 
