@@ -258,7 +258,7 @@ class XShader {
   }
 
   addFSFogHeader (opts) {
-    if (!ENABLE_FOG) return;
+    if (!ENABLE_FOG || opts.disableFog) return;
 
     this.fragmentShaderSource += `
       uniform vec3 ${UNI_KEY_FOG_COLOR};
@@ -306,7 +306,7 @@ class XShader {
       }
     }
 
-    if (ENABLE_FOG) {
+    if (ENABLE_FOG && !opts.disableFog) {
       this.fragmentShaderSource += `
         finalColor = fogCompute(finalColor);
       `;

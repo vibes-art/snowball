@@ -114,7 +114,13 @@ class XCanvas {
     });
   }
 
-  initEffects (opts) { /* override to add shader effects */}
+  initEffects (opts) {
+    this.effects.push(new XUIEffect({
+      scene: this.scene,
+      width: this.width,
+      height: this.height
+    }));
+  }
 
   initFullscreenQuad (opts) {
     this.fullscreenQuad = new XQuad({

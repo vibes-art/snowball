@@ -2,17 +2,28 @@ var TEXT_ALIGN_LEFT = 'left';
 var TEXT_ALIGN_RIGHT = 'right';
 var TEXT_ALIGN_CENTER = 'center';
 
+var TEXT_VERT_ALIGN_TOP = 'top';
+var TEXT_VERT_ALIGN_BOTTOM = 'bottom';
+var TEXT_VERT_ALIGN_CENTER = 'center';
+
 class XTextLine extends XObject {
 
   constructor (opts) {
     opts.type = opts.gl.TRIANGLE_STRIP;
-    opts.shader = opts.scene.getTextShader();
+    opts.shader = opts.shader !== undefined ? opts.shader : opts.scene.getTextShader();
     super(opts);
 
     this.font = opts.font;
     this.scale = opts.scale || 1;
-    this._align = opts.align || TEXT_ALIGN_CENTER;
     this._alpha = 0.99;
+
+    this._align = opts.align || TEXT_ALIGN_CENTER;
+    this.hasAligned = false;
+    this.previousAlignment = 0;
+
+    this._vertAlign = opts.vertAlign || TEXT_VERT_ALIGN_BOTTOM;
+    this.hasVertAligned = false;
+    this.previousVertAlignment = 0;
 
     this.setText(opts.text);
 
@@ -40,13 +51,28 @@ class XTextLine extends XObject {
     this.updateAttributes();
 
     var width = 0;
+    var height = 0;
     if (glyphs.length) {
       var lastGlyph = glyphs[glyphs.length - 1];
       width = lastGlyph.offsetX + lastGlyph.advanceX;
+
+      var top = 0;
+      for (var i = 0; i < glyphs.length; i++) {
+        var glyph = glyphs[i];
+        var pb = glyph.planeBounds || {};
+        var test = pb.top || 0;
+        if (test > top) {
+          top = test;
+        }
+      }
+
+      height = top;
     }
 
     this.width = width;
+    this.height = height;
     this.align = this.align; // trigger update
+    this.vertAlign = this.vertAlign;
   }
 
   get align () {
@@ -54,9 +80,18 @@ class XTextLine extends XObject {
   }
 
   set align (value) {
-    var oldValue = this._align;
     this._align = value;
-    this.updateAlignment(oldValue);
+    this.updateAlignment();
+    return value;
+  }
+
+  get vertAlign () {
+    return this._vertAlign;
+  }
+
+  set vertAlign (value) {
+    this._vertAlign = value;
+    this.updateVertAlignment();
     return value;
   }
 
@@ -197,13 +232,12 @@ class XTextLine extends XObject {
     return true;
   }
 
-  updateAlignment (oldAlign) {
+  updateAlignment () {
     var offsetX = 0;
     var width = this.width * this.scale;
 
-    switch (oldAlign) {
-      case TEXT_ALIGN_RIGHT: offsetX += width; break;
-      case TEXT_ALIGN_CENTER: offsetX += width / 2; break;
+    if (this.hasAligned) {
+      offsetX -= this.previousAlignment;
     }
 
     switch (this.align) {
@@ -213,6 +247,39 @@ class XTextLine extends XObject {
 
     var modelMatrix = this.getModelMatrix();
     this.setModelMatrix(XMatrix4.translate(modelMatrix, offsetX, 0, 0));
+
+    this.hasAligned = true;
+    this.previousAlignment = offsetX;
+  }
+
+  updateVertAlignment () {
+    var offsetY = 0;
+    var height = this.height * this.scale;
+
+    if (this.hasVertAligned) {
+      offsetY -= this.previousVertAlignment;
+    }
+
+    switch (this.vertAlign) {
+      case TEXT_VERT_ALIGN_TOP: offsetY -= height; break;
+      case TEXT_VERT_ALIGN_CENTER: offsetY -= height / 2; break;
+    }
+
+    var modelMatrix = this.getModelMatrix();
+    this.setModelMatrix(XMatrix4.translate(modelMatrix, 0, offsetY, 0));
+
+    this.hasVertAligned = true;
+    this.previousVertAlignment = offsetY;
+  }
+
+  setModelMatrix (modelMatrix) {
+    this.hasAligned = false;
+    this.previousAlignment = 0;
+
+    this.hasVertAligned = false;
+    this.previousVertAlignment = 0;
+
+    super.setModelMatrix(modelMatrix);
   }
 
 }

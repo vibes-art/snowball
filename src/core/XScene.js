@@ -189,14 +189,19 @@ class XScene {
     return this.framebufferObjects[key] = new XFramebufferObject(opts);
   }
 
-  getSourceFramebuffer () {
-    var sourceFBO = null;
+  getSourceFramebuffer (index) {
+    index = index !== undefined ? index : this.renderPasses.length - 1;
 
-    var passes = this.renderPasses;
-    var lastPass = passes[passes.length - 1];
+    var sourceFBO = null;
+    var lastPass = this.renderPasses[index];
+
     if (lastPass && lastPass.type) {
       var lastFBO = this.framebufferObjects[lastPass.type];
-      if (lastFBO) sourceFBO = lastFBO;
+      if (lastFBO) {
+        sourceFBO = lastFBO;
+      } else {
+        return this.getSourceFramebuffer(index - 1);
+      }
     }
 
     return sourceFBO;
@@ -416,20 +421,24 @@ class XScene {
         pass.isFirstDraw = false;
         gl.clearDepth(1.0);
         gl.enable(gl.BLEND);
-        gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
       }
 
       if (pass.type === RENDER_PASS_MAIN) {
         gl.enable(gl.CULL_FACE);
         gl.cullFace(gl.BACK);
+        gl.enable(gl.DEPTH_TEST);
+        gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      } else if (pass.type === RENDER_PASS_UI) {
+        gl.disable(gl.CULL_FACE);
+        gl.disable(gl.DEPTH_TEST);
         gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
       } else {
         gl.disable(gl.CULL_FACE);
         gl.blendFunc(gl.ONE, gl.ZERO);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       }
-
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
       var objects = [];
       var objectCount = this.objects.length;
