@@ -23,12 +23,6 @@ class XUIEffect {
       data: XMatrix4.get()
     });
 
-    // this.uniforms[UNI_KEY_FOG_COLOR] = new XUniform({
-    //   key: UNI_KEY_FOG_COLOR,
-    //   components: 3,
-    //   data: [1, 1, 1]
-    // });
-
     this.scene.addRenderPass(RENDER_PASS_UI, {
       framebufferKey: RENDER_PASS_MAIN,
       isBeforeMain: false,

@@ -448,8 +448,8 @@ class XObject {
       this.attributes[key].remove();
     }
 
-    for (var key in this.uniforms) {
-      this.uniforms[key].remove(this.gl);
+    for (var key in this.textures) {
+      this.textures[key].remove();
     }
 
     this.indexBuffer && XGLUtils.deleteBuffer(this.gl, this.indexBuffer);
