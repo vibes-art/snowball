@@ -91,7 +91,6 @@ var QUILT_RECURSION_DECREMENT = 0.1;
 var PRECISION = IS_MOBILE ? 'lowp' : 'highp';
 var RENDER_PASS_SHADOWS = 'shadows';
 var RENDER_PASS_MAIN = 'main';
-var RENDER_PASS_UI = 'ui';
 var RENDER_PASS_ANTIALIAS = 'antialias';
 var RENDER_PASS_BLOOM_EXTRACT = 'bloomExtract';
 var RENDER_PASS_BLOOM_BLUR_HORZ = 'bloomBlurHorz';

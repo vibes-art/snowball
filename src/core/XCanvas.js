@@ -114,13 +114,7 @@ class XCanvas {
     });
   }
 
-  initEffects (opts) {
-    this.effects.push(new XUIEffect({
-      scene: this.scene,
-      width: this.width,
-      height: this.height
-    }));
-  }
+  initEffects (opts) { /* override and push to this.effects */ }
 
   initFullscreenQuad (opts) {
     this.fullscreenQuad = new XQuad({

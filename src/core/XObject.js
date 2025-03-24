@@ -21,6 +21,7 @@ class XObject {
     this.material = null;
     this.parentObject = null;
     this.isActive = false;
+    this.ignoreFrustumCulling = false;
     this.distanceFromCamera = 0;
 
     this.indices = this.useIndices ? new Uint32Array(this.indexCount) : null;

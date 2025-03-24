@@ -430,10 +430,6 @@ class XScene {
         gl.enable(gl.DEPTH_TEST);
         gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      } else if (pass.type === RENDER_PASS_UI) {
-        gl.disable(gl.CULL_FACE);
-        gl.disable(gl.DEPTH_TEST);
-        gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
       } else {
         gl.disable(gl.CULL_FACE);
         gl.blendFunc(gl.ONE, gl.ZERO);
@@ -447,7 +443,7 @@ class XScene {
         if (!obj.renderPasses[pass.type] || !obj.isActive) continue;
 
         if (FRUSTUM_CULL_PASSES.indexOf(pass.type) !== -1) {
-          if (!obj.isInFrustum(frustumPlanes)) {
+          if (!obj.ignoreFrustumCulling && !obj.isInFrustum(frustumPlanes)) {
             this.stats.objectsCulled++;
             continue;
           }
