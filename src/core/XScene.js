@@ -32,6 +32,7 @@ class XScene {
     this.uniforms = {};
     this.lights = {};
     this.fonts = {};
+    this.fontsLoading = {};
     this.shadowShaders = {};
     this.matrices = {};
     this.viewport = {};
@@ -325,6 +326,15 @@ class XScene {
       return onLoad(cachedFont);
     }
 
+    var loadingFont = this.fontsLoading[path];
+    if (loadingFont) {
+      return loadingFont.callbacks.push(onLoad);
+    }
+
+    this.fontsLoading[path] = {
+      callbacks: [onLoad]
+    };
+
     XUtils.fetchJSON(`${path}data.json`, data => {
       var font = this.fonts[path] = new XFont({
         gl: this.gl,
@@ -332,7 +342,8 @@ class XScene {
         atlasPath: `${path}atlas.${type}`
       });
 
-      onLoad(font);
+      this.fontsLoading[path].callbacks.forEach(cb => cb(font));
+      delete this.fontsLoading[path];
     });
   }
 

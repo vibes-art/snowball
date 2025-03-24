@@ -217,8 +217,6 @@ class XCanvas {
     if (!floatTextureLinearExt && USE_FLOATING_POINT_TEXTURES) {
       USE_FLOATING_POINT_TEXTURES = false;
       ENABLE_LOGS && console.warn('Floating point textures fallback triggered.');
-      this.reset(false);
-      return false;
     }
 
     var colorBufferFloatExt = gl.getExtension('EXT_color_buffer_float');
