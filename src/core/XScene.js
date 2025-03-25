@@ -1,7 +1,9 @@
 var frameIndex = 0;
 
 var OBJECT_RENDER_SORT = function (a, b) {
-  if (a.alpha >= 1 && b.alpha >= 1) {
+  var aIsTransparent = a.isTransparent;
+  var bIsTransparent = b.isTransparent;
+  if (!aIsTransparent && !bIsTransparent) {
     // performance optimization for opaque objects
     var shaderDiff = a.shader.uid - b.shader.uid;
     if (shaderDiff === 0) {
@@ -10,9 +12,9 @@ var OBJECT_RENDER_SORT = function (a, b) {
       return aMatUID - bMatUID;
     }
     return shaderDiff;
-  } else if (a.alpha >= 1) {
+  } else if (!aIsTransparent) {
     return -1;
-  } else if (b.alpha >= 1) {
+  } else if (!bIsTransparent) {
     return 1;
   } else {
     return b.distanceFromCamera - a.distanceFromCamera;
@@ -438,14 +440,13 @@ class XScene {
       if (pass.type === RENDER_PASS_MAIN) {
         gl.enable(gl.CULL_FACE);
         gl.cullFace(gl.BACK);
-        gl.enable(gl.DEPTH_TEST);
         gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       } else {
         gl.disable(gl.CULL_FACE);
         gl.blendFunc(gl.ONE, gl.ZERO);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       }
+
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
       var objects = [];
       var objectCount = this.objects.length;
@@ -487,9 +488,14 @@ class XScene {
       }
 
       var isNewPass = true;
+      var hasStartedTransparencyPass = false;
 
       objects.forEach(obj => obj.updateCameraDistance(this.cameraPosition));
       objects.sort(OBJECT_RENDER_SORT);
+
+      gl.enable(gl.DEPTH_TEST);
+      gl.disable(gl.BLEND);
+      gl.depthMask(true);
 
       for (var i = 0; i < objects.length; i++) {
         // reset with each object
@@ -497,6 +503,12 @@ class XScene {
 
         var obj = objects[i];
         var material = obj.material;
+        if (!hasStartedTransparencyPass && obj.isTransparent && pass.type === RENDER_PASS_MAIN) {
+          hasStartedTransparencyPass = true;
+          gl.enable(gl.BLEND);
+          gl.depthMask(false);
+        }
+
         var shader = pass.shader || obj.shader;
         var isNewShader = isNewPass || this.lastShader !== shader;
         var isNewMaterial = isNewShader || this.lastMaterial !== material;

@@ -22,6 +22,7 @@ class XObject {
     this.parentObject = null;
     this.isActive = false;
     this.ignoreFrustumCulling = false;
+    this.hasTransparency = false;
     this.distanceFromCamera = 0;
 
     this.indices = this.useIndices ? new Uint32Array(this.indexCount) : null;
@@ -214,6 +215,12 @@ class XObject {
     }
 
     return value;
+  }
+
+  get isTransparent () {
+    return this.alpha < 1
+      || this.hasTransparency
+      || (this.material && this.material.hasTransparency);
   }
 
   get isDirty () {

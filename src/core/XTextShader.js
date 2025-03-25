@@ -34,8 +34,10 @@ class XTextShader extends XShader {
         float alphaEdge = screenPxDistance + 0.5;
         float opacity = smoothstep(0.0 - ${UNI_KEY_SOFTNESS}, 1.0 + ${UNI_KEY_SOFTNESS}, alphaEdge);
 
-        finalColor = mix(vec3(0.0), baseColor.rgb, opacity);
         alpha *= (baseColor.a * opacity);
+        if (alpha < 0.01) discard;
+
+        finalColor = mix(vec3(0.0), baseColor.rgb, opacity);
     `;
   }
 

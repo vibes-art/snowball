@@ -7,6 +7,7 @@ class XMaterial {
 
     this.uid = _materialUID++;
     this.useTextures = false;
+    this.hasTransparency = false;
     this.isLoading = false;
     this.isLoaded = false;
 

@@ -15,7 +15,8 @@ class XTextLine extends XObject {
 
     this.font = opts.font;
     this.scale = opts.scale || 1;
-    this._alpha = 0.99;
+    this._alpha = 1;
+    this.hasTransparency = true;
 
     this._align = opts.align || TEXT_ALIGN_CENTER;
     this.hasAligned = false;
