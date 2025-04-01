@@ -43,7 +43,7 @@ class XPBRTexShader extends XPBRShader {
         vec3 normalDir = normalize(vTBN * normalSample);
 
         vec4 texColor = texture(${UNI_KEY_ALBEDO_MAP}, vUV);
-        float alpha = texColor.a;
+        float alpha = texColor.a * vColor.a;
         vec3 tintColor = texColor.rgb;
         vec3 finalColor = vec3(0.0);
 

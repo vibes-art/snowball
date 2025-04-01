@@ -12,6 +12,7 @@ class XObject {
     this.useRandomColors = opts.useRandomColors || false;
     this.frontFace = opts.frontFace || opts.gl.CCW;
     this.invertNormals = opts.invertNormals || false;
+    this.hasTransparency = opts.hasTransparency || false;
 
     this.attributes = {};
     this.uniforms = {};
@@ -22,7 +23,6 @@ class XObject {
     this.parentObject = null;
     this.isActive = false;
     this.ignoreFrustumCulling = false;
-    this.hasTransparency = false;
     this.distanceFromCamera = 0;
 
     this.indices = this.useIndices ? new Uint32Array(this.indexCount) : null;
@@ -208,7 +208,7 @@ class XObject {
 
     this._alpha = value;
 
-    if (!this.material && this.hasAttribute(ATTR_KEY_COLORS)) {
+    if (this.hasAttribute(ATTR_KEY_COLORS)) {
       for (var i = 0; i < this.vertexCount; i++) {
         this.setValue(ATTR_KEY_COLORS, i, 3, value);
       }
