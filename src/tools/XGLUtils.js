@@ -251,7 +251,8 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries, data) {
     image.onload = () => uploadToGPU(image);
     image.onerror = () => {
       delete XGLUtils.textureCache[url];
-      console.error(`Error loading image: ${url}`);
+      XGLUtils.loadsActive--;
+
       if (retries < MAX_IMAGE_RETRIES) {
         setTimeout(() => XGLUtils.loadTexture(gl, url, sRGB, onLoad, retries, data), 100 * retries++);
       } else {

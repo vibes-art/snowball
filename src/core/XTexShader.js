@@ -31,11 +31,6 @@ class XTexShader extends XShader {
     );
 
     this.fragmentShaderSource = this.fragmentShaderSource.replace(
-      /vColor.a/g,
-      'texColor.a'
-    );
-
-    this.fragmentShaderSource = this.fragmentShaderSource.replace(
       /vec3 viewDir\) {/g,
       'vec3 viewDir, vec4 texColor) {'
     );
