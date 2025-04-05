@@ -273,9 +273,13 @@ class XShader {
   }
 
   addFSMainHeader (opts) {
+    var ambient = opts.disableLights
+      ? `vec3 ambient = vColor.rgb;`
+      : `vec3 ambient = vColor.rgb * ${UNI_KEY_AMBIENT_LIGHT}Color;`;
+
     this.fragmentShaderSource += `
       void main() {
-        vec3 ambient = vColor.rgb * ${UNI_KEY_AMBIENT_LIGHT}Color;
+        ${ambient}
         vec3 normalDir = normalize(vNormal.xyz);
         vec3 viewDir = normalize(vViewPos - vWorldPos.xyz); // frag to camera
         vec3 finalColor = ambient;

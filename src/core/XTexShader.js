@@ -54,6 +54,10 @@ class XTexShader extends XShader {
   }
 
   addFSMainHeader (opts) {
+    var ambient = opts.disableLights
+      ? `vec3 ambient = texColor.rgb;`
+      : `vec3 ambient = texColor.rgb * ${UNI_KEY_AMBIENT_LIGHT}Color;`;
+
     this.fragmentShaderSource += `
       void main() {
         vec3 viewDir = normalize(vViewPos - vWorldPos.xyz);
@@ -61,7 +65,7 @@ class XTexShader extends XShader {
         vec3 normalDir = normalize(vTBN * normalSample);
 
         vec4 texColor = texture(${UNI_KEY_ALBEDO_MAP}, vUV);
-        vec3 ambient = texColor.rgb * ${UNI_KEY_AMBIENT_LIGHT}Color;
+        ${ambient}
         vec3 finalColor = ambient;
         float alpha = texColor.a * vColor.a;
     `;
