@@ -53,7 +53,7 @@ class XTexture {
     if (!this.glTexture) return;
 
     if (this.glTexture.isDeleted && !this.isLoading) {
-      console.log(`reloading deleted texture: ${this.url}`);
+      DEBUG_LOGS && console.log(`reloading deleted texture: ${this.url}`);
       this.isLoaded = false;
       this.load();
       return;
