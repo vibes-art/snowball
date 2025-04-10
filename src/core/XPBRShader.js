@@ -136,7 +136,7 @@ class XPBRShader extends XShader {
       void main() {
         vec3 normalDir = normalize(vNormal.xyz);
         vec3 viewDir = normalize(vViewPos - vWorldPos.xyz);
-        vec3 tintColor = ${UNI_KEY_BASE_COLOR}.rgb;
+        vec3 tintColor = ${UNI_KEY_BASE_COLOR}.rgb * vColor.rgb;
         vec3 finalColor = ${UNI_KEY_EMISSIVE_COLOR}.rgb;
 
         float alpha = ${UNI_KEY_BASE_COLOR}.a;

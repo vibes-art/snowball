@@ -103,7 +103,7 @@ class XScene {
 
     var bgColor = opts.backgroundColor || BG_COLOR;
     var fogColor = opts.fogColor || bgColor;
-    var fogDensity = opts.fogDensity || 0.0001;
+    var fogDensity = opts.fogDensity || FOG_DENSITY;
     this.addUniform(UNI_KEY_FOG_COLOR, { components: 3, data: fogColor });
     this.addUniform(UNI_KEY_FOG_DENSITY, { components: 1, data: fogDensity });
   }

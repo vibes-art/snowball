@@ -205,7 +205,7 @@ class XShader {
         vec3 ndc = lightPos.xyz / lightPos.w;
         vec3 shadowUVdepth = ndc * 0.5 + 0.5;
 
-        float bias = 0.0008;
+        float bias = ${SHADOW_BIAS};
         float currentDepth = shadowUVdepth.z - bias;
         float texelSize = 0.5 / ${SHADOW_MAP_SIZE}.0;
         float shadowSum = 0.0;

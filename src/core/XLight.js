@@ -23,6 +23,7 @@ class XLight {
         this.index = new XUniform({ key: `${this.key}Index`, components: 1, type: UNI_TYPE_INT, data: index });
         this.viewProjMatrix = new XUniform({ key: `${this.key}ViewProjMatrices[${index}]`, type: UNI_TYPE_MATRIX });
         this.shadowMap = new XTexture({ gl: this.gl, key: `${this.key}ShadowMap[${index}]` });
+        this.shadowBounds = opts.shadowBounds || null;
       }
     }
 
@@ -81,8 +82,8 @@ class XLight {
   calculateViewMatrix () {
     if (!ENABLE_SHADOWS) return;
 
-    var boundingBox = CAMERA_Z_FAR / 2;
-    var corners = [
+    var boundingBox = CAMERA_Z_FAR / 5;
+    var shadowBounds = this.shadowBounds || [
       [-boundingBox, -boundingBox, -boundingBox],
       [-boundingBox, -boundingBox,  boundingBox],
       [-boundingBox,  boundingBox, -boundingBox],
@@ -96,8 +97,8 @@ class XLight {
     var minX = Infinity, maxX = -Infinity;
     var minY = Infinity, maxY = -Infinity;
     var minZ = Infinity, maxZ = -Infinity;
-    for (var i = 0; i < corners.length; i++) {
-      var cLight = XMatrix4.transformPoint(this.lookAtMatrix, corners[i]);
+    for (var i = 0; i < shadowBounds.length; i++) {
+      var cLight = XMatrix4.transformPoint(this.lookAtMatrix, shadowBounds[i]);
       if (cLight[0] < minX) minX = cLight[0];
       if (cLight[0] > maxX) maxX = cLight[0];
       if (cLight[1] < minY) minY = cLight[1];
