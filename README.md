@@ -33,11 +33,11 @@ python3 -m http.server
 localhost:8000
 ```
 
-## Blank Canvas
+## Demo
 
-By default, the engine serves a simple example, found in projects/blank.
+By default, the engine serves a simple example, found in projects/demo.
 
-## Credits
+## Acknowledgements
 
 * [MSDF Text Rendering](https://github.com/Chlumsky/msdf-atlas-gen) by Viktor Chlumský
 * [Kubelka-Munk Color Blending](https://github.com/rvanwijnen/spectral.js) by Ronald van Wijnen

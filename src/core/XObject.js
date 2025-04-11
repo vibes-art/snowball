@@ -13,6 +13,7 @@ class XObject {
     this.frontFace = opts.frontFace || opts.gl.CCW;
     this.invertNormals = opts.invertNormals || false;
     this.hasTransparency = opts.hasTransparency || false;
+    this.ignoreFrustumCulling = opts.ignoreFrustumCulling || false;
 
     this.attributes = {};
     this.uniforms = {};
@@ -22,7 +23,7 @@ class XObject {
     this.material = null;
     this.parentObject = null;
     this.isActive = false;
-    this.ignoreFrustumCulling = false;
+
     this.distanceFromCamera = 0;
 
     this.indices = this.useIndices ? new Uint32Array(this.indexCount) : null;

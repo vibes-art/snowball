@@ -1,8 +1,8 @@
 var USE_PBR = true;
 
 var MODEL_SCALE = 1;
-var FLOOR_WIDTH = 48 * MODEL_SCALE;
-var FLOOR_DEPTH = 22 * MODEL_SCALE;
+var FLOOR_WIDTH = 100 * MODEL_SCALE;
+var FLOOR_DEPTH = 200 * MODEL_SCALE;
 var WALL_HEIGHT = 12 * MODEL_SCALE;
 
 var CAMERA_FOV = 45 * PI / 180;
@@ -12,18 +12,18 @@ var CAMERA_VEL_MAX = 0.002 * MODEL_SCALE;
 var CAMERA_ACCEL_TIME = 2500;
 var CAMERA_X = 0;
 var CAMERA_Y = 1 * MODEL_SCALE;
-var CAMERA_Z = 2 * MODEL_SCALE;
-var SKY_COLOR = [0.37, 0.43, 0.49, 1];
+var CAMERA_Z = 1.5 * MODEL_SCALE;
+var SKY_COLOR = [0, 0, 1, 1];
 var FLOOR_COLOR = [0.49, 0.43, 0.37, 1];
 var AMBIENT_LIGHT = [0.05, 0.025, 0.0125];
 
 var FOG_COLOR = [4, 2, 1];
-var FOG_DENSITY = 0.00052;
-var SHADOW_BIAS = 0.006;
+var FOG_DENSITY = 0.004;
+var SHADOW_BIAS = 0.001;
 
-var SUN_X = 10 * FLOOR_WIDTH / 8;
-var SUN_Y = WALL_HEIGHT * 0.7;
-var SUN_Z = -10 * FLOOR_DEPTH;
+var SUN_X = 0.25 * FLOOR_WIDTH;
+var SUN_Y = 5 * WALL_HEIGHT;
+var SUN_Z = -FLOOR_DEPTH;
 var SPHERE_X = 0.13 * FLOOR_WIDTH;
 var SPHERE_Y = SUN_Y / 2;
 var SPHERE_Z = -FLOOR_DEPTH + 1;
@@ -37,9 +37,39 @@ var BOX_PAD = 1 * BOX_SIZE;
 var GRID_X = 0;
 var GRID_Y = 0;
 var GRID_Z = -1.5;
-var GRID_SIZE = 4;
+var GRID_SIZE = 20;
 
-class BlankCanvas extends XCanvas {
+var COLORS = [
+  { r: 176, g: 234, b: 219, weight: 9 },
+  { r: 0, g: 39, b: 71, weight: 9 },
+  { r: 16, g: 64, b: 76, weight: 9 },
+  { r: 66, g: 182, b: 181, weight: 9 },
+  { r: 0, g: 74, b: 91, weight: 9 },
+  { r: 252, g: 223, b: 143, weight: 8 },
+  { r: 247, g: 226, b: 208, weight: 8 },
+  { r: 250, g: 232, b: 189, weight: 4 },
+  { r: 255, g: 194, b: 0, weight: 4 },
+  { r: 253, g: 203, b: 76, weight: 4 },
+  { r: 249, g: 97, b: 41, weight: 4 },
+  { r: 209, g: 137, b: 21, weight: 3 },
+  { r: 255, g: 204, b: 199, weight: 3 },
+  { r: 253, g: 210, b: 112, weight: 3 },
+  { r: 238, g: 68, b: 64, weight: 2 },
+  { r: 162, g: 223, b: 220, weight: 2 },
+  { r: 23, g: 137, b: 141, weight: 2 },
+  { r: 146, g: 195, b: 134, weight: 2 },
+  { r: 255, g: 120, b: 109, weight: 2 },
+  { r: 2, g: 74, b: 117, weight: 2 },
+  { r: 255, g: 160, b: 5, weight: 1 },
+  { r: 0, g: 146, b: 204, weight: 1 },
+  { r: 255, g: 139, b: 0, weight: 1 },
+  { r: 255, g: 154, b: 130, weight: 1 },
+  { r: 225, g: 47, b: 57, weight: 1 }
+];
+
+
+
+class Demo extends XCanvas {
 
   constructor (opts) {
     super(opts);
@@ -53,7 +83,10 @@ class BlankCanvas extends XCanvas {
     var cx = GRID_X + gridWidth / 2;
     var cy = GRID_Y;
     var cz = GRID_Z + gridWidth / 2;
-    var bounds = gridWidth + BOX_SIZE;
+
+    // smaller bounds => crisper shadows, larger bounds hide the shadow behind the camera
+    // but without cascading shadow maps or other solution, we get a large "shadow" on the floor
+    var bounds = 1 * (gridWidth + BOX_SIZE);
 
     this.scene.addDirectionalLight({
       color: [5, 2.5, 1.25, 1],
@@ -76,7 +109,7 @@ class BlankCanvas extends XCanvas {
     this.camera = new XFlyingCamera({
       sensitivity: this.dragSensitivity,
       position: [CAMERA_X, CAMERA_Y, CAMERA_Z],
-      // lookAtPoint: [0, WALL_HEIGHT / 7, -FLOOR_DEPTH],
+      lookAtPoint: [GRID_X, GRID_Y, 5 * GRID_Z],
       velocityMax: CAMERA_VEL_MAX,
       accelTime: CAMERA_ACCEL_TIME
     });
@@ -165,20 +198,19 @@ class BlankCanvas extends XCanvas {
       emissiveColor: [5000, 100, 100, 1]
     });
 
-    var wallY = WALL_HEIGHT / 2;
     this.objects.walls = new XQuadBox({
       ...objOpts,
       material: this.materials.sky,
-      center: [0, wallY, -FLOOR_DEPTH / 2],
+      center: [CAMERA_X, WALL_HEIGHT / 2, CAMERA_Z],
       dimensions: [FLOOR_WIDTH, WALL_HEIGHT, FLOOR_DEPTH],
       isInverted: true,
-      skipFaces: [0, 1, 2, 4]
+      skipFaces: [0, 1, 2, 3, 4]
     });
 
-    var sky = this.objects.walls.quads[0];
-    var beach = this.objects.walls.quads[1];
+    // var sky = this.objects.walls.quads[0];
+    var beach = this.objects.walls.quads[0];
 
-    sky.enableRenderPass(RENDER_PASS_SHADOWS, false);
+    // sky.enableRenderPass(RENDER_PASS_SHADOWS, false);
     beach.setMaterial({ material: this.materials.beach });
 
     this.objects.sun = new XSphere({
@@ -189,6 +221,21 @@ class BlankCanvas extends XCanvas {
       material: this.materials.sun,
       modelMatrix: XMatrix4.getTranslation(SPHERE_X, SPHERE_Y, SPHERE_Z)
     });
+
+    this.objects.sky = new XSphere({
+      ...objOpts,
+      frontFace: this.gl.CW,
+      invertNormals: true,
+      ignoreFrustumCulling: true,
+      radius: CAMERA_Z_FAR / 2,
+      rings: 32,
+      segments: 64,
+      material: this.materials.sky,
+      modelMatrix: XMatrix4.getTranslation(CAMERA_X, CAMERA_Y, CAMERA_Z)
+    });
+
+    beach.enableRenderPass(RENDER_PASS_SHADOWS, false);
+    this.objects.sky.enableRenderPass(RENDER_PASS_SHADOWS, false);
 
     super.initObjects();
   }
