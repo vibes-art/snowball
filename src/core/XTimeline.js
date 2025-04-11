@@ -60,6 +60,14 @@ class XAnimation {
     this.calculate();
   }
 
+  get percent () {
+    var pct = 1;
+    if (this.duration > 0) {
+      pct = this.easing(max(0, min(1, this.elapsed / this.duration)));
+    }
+    return pct;
+  }
+
   calculate () {
     this.initial = {};
     this.delta = {};
@@ -74,9 +82,8 @@ class XAnimation {
   tick (dt) {
     this.elapsed += dt;
 
-    var pct = max(0, min(1, this.easing(this.elapsed / this.duration)));
     for (var key in this.initial) {
-      this.subject[key] = this.initial[key] + pct * this.delta[key];
+      this.subject[key] = this.initial[key] + this.percent * this.delta[key];
     }
 
     var isComplete = this.elapsed >= this.duration;

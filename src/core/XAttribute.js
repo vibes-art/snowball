@@ -9,62 +9,88 @@ class XAttribute {
     this.bufferTarget = opts.bufferTarget || 0;
 
     this.useTexture = opts.useTexture || false;
-    this.textureUnit = opts.textureUnit || 0;
+    this.isExternalTexture = false;
     this.textureWidth = opts.textureWidth || 0;
     this.textureHeight = opts.textureHeight || 0;
+
+    this.buffer = null;
+    this.texture = null;
 
     this.data = new Float32Array(this.components * this.count);
     this.bufferOffset = 0;
     this.bufferLength = 0;
     this.isDirty = true;
-    this.buffer = null;
-    this.texture = null;
+
+    opts.texture && this.setTexture(opts.texture);
   }
 
-  bindBuffer () {
-    if (this.useTexture) {
-      this.bindTexture();
-    } else {
-      this.buffer = XGLUtils.setBuffer(this.gl, this.buffer, this.data, {
-        offset: this.bufferOffset,
-        length: this.bufferLength,
-        isDirty: this.isDirty,
-        target: this.bufferTarget ? this.bufferTarget : undefined
-      });
+  bind (scene, location = NO_SHADER_LOCATION) {
+    if (location !== NO_SHADER_LOCATION && location !== null) {
+      if (this.useTexture) {
+        this.updateTexture();
+        this.texture.uniform.data = scene.getDrawingTextureUnit();
+        this.texture.bind(location);
+      } else {
+        this.updateBuffer();
+        XGLUtils.bindVertexAttributeArray(this.gl, location, this.components);
+        return true;
+      }
     }
 
-    this.isDirty = false;
+    // return whether or not we used vertex attribute array
+    return false;
+  }
+
+  update () {
+    if (this.useTexture) {
+      this.updateTexture();
+    } else {
+      this.updateBuffer();
+    }
+  }
+
+  updateBuffer () {
+    this.buffer = XGLUtils.setBuffer(this.gl, this.buffer, this.data, {
+      offset: this.bufferOffset,
+      length: this.bufferLength,
+      isDirty: this.isDirty,
+      target: this.bufferTarget ? this.bufferTarget : undefined
+    });
+
     this.bufferOffset = 0;
     this.bufferLength = 0;
   }
 
-  bindTexture () {
-    if (!this.isDirty) return;
+  updateVertexCount (count) {
+    this.count = count;
+    this.data = new Float32Array(this.components * this.count);
 
-    var gl = this.gl;
-    var data = this.data;
+    this.buffer && XGLUtils.deleteBuffer(this.gl, this.buffer);
+    this.buffer = null;
+    this.bufferOffset = 0;
+    this.bufferLength = 0;
+    this.isDirty = true;
+  }
+
+  setTexture (texture) {
+    this.texture = texture;
+    this.useTexture = !!texture;
+    this.isExternalTexture = !!texture;
+  }
+
+  updateTexture () {
+    // only internal textures are created and updated from data
+    if (!this.isDirty || this.isExternalTexture) return;
+
     var width = this.textureWidth;
     var height = this.textureHeight;
     var components = this.components;
-
     if (!this.texture) {
-      this.texture = XGLUtils.createTexture(gl, data, width, height, components);
+      this.texture = new XTexture({ gl: this.gl, key: this.key + 'Texture' });
+      this.texture.setGLTexture(XGLUtils.createTexture(this.gl, this.data, width, height, components));
+    } else {
+      XGLUtils.updateTexture(this.gl, this.texture.glTexture, this.data, width, height, components);
     }
-
-    var internalFormat, format;
-    switch (components) {
-      case 4: internalFormat = gl.RGBA32F; format = gl.RGBA; break;
-      case 3: internalFormat = gl.RGB32F; format = gl.RGB; break;
-      case 1: internalFormat = gl.R32F; format = gl.RED; break;
-      default: console.error("Unsupported component size: " + components);
-    }
-
-    if (data.length !== width * height * components) {
-      console.error("Data size does not match texture dimensions.");
-    }
-
-    XGLUtils.bindTexture(gl, this.textureUnit, this.texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, gl.FLOAT, data, 0);
   }
 
   getValue (vertexIndex, componentIndex) {
@@ -116,15 +142,11 @@ class XAttribute {
   }
 
   remove () {
-    if (this.buffer) {
-      this.gl.deleteBuffer(this.buffer);
-      this.buffer = null;
-    }
+    this.buffer && XGLUtils.deleteBuffer(this.gl, this.buffer);
+    this.buffer = null;
 
-    if (this.texture) {
-      this.gl.deleteTexture(this.texture);
-      this.texture = null;
-    }
+    this.texture && XGLUtils.unloadTexture(this.gl, this.texture.glTexture);
+    this.texture = null;
   }
 
 }

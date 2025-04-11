@@ -1,4 +1,4 @@
-var QUAD_TRIANGLE_INDICES = [[0, 1, 2], [0, 2, 3]];
+var QUAD_TRIANGLE_INDICES = [0, 1, 2, 0, 2, 3];
 
 class XQuad extends XObject {
 
@@ -12,7 +12,7 @@ class XQuad extends XObject {
 
   initialize (opts) {
     this.vertices = opts.vertices;
-    this.generatedNormals = [];
+    this.color = opts.color || [0.5, 0.5, 0.5, 1];
 
     super.initialize(opts);
   }
@@ -22,83 +22,12 @@ class XQuad extends XObject {
 
     this.addAttribute(ATTR_KEY_NORMALS);
     this.addAttribute(ATTR_KEY_COLORS, { components: 4 });
+    this.addAttribute(ATTR_KEY_TEX_COORDS, { components: 2 });
+    this.addAttribute(ATTR_KEY_TANGENTS, { components: 3 });
   }
 
-  generate (opts) {
-    super.generate(opts);
-
-    var vertices = this.vertices;
-    if (!vertices || vertices.length < this.vertexCount) {
-      console.error(`Missing XQuad vertices data.`);
-    }
-
-    // set position first
-    for (var i = 0; i < vertices.length; i++) {
-      var vertex = vertices[i];
-      this.setPosition(i, vertex.position);
-    }
-
-    // calculate normals after
-    this.generateAllNormals();
-    for (var i = 0; i < vertices.length; i++) {
-      var vertex = vertices[i];
-      this.setAttribute(ATTR_KEY_NORMALS, i, this.calculateNormal(i));
-    }
-
-    // set colors last
-    for (var i = 0; i < vertices.length; i++) {
-      this.setAttribute(ATTR_KEY_COLORS, i, this.calculateColor(i));
-    }
-  }
-
-  generateAllNormals () {
-    this.generatedNormals.length = 0;
-    for (var i = 0; i < this.vertexCount; i++) {
-      this.generatedNormals.push([0, 0, 0]);
-    }
-
-    for (var t = 0; t < QUAD_TRIANGLE_INDICES.length; t++) {
-      var idx0 = QUAD_TRIANGLE_INDICES[t][0];
-      var idx1 = QUAD_TRIANGLE_INDICES[t][1];
-      var idx2 = QUAD_TRIANGLE_INDICES[t][2];
-      var v0 = this.getPosition(idx0);
-      var v1 = this.getPosition(idx1);
-      var v2 = this.getPosition(idx2);
-      var e1 = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
-      var e2 = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
-
-      var n = [
-        e1[1] * e2[2] - e1[2] * e2[1],
-        e1[2] * e2[0] - e1[0] * e2[2],
-        e1[0] * e2[1] - e1[1] * e2[0]
-      ];
-
-      var length = Math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
-      if (length > 0) {
-        n[0] /= length;
-        n[1] /= length;
-        n[2] /= length;
-      }
-
-      for (var j = 0; j < 3; j++) {
-        var idx = QUAD_TRIANGLE_INDICES[t][j];
-        this.generatedNormals[idx][0] += n[0];
-        this.generatedNormals[idx][1] += n[1];
-        this.generatedNormals[idx][2] += n[2];
-      }
-    }
-  }
-
-  calculateNormal (i) {
-    var indexNormal = this.generatedNormals[i];
-    var nx = indexNormal[0];
-    var ny = indexNormal[1];
-    var nz = indexNormal[2];
-    var length = sqrt(nx * nx + ny * ny + nz * nz) || 1;
-    nx /= length;
-    ny /= length;
-    nz /= length;
-    return [nx, ny, nz];
+  getVertexVectors () {
+    return super.getVertexVectors(QUAD_TRIANGLE_INDICES);
   }
 
   calculateColor (i) {
@@ -108,13 +37,67 @@ class XQuad extends XObject {
     }
 
     var vertex = this.vertices[i];
-    var color = vertex.color || [0.5, 0.5, 0.5, 1];
+    var color = vertex.color || this.color;
     return [
-      color[0] || 0.5,
-      color[1] || 0.5,
-      color[2] || 0.5,
-      color[3] !== undefined ? color[3] : 1.0
+      color[0], color[1], color[2],
+      color[3] !== undefined ? color[3] : 1
     ];
+  }
+
+  calculateTextureCoord (i) {
+    switch (i) {
+      case 0: return [1.0, 1.0];
+      case 1: return [1.0, 0.0];
+      case 2: return [0.0, 0.0];
+      case 3: return [0.0, 1.0];
+    }
+  }
+
+  intersectsRay (rayOrigin, rayDir) {
+    var v = this.getWorldVertices();
+    var tMin = MAX_SAFE_INTEGER;
+    var hit = false;
+
+    for (var i = 0; i < QUAD_TRIANGLE_INDICES.length; i += 3) {
+      var idx0 = QUAD_TRIANGLE_INDICES[i + 0];
+      var idx1 = QUAD_TRIANGLE_INDICES[i + 1];
+      var idx2 = QUAD_TRIANGLE_INDICES[i + 2];
+
+      var t = XVector3.rayIntersectsTriangle(rayOrigin, rayDir, v[idx0], v[idx1], v[idx2]);
+      if (t !== null && t >= 0 && t < tMin) {
+        tMin = t;
+        hit = true;
+      }
+    }
+
+    if (!hit) {
+      return null;
+    } else {
+      return tMin;
+    }
+  }
+
+  isInFrustum (planes) {
+    var worldVertices = this.getWorldVertices();
+
+    for (var p = 0; p < planes.length; p++) {
+      var plane = planes[p];
+      var outCount = 0;
+
+      for (var v = 0; v < worldVertices.length; v++) {
+        var x = worldVertices[v][0];
+        var y = worldVertices[v][1];
+        var z = worldVertices[v][2];
+        var dist = plane[0] * x + plane[1] * y + plane[2] * z + plane[3];
+        if (dist < 0) outCount++;
+      }
+
+      if (outCount === worldVertices.length) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
 }

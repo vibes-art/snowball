@@ -5,10 +5,22 @@ class XCanvas {
 
   constructor (opts) {
     this.type = opts.type || CANVAS_WEBGL;
-    this.canvasOpts = opts.canvasOpts || {};
-    this.width = opts.width || 0;
-    this.height = opts.height || 0;
-    this.scale = opts.scale || 0;
+    this.canvasOpts = opts.canvasOpts || {
+      antialias: USE_MSAA,
+      depth: true,
+      alpha: false
+    };
+
+    this.useSupersampleAA = this.type === CANVAS_WEBGL
+      && AA_SUPERSAMPLE !== 1;
+    this.renderScale = this.useSupersampleAA ? AA_SUPERSAMPLE : 1;
+    this.x = 0;
+    this.y = 0;
+    this.width = ceil(this.renderScale * (opts.width || 0));
+    this.height = ceil(this.renderScale * (opts.height || 0));
+    this.isWindowFit = this.width === 0;
+    this.aspectRatioMin = opts.aspectRatioMin || 0;
+    this.aspectRatioMax = opts.aspectRatioMax || 0;
 
     this.canvas = null;
     this.ctx = null;
@@ -21,7 +33,7 @@ class XCanvas {
     this.acceptInput = false;
     this.isDragging = false;
     this.dragLast = { x: 0, y: 0 };
-    this.isWindowFit = this.width === 0;
+    this.effects = [];
 
     window.onload = () => this.init();
   }
@@ -41,13 +53,13 @@ class XCanvas {
       hasWorkingGL = hasWorkingGL && this.checkGL();
     }
 
-    this.resizeCanvas();
-
     if (isWebGL) {
-      hasWorkingGL && this.initScene();
+      this.initScene();
     } else {
       this.prepareRenderLoop();
     }
+
+    this.resizeCanvas();
 
     this.isInitialized = true;
   }
@@ -57,23 +69,40 @@ class XCanvas {
     opts.projectionMatrix = this.getProjectionMatrix();
 
     this.scene = new XScene({ gl: this.gl, ...opts });
+    this.scene.addFramebuffer(RENDER_PASS_MAIN, {
+      width: this.width,
+      height: this.height
+    });
 
     this.initLights(opts);
     this.initShader(opts);
     this.initCamera(opts);
+    this.initEffects(opts);
+    this.initFullscreenQuad(opts);
 
     this.onNextFrame(() => this.initObjects());
   }
 
   initLights (opts) {
-    this.scene.addLight({
-      color: [0.5, 0.5, 0.5, 1],
-      direction: [-0.5, 1, -0.25]
+    this.scene.addDirectionalLight({
+      color: [1, 1, 1, 1],
+      position: [1, 3, 5],
+      lookAtPoint: [0, 0, 0]
     });
   }
 
   initShader (opts) {
-    this.shader = new XShader({ scene: this.scene });
+    if (!this.shader) {
+      if (USE_PBR) {
+        this.shader = new XPBRShader({ scene: this.scene });
+        this.textureShader = new XPBRTexShader({ scene: this.scene });
+      } else {
+        this.shader = new XShader({ scene: this.scene });
+        this.textureShader = new XTexShader({ scene: this.scene });
+      }
+    }
+
+    this.scene.setPrimaryShaders(this.shader, this.textureShader);
   }
 
   initCamera (opts) {
@@ -84,6 +113,36 @@ class XCanvas {
       velocityMax: opts.cameraVelocityMax,
       accelTime: opts.cameraAccelTime
     });
+  }
+
+  initEffects (opts) { /* override and push to this.effects */ }
+
+  initFullscreenQuad (opts) {
+    this.fullscreenQuad = new XQuad({
+      gl: this.gl,
+      scene: this.scene,
+      shader: new XFinalColorShader({ scene: this.scene }),
+      vertices: [
+        { position: [-1, -1, 0], color: [1, 1, 1, 1] },
+        { position: [ 1, -1, 0], color: [1, 1, 1, 1] },
+        { position: [ 1,  1, 0], color: [1, 1, 1, 1] },
+        { position: [-1,  1, 0], color: [1, 1, 1, 1] }
+      ]
+    });
+
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_SHADOWS, false);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_MAIN, false);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_EXTRACT, true);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_BLUR_HORZ, true);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_BLOOM_BLUR_VERT, true);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_COMBINE_BLOOM, true);
+    this.fullscreenQuad.enableRenderPass(RENDER_PASS_ANTIALIAS, true);
+
+    // get the final framebuffer before antialiasing as our source color
+    var sourceFBO = this.scene.getSourceFramebuffer();
+    sourceFBO.linkAttribute(this.fullscreenQuad, ATTR_KEY_COLORS);
+
+    this.scene.addRenderPass(RENDER_PASS_ANTIALIAS);
   }
 
   initObjects () {
@@ -108,6 +167,8 @@ class XCanvas {
     XClock.reset();
     XTimeline.reset();
     this.onTickListener = null;
+    this.shader = null;
+    this.textureShader = null;
 
     setTimeout(() => this.init(), 0);
   }
@@ -131,9 +192,9 @@ class XCanvas {
   setDimensions () {
     this.windowWidth = window.innerWidth;
     this.windowHeight = window.innerHeight;
-    this.width = this.isWindowFit ? this.windowWidth : this.width;
-    this.height = this.isWindowFit ? this.windowHeight : this.height;
-    this.dragSensitivity = PI / this.width;
+    this.width = this.isWindowFit ? ceil(this.renderScale * this.windowWidth) : this.width;
+    this.height = this.isWindowFit ? ceil(this.renderScale * this.windowHeight) : this.height;
+    this.dragSensitivity = PI / this.windowWidth;
   }
 
   createElements () {
@@ -156,14 +217,19 @@ class XCanvas {
     var floatTextureLinearExt = gl.getExtension('OES_texture_float_linear');
     if (!floatTextureLinearExt && USE_FLOATING_POINT_TEXTURES) {
       USE_FLOATING_POINT_TEXTURES = false;
-      console.log('Floating point textures fallback triggered.');
-      this.reset(false);
-      return false;
+      ENABLE_LOGS && console.warn('Floating point textures fallback triggered.');
     }
 
     var colorBufferFloatExt = gl.getExtension('EXT_color_buffer_float');
     if (!colorBufferFloatExt) {
-      console.error('EXT_color_buffer_float is not supported!');
+      ENABLE_COLOR_BUFFER_FLOAT = false;
+      ENABLE_LOGS && console.warn('EXT_color_buffer_float is not supported!');
+    };
+
+    var colorBufferHalfFloatExt = gl.getExtension('EXT_color_buffer_half_float');
+    if (!colorBufferHalfFloatExt) {
+      ENABLE_COLOR_BUFFER_HALF_FLOAT = false;
+      ENABLE_LOGS && console.warn('EXT_color_buffer_half_float is not supported!');
     };
 
     this.canvas.addEventListener('webglcontextlost', (evt) => {
@@ -187,23 +253,44 @@ class XCanvas {
     width = width || this.width;
     height = height || this.height;
 
+    if (canvas === this.canvas) {
+      var aspect = width / height;
+      if (this.aspectRatioMax && aspect > this.aspectRatioMax) {
+        width = this.aspectRatioMax * height;
+      }
+
+      if (this.aspectRatioMin && aspect < this.aspectRatioMin) {
+        height = width / this.aspectRatioMin;
+      }
+    }
+
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
       canvas.height = height;
     }
 
-    var scale = this.scale || this.windowHeight / height;
-    canvas.style.scale = scale;
-    canvas.style.top = '0';
-    canvas.style.left = floor((this.windowWidth - width) / 2) + 'px';
-    canvas.style.bottom = '0';
-    canvas.style.right = '0';
-    canvas.style.margin = 'auto';
-    canvas.style.position = 'absolute';
+    if (canvas === this.canvas) {
+      var scaledWidth = ceil(width / this.renderScale);
+      var scaledHeight = ceil(height / this.renderScale);
+      this.x = (this.windowWidth - scaledWidth) / 2;
+      this.y = (this.windowHeight - scaledHeight) / 2;
+      canvas.style.left = this.x + 'px';
+      canvas.style.top = this.y + 'px';
+      canvas.style.width = scaledWidth + 'px';
+      canvas.style.height = scaledHeight + 'px';
+      canvas.style.margin = 'none';
+      canvas.style.position = 'absolute';
 
-    if (canvas === this.canvas && this.gl) {
-      this.gl.viewport(0, 0, width, height);
-      this.scene && (this.scene.matrices.projection.data = this.getProjectionMatrix());
+      this.gl && this.onGLResize(width, height);
+    }
+  }
+
+  onGLResize (width, height) {
+    this.gl.viewport(0, 0, width, height);
+
+    if (this.scene) {
+      this.scene.onResize(width, height, this.getProjectionMatrix());
+      this.effects.forEach(effect => effect.onResize(width, height));
     }
   }
 
@@ -221,7 +308,7 @@ class XCanvas {
     window.addEventListener("mousedown", (evt) => this.onMouseDown(evt));
     window.addEventListener("mousemove", (evt) => this.onMouseMove(evt));
     window.addEventListener("mouseup", (evt) => this.onMouseUp(evt));
-    window.addEventListener("wheel", (evt) => this.onMouseWheel(evt));
+    window.addEventListener("wheel", (evt) => this.onMouseWheel(evt), { passive: false });
     window.addEventListener("touchstart", (evt) => this.onTouchStart(evt), { passive: false });
     window.addEventListener("touchmove", (evt) => this.onTouchMove(evt), { passive: false });
     window.addEventListener("touchend", (evt) => this.onTouchEnd(evt), { passive: false });
@@ -280,9 +367,41 @@ class XCanvas {
   }
 
   onMouseWheel (evt) { this.camera && this.camera.onMouseWheel(evt); }
-  onTouchStart (evt) { this.camera && this.camera.onTouchStart(evt); }
-  onTouchMove (evt) { this.camera && this.camera.onTouchMove(evt); }
-  onTouchEnd (evt) { this.camera && this.camera.onTouchEnd(evt); }
+
+  // by default, touch events mimic mouse events
+  onTouchStart (touchEvt) {
+    touchEvt.preventDefault();
+
+    var touch = touchEvt.touches[0];
+    if (touch) {
+      this.onMouseDown({
+        x: touch.clientX,
+        y: touch.clientY
+      });
+    }
+  }
+
+  onTouchMove (touchEvt) {
+    touchEvt.preventDefault();
+
+    var touch = touchEvt.touches[0];
+    if (touch) {
+      this.onMouseMove({
+        x: touch.clientX,
+        y: touch.clientY
+      });
+    }
+  }
+
+  onTouchEnd (touchEvt) {
+    var touch = touchEvt.changedTouches[0];
+    if (touch) {
+      this.onMouseUp({
+        x: touch.clientX,
+        y: touch.clientY
+      });
+    }
+  }
 
   saveOutput (opts) {
     opts = opts || {};
@@ -338,7 +457,7 @@ class XCanvas {
 
   updateCamera (dt) {
     this.camera.onTick(dt, this.keysDown);
-    this.scene.matrices.view.data = this.camera.getViewMatrix();
+    this.scene.setViewMatrix(this.camera.getViewMatrix());
   }
 
   draw (dt, dtReal) {

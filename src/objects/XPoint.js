@@ -18,7 +18,7 @@ class XPoint extends XObject {
 
   generate (opts) {
     super.generate(opts);
-    this.setPosition(0, [0, 0, 0]);
+    this.setAttribute(ATTR_KEY_POSITIONS, 0, [0, 0, 0]);
     this.setColor([1, 1, 1, 1]);
   }
 

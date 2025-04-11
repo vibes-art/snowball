@@ -52,6 +52,29 @@ XUtils.normalize = function (a) {
   return a;
 };
 
+XUtils.areValuesEqual = function (a, b) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }
+
+  if (a instanceof Float32Array && b instanceof Float32Array) {
+    if (a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }
+
+  return false;
+};
+
 XUtils.choose = function (a) {
   return a[floor(a.length * random())];
 };
@@ -356,12 +379,12 @@ XUtils.recurseQuilt = function (x0, z0, dx, dz, depth, opts) {
     return;
   };
 
-  var centerPoint = opts.centerPoint || { x: dx / 2, z: dz / 2, isCentered: true };
+  var center = opts.center || { x: dx / 2, z: dz / 2, isCentered: true };
   var buffer = (opts.buffer || 0) / (depth + 1);
-  var x1 = centerPoint.x;
-  var z1 = centerPoint.z;
+  var x1 = center.x;
+  var z1 = center.z;
   if (depth > 0) {
-    var goldenCircle = XUtils.getGoldenCircle(dx / 2, dx, dz, centerPoint);
+    var goldenCircle = XUtils.getGoldenCircle(dx / 2, dx, dz, center);
     x1 = x0 + goldenCircle.x;
     z1 = z0 + goldenCircle.z;
   }
@@ -483,4 +506,11 @@ XUtils.reduceImage = function (img, w, h) {
 
   dCtx.putImageData(destData, 0, 0);
   return destCan;
+};
+
+XUtils.fetchJSON = function (path, onLoad) {
+  fetch(path)
+    .then(response => response.json())
+    .then(data => onLoad(data))
+    .catch(error => console.error('Error fetching data:', error));
 };

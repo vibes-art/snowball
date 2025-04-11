@@ -1,12 +1,20 @@
 var BOX_VERTEX_SIGNS = [[-1,1,1],[ 1,1,1],[ 1,1,-1],[-1,1,-1],[-1,-1,1],[ 1,-1,1],[ 1,-1,-1],[-1,-1,-1]];
-var BOX_VERTEX_INDICES = [[0,1,2,3],[1,0,4,5],[2,1,5,6],[3,2,6,7],[0,3,7,4],[5,4,7,6]];
+var BOX_VERTEX_INDICES = [[1,2,3,0],[5,1,0,4],[6,2,1,5],[7,3,2,6],[4,0,3,7],[6,5,4,7]];
+var INVERTED_VERTEX_INDICES = [[1,0,3,2],[0,1,5,4],[5,1,2,6],[6,2,3,7],[7,3,0,4],[4,5,6,7]];
 
 class XQuadBox {
 
   constructor (opts) {
-    this.centerPoint = opts.centerPoint;
-    this.size = opts.size;
+    this.gl = opts.gl;
+
+    this.center = opts.center || [0, 0, 0];
+    this.dimensions = opts.dimensions || [0, 0, 0];
+    this.size = opts.size || 1;
+    this.color = opts.color || [0.5, 0.5, 0.5, 1];
+    this.isInverted = opts.isInverted || false;
+
     this.faces = opts.faces || [];
+    this.skipFaces = opts.skipFaces || [];
     this.vertices = opts.vertices || [];
 
     this.quads = [];
@@ -15,14 +23,19 @@ class XQuadBox {
   }
 
   initialize (opts) {
-    var cp = this.centerPoint;
-    var half = this.size / 2;
-    var defaultColor = [0.5, 0.5, 0.5, 1];
+    var cp = this.center;
+    var halfWidth = (this.dimensions[0] || this.size) / 2;
+    var halfHeight = (this.dimensions[1] || this.size) / 2;
+    var halfDepth = (this.dimensions[2] || this.size) / 2;
+    var defaultColor = this.color;
+    var vertexIndices = this.isInverted ? INVERTED_VERTEX_INDICES : BOX_VERTEX_INDICES;
     var quadOpts = { ...opts };
 
     for (var f = 0; f < 6; f++) {
+      if (this.skipFaces.indexOf(f) !== -1) continue;
+
       var face = this.faces[f];
-      var indices = BOX_VERTEX_INDICES[f];
+      var indices = vertexIndices[f];
       var vertices = [];
 
       for (var v = 0; v < 4; v++) {
@@ -30,9 +43,9 @@ class XQuadBox {
         var vertexSigns = BOX_VERTEX_SIGNS[vertexIndex];
         var color = defaultColor;
         var position = [
-          cp[0] + half * vertexSigns[0],
-          cp[1] + half * vertexSigns[1],
-          cp[2] + half * vertexSigns[2]
+          cp[0] + halfWidth * vertexSigns[0],
+          cp[1] + halfHeight * vertexSigns[1],
+          cp[2] + halfDepth * vertexSigns[2]
         ];
 
         if (this.vertices.length) {
@@ -50,16 +63,15 @@ class XQuadBox {
         });
       }
 
-      this.quads.push(new XQuad({ ...quadOpts, vertices }));
+      var quad = new XQuad({ ...quadOpts, vertices });
+      quad.parentObject = this;
+      this.quads.push(quad);
     }
   }
 
-  updateVertices (vertices) {
-
-  }
-
-  updateFace (index, vertices) {
-
+  remove () {
+    this.quads.forEach(quad => quad.remove());
+    this.quads = [];
   }
 
 }

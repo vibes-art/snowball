@@ -3,14 +3,18 @@ class XFixedCamera extends XCamera {
   constructor (opts) {
     super(opts);
 
-    this.modelOffset = { x: 0, y: 0, z: 0 };
-    this.totalRotation = { x: 0, y: 0, z: 0 };
-    this.isModelRotated = false;
+    this.yaw = 0;
+    this.pitch = 0;
+    this.quaternion = XQuaternion.get();
+
     this.mouseScrollUp = null;
     this.mouseScrollDown = null;
+    this.lockRotation = false;
   }
 
   logControls () {
+    if (!ENABLE_LOGS) return;
+
     console.log(` `);
     console.log(`~~~ Fixed Camera Controls ~~~`);
     console.log(`    Click and drag Mouse to rotate`);
@@ -19,43 +23,26 @@ class XFixedCamera extends XCamera {
   }
 
   onMouseMove (evt, dx, dy) {
-    var rotBounds = PI / 2;
-    var lastRotationX = this.totalRotation.x;
-    var lastRotationY = this.totalRotation.y;
-    var lastRotationZ = this.totalRotation.z;
-    var horizontalInfluence = cos(lastRotationY);
-    var verticalInfluence = cos(lastRotationX);
-    var rotationInfluenceX = dx * this.sensitivity * horizontalInfluence;
-    var rotationInfluenceY = dy * this.sensitivity * verticalInfluence;
-    var rotationInfluenceZ = dx * this.sensitivity * (1 - horizontalInfluence);
+    if (this.lockRotation) return;
 
-    var mox = this.modelOffset.x + rotationInfluenceX + lastRotationX;
-    if (mox >= -rotBounds && mox <= rotBounds) {
-      this.modelOffset.x += rotationInfluenceX;
-    }
+    var maxAngle = PI / 3;
+    var oldYaw = this.yaw;
+    var oldPitch = this.pitch;
+    var yawDelta = dx * this.sensitivity;
+    var pitchDelta = dy * this.sensitivity;
 
-    var moy = this.modelOffset.y + rotationInfluenceY + lastRotationY;
-    if (moy >= -rotBounds && moy <= rotBounds) {
-      this.modelOffset.y += rotationInfluenceY;
-    }
+    this.yaw = max(-maxAngle, min(maxAngle, this.yaw + yawDelta));
+    yawDelta = this.yaw - oldYaw;
+    var qYaw = XQuaternion.fromAxisAngle(UP_VECTOR, yawDelta);
 
-    var moz = this.modelOffset.z + rotationInfluenceZ + lastRotationZ;
-    if (moz >= -rotBounds && moz <= rotBounds) {
-      this.modelOffset.z += rotationInfluenceZ;
-    }
+    var localX = XQuaternion.transformVector(this.quaternion, [1, 0, 0]);
+    localX = XVector3.normalize(localX);
+    this.pitch = max(-maxAngle, min(maxAngle, this.pitch + pitchDelta));
+    pitchDelta = this.pitch - oldPitch;
+    var qPitch = XQuaternion.fromAxisAngle(localX, pitchDelta);
 
-    var finalRotationX = max(-rotBounds, min(rotBounds, this.modelOffset.x + lastRotationX));
-    var finalRotationY = max(-rotBounds, min(rotBounds, this.modelOffset.y + lastRotationY));
-    var finalRotationZ = max(-rotBounds, min(rotBounds, this.modelOffset.z + lastRotationZ));
-    this.modelRotation = [finalRotationX, finalRotationY, finalRotationZ];
-    this.isModelRotated = true;
-  }
-
-  onMouseUp (evt) {
-    this.totalRotation.x += this.modelOffset.x;
-    this.totalRotation.y += this.modelOffset.y;
-    this.totalRotation.z += this.modelOffset.z;
-    this.modelOffset = { x: 0, y: 0, z: 0 };
+    var qDelta = XQuaternion.multiply(qYaw, qPitch);
+    this.quaternion = XQuaternion.normalize(XQuaternion.multiply(qDelta, this.quaternion));
   }
 
   onMouseWheel (evt) {
@@ -107,9 +94,9 @@ class XFixedCamera extends XCamera {
   reset () {
     super.reset();
 
-    this.modelOffset = { x: 0, y: 0, z: 0 };
-    this.totalRotation = { x: 0, y: 0, z: 0 };
-    this.isModelRotated = false;
+    this.yaw = 0;
+    this.pitch = 0;
+    this.quaternion = XQuaternion.get();
   }
 
   onTick (dt, keysDown) {

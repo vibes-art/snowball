@@ -1,5 +1,3 @@
-var ENABLE_FPS_LOGS = false;
-
 class _XClock {
 
   constructor () {
@@ -75,7 +73,7 @@ class _XClock {
     var dtReal = this.lastTimestamp ? timestamp - this.lastTimestamp : 0;
     var dt = this.timeMultiplier * (this.isPaused ? 0 : dtReal);
     this.elapsed += dtReal;
-    ENABLE_FPS_LOGS && this.trackFPS(dtReal);
+    DEBUG_LOGS && this.trackFPS(dtReal);
 
     var count = this.onNextTickListeners.length;
     for (var i = count - 1; i >= 0; i--) {
@@ -91,6 +89,8 @@ class _XClock {
       var listener = this.onTickListeners[i];
       if (listener) listener(dt, dtReal);
     }
+
+    XGLUtils.processLoadQueue();
 
     this.lastTimestamp = timestamp;
     this._requestAnimationFrame();

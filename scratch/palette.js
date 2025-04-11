@@ -275,6 +275,7 @@ function logAndCopyColor (color, wasRemoved) {
   text = text.replace(new RegExp('}', 'g'), ' }');
   navigator.clipboard.writeText(text)
     .then(() => console.log(text + (wasRemoved ? ' removed.' : '')))
+    .then(() => console.log(`#${toHex(color.r)}${toHex(color.g)}${toHex(color.b)}`))
     .catch(err => console.error('Error copying text: ', text, err));
 };
 
@@ -286,6 +287,12 @@ function resizeVisibleCanvas () {
   paletteCanvas.style.top = y + "px";
   paletteCanvas.width = visCanvasSize;
   paletteCanvas.height = visCanvasSize;
+};
+
+function toHex (value) {
+  var firstChar = floor(value / 16).toString(16);
+  var secondChar = floor(value % 16).toString(16);
+  return firstChar + secondChar;
 };
 
 function printPaletteData (palette) {

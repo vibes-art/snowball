@@ -146,25 +146,24 @@ class XHeightMap extends XObject {
     var xx = x * this.lateralStep;
     var zz = z * this.lateralStep;
 
-    var offsetY = this.positionOffset[1];
-    var height = this.calculateHeight(x, z) + offsetY;
+    var height = this.calculateHeight(x, z);
     if (height < this.lowestHeight) this.lowestHeight = height;
     if (height > this.highestHeight) this.highestHeight = height;
 
-    this.setPosition(index, [xx, height - offsetY, zz]);
+    this.setAttribute(ATTR_KEY_POSITIONS, index, [xx, height, zz]);
   }
 
   getHeight (x, z) {
     var index = this.getVertexIndex(x, z);
-    var position = this.getPosition(index);
+    var position = this.getAttribute(ATTR_KEY_POSITIONS, index);
     return position[1];
   }
 
   setHeight (x, z, height) {
     var index = this.getVertexIndex(x, z);
-    var position = this.getPosition(index);
+    var position = this.getAttribute(ATTR_KEY_POSITIONS, index);
     position[1] = height;
-    this.setPosition(index, position);
+    this.setAttribute(ATTR_KEY_POSITIONS, index, position);
   }
 
   calculateHeight (x, z) {
@@ -225,7 +224,7 @@ class XHeightMap extends XObject {
         color.r / 255,
         color.g / 255,
         color.b / 255,
-        color.a || this.alpha
+        color.a !== undefined ? color.a : 1
       ];
     }
 
@@ -250,7 +249,7 @@ class XHeightMap extends XObject {
       (pct * currColor.r + inv * lastColor.r) / 255,
       (pct * currColor.g + inv * lastColor.g) / 255,
       (pct * currColor.b + inv * lastColor.b) / 255,
-      this.alpha
+      currColor.a !== undefined ? currColor.a : 1
     ];
   };
 
@@ -275,7 +274,7 @@ class XHeightMap extends XObject {
     }
 
     this.oncePerDraw = true;
-    this.bindBuffers();
+    this.updateVertexAttributes();
   }
 
   onDraw (dt) {
