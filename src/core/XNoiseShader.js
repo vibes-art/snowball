@@ -4,7 +4,13 @@ class XNoiseShader extends XShader {
     this.vertexShaderSource = `#version 300 es
       precision ${PRECISION} float;
 
-      in vec2 ${ATTR_KEY_POSITIONS};
+      uniform mat4 ${UNI_KEY_VIEW_MATRIX};
+      uniform mat4 ${UNI_KEY_MODEL_MATRIX};
+      uniform mat4 ${UNI_KEY_PROJ_MATRIX};
+
+      in vec3 ${ATTR_KEY_POSITIONS};
+      in vec2 ${ATTR_KEY_TEX_COORDS};
+      out vec4 vWorldPos;
       out vec2 vUV;
     `;
   }
@@ -12,7 +18,8 @@ class XNoiseShader extends XShader {
   addVSMainHeader (opts) {
     this.vertexShaderSource += `
       void main() {
-        vUV = (${ATTR_KEY_POSITIONS} * 0.5) + 0.5;
+        vWorldPos = ${UNI_KEY_MODEL_MATRIX} * vec4(${ATTR_KEY_POSITIONS}, 1.0);
+        vUV = ${ATTR_KEY_TEX_COORDS};
     `;
   }
 
@@ -20,7 +27,7 @@ class XNoiseShader extends XShader {
     this.addVSMainHeader(opts);
 
     this.vertexShaderSource += `
-        gl_Position = vec4(${ATTR_KEY_POSITIONS}, 0.0, 1.0);
+        gl_Position = ${UNI_KEY_PROJ_MATRIX} * (${UNI_KEY_VIEW_MATRIX} * vWorldPos);
       }
     `;
   }
