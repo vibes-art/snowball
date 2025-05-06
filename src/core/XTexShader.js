@@ -58,9 +58,13 @@ class XTexShader extends XShader {
       ? `vec3 ambient = texColor.rgb;`
       : `vec3 ambient = texColor.rgb * ${UNI_KEY_AMBIENT_LIGHT}Color;`;
 
+    var viewDir = opts.useStaticViewDirection
+      ? `vec3 viewDir = normalize(${UNI_KEY_VIEW_DIRECTION});`
+      : `vec3 viewDir = normalize(${UNI_KEY_VIEW_POSITION} - vWorldPos.xyz); // frag to camera`
+
     this.fragmentShaderSource += `
       void main() {
-        vec3 viewDir = normalize(vViewPos - vWorldPos.xyz);
+        ${viewDir}
         vec3 normalSample = 2.0 * texture(${UNI_KEY_NORMAL_MAP}, vUV).rgb - 1.0;
         vec3 normalDir = normalize(vTBN * normalSample);
 

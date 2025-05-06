@@ -92,13 +92,18 @@ class XCanvas {
   }
 
   initShader (opts) {
+    var shaderOpts = {
+      scene: this.scene,
+      useStaticViewDirection: opts.useStaticViewDirection || false
+    };
+
     if (!this.shader) {
       if (USE_PBR) {
-        this.shader = new XPBRShader({ scene: this.scene });
-        this.textureShader = new XPBRTexShader({ scene: this.scene });
+        this.shader = new XPBRShader(shaderOpts);
+        this.textureShader = new XPBRTexShader(shaderOpts);
       } else {
-        this.shader = new XShader({ scene: this.scene });
-        this.textureShader = new XTexShader({ scene: this.scene });
+        this.shader = new XShader(shaderOpts);
+        this.textureShader = new XTexShader(shaderOpts);
       }
     }
 
