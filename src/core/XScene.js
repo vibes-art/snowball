@@ -54,6 +54,7 @@ class XScene {
     this.haveObjectsChanged = false;
     this.needsShaderConnect = false;
     this.appliedObjectMatrices = false;
+    this.objectSort = OBJECT_RENDER_SORT;
 
     this.addRenderPass(RENDER_PASS_MAIN, {
       framebufferKey: RENDER_PASS_MAIN
@@ -77,6 +78,8 @@ class XScene {
     this.addUniform(UNI_KEY_SPECULAR_SHININESS, { components: 1, data: 128.0 });
     this.addUniform(UNI_KEY_SPECULAR_STRENGTH, { components: 1, data: 0.5 });
     this.addUniform(UNI_KEY_RESOLUTION, { components: 2 });
+    this.addUniform(UNI_KEY_VIEW_POSITION, { components: 3 });
+    this.addUniform(UNI_KEY_VIEW_DIRECTION, { components: 3 });
   }
 
   addUniform (key, opts) {
@@ -141,7 +144,8 @@ class XScene {
     this.matrices.view.data = viewMatrix;
 
     var invView = XMatrix4.invert(viewMatrix);
-    this.cameraPosition = [invView[12], invView[13], invView[14]];
+    this.uniforms[UNI_KEY_VIEW_POSITION].data = [invView[12], invView[13], invView[14]];
+    this.uniforms[UNI_KEY_VIEW_DIRECTION].data = [invView[8], invView[9], invView[10]];
   }
 
   addRenderPass (type, opts) {
@@ -489,9 +493,9 @@ class XScene {
 
       var isNewPass = true;
       var hasStartedTransparencyPass = false;
-
-      objects.forEach(obj => obj.updateCameraDistance(this.cameraPosition));
-      objects.sort(OBJECT_RENDER_SORT);
+      var cameraPos = this.uniforms[UNI_KEY_VIEW_POSITION].data;
+      objects.forEach(obj => obj.updateCameraDistance(cameraPos));
+      objects.sort(this.objectSort);
 
       gl.enable(gl.DEPTH_TEST);
       gl.disable(gl.BLEND);
@@ -507,6 +511,14 @@ class XScene {
           hasStartedTransparencyPass = true;
           gl.enable(gl.BLEND);
           gl.depthMask(false);
+        }
+
+        if (!hasStartedTransparencyPass) {
+          if (obj.disableDepthMask && pass.type === RENDER_PASS_MAIN) {
+            gl.depthMask(false);
+          } else {
+            gl.depthMask(true);
+          }
         }
 
         var shader = pass.shader || obj.shader;

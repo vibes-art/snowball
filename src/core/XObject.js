@@ -14,6 +14,7 @@ class XObject {
     this.invertNormals = opts.invertNormals || false;
     this.hasTransparency = opts.hasTransparency || false;
     this.ignoreFrustumCulling = opts.ignoreFrustumCulling || false;
+    this.disableDepthMask = opts.disableDepthMask || false;
 
     this.attributes = {};
     this.uniforms = {};
