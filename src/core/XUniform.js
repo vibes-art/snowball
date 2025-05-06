@@ -27,7 +27,7 @@ class XUniform {
   }
 
   validateData () {
-    if (this.components < 1 || this.components > 4) {
+    if (this.components < 1) {
       console.error(`Invalid Uniform components: ${this.components}`);
     }
 

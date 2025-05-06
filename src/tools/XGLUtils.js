@@ -130,6 +130,35 @@ XGLUtils.createTexture = function (gl, data, width, height, components) {
   return texture;
 };
 
+XGLUtils.createIntDataTexture = function (gl, data, width, height, components) {
+  var format;
+  switch (components) {
+    case 4: format = gl.RGBA; break;
+    case 3: format = gl.RGB; break;
+    case 1: format = gl.RED; break;
+    default: console.error("Unsupported component size: " + components);
+  }
+
+  if (data.length !== width * height * components) {
+    console.error("Data size does not match texture dimensions.");
+  }
+
+  var texture = gl.createTexture();
+  XGLUtils.bindTexture(gl, SHARED_TEXTURE_UNIT, texture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, format, gl.UNSIGNED_BYTE, data);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  return texture;
+};
+
+XGLUtils.createFloatDataTexture = function (gl, data, width, height, components) {
+  var texture = gl.createTexture();
+  XGLUtils.updateTexture(gl, texture, data, width, height, components);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  return texture;
+};
+
 XGLUtils.updateTexture = function (gl, texture, data, width, height, components) {
   var internalFormat, format;
   switch (components) {
