@@ -390,7 +390,14 @@ XUtils.recurseQuilt = function (x0, z0, dx, dz, depth, opts) {
   }
 
   var recurseChance = opts.recurseChance || QUILT_RECURSION_CHANCE;
-  if (!depth || random() < recurseChance - QUILT_RECURSION_DECREMENT * depth) {
+  var recurseDecrement = opts.recurseDecrement || QUILT_RECURSION_DECREMENT;
+  var recurseSchedule = opts.recurseSchedule;
+  if (recurseSchedule) {
+    recurseChance = recurseSchedule[min(depth, recurseSchedule.length - 1)];
+    recurseDecrement = 0;
+  }
+
+  if (!depth || random() < recurseChance - recurseDecrement * depth) {
     var dx1 = x1 - x0;
     var dz1 = z1 - z0;
     x1 += buffer;
