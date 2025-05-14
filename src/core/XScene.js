@@ -192,6 +192,7 @@ class XScene {
     opts.width = opts.width || this.viewport.width;
     opts.height = opts.height || this.viewport.height;
     opts.scale = opts.scale || 1;
+    opts.offscreenPass = opts.offscreenPass || false;
 
     return this.framebufferObjects[key] = new XFramebufferObject(opts);
   }
@@ -204,7 +205,7 @@ class XScene {
 
     if (lastPass && lastPass.type) {
       var lastFBO = this.framebufferObjects[lastPass.type];
-      if (lastFBO) {
+      if (lastFBO && !lastFBO.offscreenPass) {
         sourceFBO = lastFBO;
       } else {
         return this.getSourceFramebuffer(index - 1);
@@ -860,6 +861,7 @@ class XScene {
     for (var key in this.framebufferObjects) {
       this.framebufferObjects[key].remove();
     }
+    this.framebufferObjects = {};
 
     this.shaderUniformCache = null;
   }
