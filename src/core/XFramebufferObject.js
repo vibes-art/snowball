@@ -6,6 +6,7 @@ class XFramebufferObject {
     this.width = opts.width;
     this.height = opts.height;
     this.scale = opts.scale || 1;
+    this.offscreenPass = opts.offscreenPass || false;
 
     this.framebuffer = null;
     this.renderbuffer = null;

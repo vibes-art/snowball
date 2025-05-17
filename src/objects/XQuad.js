@@ -12,7 +12,7 @@ class XQuad extends XObject {
 
   initialize (opts) {
     this.vertices = opts.vertices;
-    this.color = opts.color || [0.5, 0.5, 0.5, 1];
+    this.color = opts.color || [1, 1, 1, 1];
 
     super.initialize(opts);
   }

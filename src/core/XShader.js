@@ -46,7 +46,6 @@ class XShader {
       in vec4 ${ATTR_KEY_COLORS};
       in vec2 ${ATTR_KEY_TEX_COORDS};
 
-      out vec3 vViewPos;
       out vec4 vWorldPos;
       out vec4 vNormal;
       out vec4 vColor;
@@ -57,7 +56,6 @@ class XShader {
   addVSMainHeader (opts) {
     this.vertexShaderSource += `
       void main() {
-        vViewPos = inverse(${UNI_KEY_VIEW_MATRIX})[3].xyz;
         vWorldPos = ${UNI_KEY_MODEL_MATRIX} * vec4(${ATTR_KEY_POSITIONS}, 1.0);
         vNormal = ${UNI_KEY_NORMAL_MATRIX} * vec4(${ATTR_KEY_NORMALS}, 1.0);
         vColor = ${ATTR_KEY_COLORS};
@@ -84,12 +82,13 @@ class XShader {
       precision ${PRECISION} float;
       precision ${PRECISION} sampler2DShadow;
 
-      in vec3 vViewPos;
       in vec4 vWorldPos;
       in vec4 vNormal;
       in vec4 vColor;
       out vec4 fragColor;
 
+      uniform vec3 ${UNI_KEY_VIEW_POSITION};
+      uniform vec3 ${UNI_KEY_VIEW_DIRECTION};
       uniform vec3 ${UNI_KEY_AMBIENT_LIGHT}Color;
       uniform float ${UNI_KEY_SPECULAR_SHININESS};
       uniform float ${UNI_KEY_SPECULAR_STRENGTH};
@@ -265,7 +264,7 @@ class XShader {
       uniform float ${UNI_KEY_FOG_DENSITY};
 
       vec3 fogCompute(vec3 color) {
-        float distFromView = length(vWorldPos.xyz - vViewPos);
+        float distFromView = length(vWorldPos.xyz - ${UNI_KEY_VIEW_POSITION});
         float fogFactor = 1.0 - exp(-${UNI_KEY_FOG_DENSITY} * distFromView * distFromView);
         return mix(color, ${UNI_KEY_FOG_COLOR}, clamp(fogFactor, 0.0, 1.0));
       }
@@ -277,11 +276,15 @@ class XShader {
       ? `vec3 ambient = vColor.rgb;`
       : `vec3 ambient = vColor.rgb * ${UNI_KEY_AMBIENT_LIGHT}Color;`;
 
+    var viewDir = opts.useStaticViewDirection
+      ? `vec3 viewDir = normalize(${UNI_KEY_VIEW_DIRECTION});`
+      : `vec3 viewDir = normalize(${UNI_KEY_VIEW_POSITION} - vWorldPos.xyz); // frag to camera`
+
     this.fragmentShaderSource += `
       void main() {
         ${ambient}
         vec3 normalDir = normalize(vNormal.xyz);
-        vec3 viewDir = normalize(vViewPos - vWorldPos.xyz); // frag to camera
+        ${viewDir}
         vec3 finalColor = ambient;
         float alpha = vColor.a;
     `;

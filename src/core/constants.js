@@ -86,7 +86,8 @@ var BASE_SCENE_TEXTURE_UNIT = 1;
 var NO_SHADER_LOCATION = -1;
 
 var DIM_X = 0;
-var DIM_Z = 1;
+var DIM_Y = 1;
+var DIM_Z = 2;
 var QUILT_RECURSION_CHANCE = 0.8;
 var QUILT_RECURSION_DECREMENT = 0.1;
 
@@ -116,6 +117,8 @@ var UNI_KEY_PROJ_MATRIX = 'projectionMatrix';
 var UNI_KEY_MODEL_MATRIX = 'modelMatrix';
 var UNI_KEY_VIEW_MATRIX = 'viewMatrix';
 var UNI_KEY_NORMAL_MATRIX = 'normalMatrix';
+var UNI_KEY_VIEW_POSITION = 'viewPosition';
+var UNI_KEY_VIEW_DIRECTION = 'viewDirection';
 var UNI_KEY_RESOLUTION = 'resolution';
 var UNI_KEY_AMBIENT_LIGHT = 'ambient';
 var UNI_KEY_BACKGROUND_LIGHT = 'background';

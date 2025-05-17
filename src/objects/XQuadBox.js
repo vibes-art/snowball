@@ -10,7 +10,7 @@ class XQuadBox {
     this.center = opts.center || [0, 0, 0];
     this.dimensions = opts.dimensions || [0, 0, 0];
     this.size = opts.size || 1;
-    this.color = opts.color || [0.5, 0.5, 0.5, 1];
+    this.color = opts.color || [1, 1, 1, 1];
     this.isInverted = opts.isInverted || false;
 
     this.faces = opts.faces || [];
