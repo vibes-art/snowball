@@ -21,7 +21,7 @@ var OBJECT_RENDER_SORT = function (a, b) {
   }
 };
 
-var FRUSTUM_CULL_PASSES = [RENDER_PASS_MAIN];
+var FRUSTUM_CULL_PASSES = [RENDER_PASS_SHADOWS, RENDER_PASS_MAIN];
 
 class XScene {
 
@@ -388,7 +388,6 @@ class XScene {
     var proj = this.matrices.projection.data;
     var view = this.matrices.view.data;
     this.currentProjViewMatrix = XMatrix4.multiply(proj, view);
-    var frustumPlanes = XMatrix4.extractFrustumPlanes(this.currentProjViewMatrix);
 
     var gl = this.gl;
 
@@ -455,6 +454,17 @@ class XScene {
 
       var objects = [];
       var objectCount = this.objects.length;
+
+      var frustumPlanes;
+      if (pass.type === RENDER_PASS_MAIN) {
+        frustumPlanes = XMatrix4.extractFrustumPlanes(this.currentProjViewMatrix);
+      } else if (pass.uniforms && pass.uniforms.lightIndex !== undefined) {
+        var lightKey = pass.uniforms.lightIndex.key.replace('Index', '');
+        var lightIndex = pass.uniforms.lightIndex.data;
+        var light = this.getLight(lightKey, lightIndex);
+        frustumPlanes = XMatrix4.extractFrustumPlanes(light.viewProjMatrix.data);
+      }
+
       for (var o = 0; o < objectCount; o++) {
         var obj = this.objects[o];
         if (!obj.renderPasses[pass.type] || !obj.isActive) continue;
