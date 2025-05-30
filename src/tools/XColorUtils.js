@@ -49,9 +49,11 @@ XColorUtils.SRGBtoRGB = function (c) {
   ];
 };
 
-XColorUtils.smashColorsRGB = function (c1, c2, pct) {
-  c1 = XColorUtils.SRGBtoRGB(c1);
-  c2 = XColorUtils.SRGBtoRGB(c2);
+XColorUtils.smashColorsRGB = function (c1, c2, pct, skipSRGB) {
+  if (!skipSRGB) {
+    c1 = XColorUtils.SRGBtoRGB(c1);
+    c2 = XColorUtils.SRGBtoRGB(c2);
+  }
 
   var dr = c2[0] - c1[0];
   var dg = c2[1] - c1[1];
@@ -64,7 +66,11 @@ XColorUtils.smashColorsRGB = function (c1, c2, pct) {
     c1[3] + pct * da
   ];
 
-  return XColorUtils.RGBtoSRGB(result);
+  if (!skipSRGB) {
+    return XColorUtils.RGBtoSRGB(result);
+  } else {
+    return result;
+  }
 };
 
 XColorUtils.smashColorsHSL = function (c1, c2, pct) {
