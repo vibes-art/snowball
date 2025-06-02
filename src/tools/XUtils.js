@@ -214,7 +214,7 @@ XUtils.getPackedCircles = function (shape, count, opts) {
   var maxR = opts.maxR || 100;
   var stepR = opts.stepR || 1;
   var insideOnly = opts.insideOnly || false;
-  var tries = opts.tries || 10000;
+  var tries = opts.tries || 1000;
   var circles = [];
   var r = maxR;
   var countInit = count;
@@ -275,7 +275,8 @@ XUtils.getPackedSquares = function (shape, count, opts) {
   var stepSize = opts.stepSize || 1;
   var theta = opts.theta || 0;
   var insideOnly = opts.insideOnly || false;
-  var tries = opts.tries || 10000;
+  var randomSize = opts.randomSize || false;
+  var tries = opts.tries || 1000;
   var squares = [];
   var size = maxSize;
   var packX = shape.x;
@@ -287,6 +288,8 @@ XUtils.getPackedSquares = function (shape, count, opts) {
   var countInit = count;
 
   while (count > 0 && size >= minSize) {
+    if (randomSize) size = minSize + (maxSize - minSize) * random();
+
     var foundSquare = false;
     var halfSize = size / 2;
     for (var i = 0; i < tries; i++) {
@@ -322,6 +325,66 @@ XUtils.getPackedSquares = function (shape, count, opts) {
 
   UTIL_LOGS && console.log(`square pack: ${countInit}, fit: ${squares.length}`);
   return squares;
+};
+
+XUtils.getPackedRects = function (shape, count, opts) {
+  opts = opts || {};
+
+  var minWidth = opts.minWidth || 1;
+  var maxWidth = opts.maxWidth || 100;
+  var minDepth = opts.minDepth || 1;
+  var maxDepth = opts.maxDepth || 100;
+
+  var theta = opts.theta || 0;
+  var insideOnly = opts.insideOnly || false;
+  var tries = opts.tries || 1000;
+  var rects = [];
+
+  var packX = shape.x;
+  var packZ = shape.z;
+  var packWidth = shape.width;
+  var packDepth = shape.depth;
+  var halfPackWidth = packWidth / 2;
+  var halfPackDepth = packDepth / 2;
+  var countInit = count;
+
+  while (count > 0) {
+    var width = minWidth + (maxWidth - minWidth) * random();
+    var depth = minDepth + (maxDepth - minDepth) * random();
+
+    var halfWidth = width / 2;
+    var halfDepth = depth / 2;
+    for (var i = 0; i < tries; i++) {
+      var isValid = true;
+      var xc = 0;
+      var zc = 0;
+      if (insideOnly) {
+        xc = packX - halfPackWidth + halfWidth + (packWidth - width) * random();
+        zc = packZ - halfPackDepth + halfDepth + (packDepth - depth) * random();
+      } else {
+        xc = packX - halfPackWidth + packWidth * random();
+        zc = packZ - halfPackDepth + packDepth * random();
+      }
+
+      var testRect = new XRect({ x: xc, z: zc, width, depth, theta });
+      for (var q = 0; q < rects.length; q++) {
+        if (rects[q].collidesWith(testRect)) {
+          isValid = false;
+          break;
+        }
+      }
+
+      if (isValid) {
+        rects.push(testRect);
+        break;
+      }
+    }
+
+    count--;
+  }
+
+  UTIL_LOGS && console.log(`rect pack: ${countInit}, fit: ${rects.length}`);
+  return rects;
 };
 
 XUtils.getGoldenCircle = function (radius, dx, dz, forceOpts) {
