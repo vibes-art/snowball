@@ -446,6 +446,7 @@ class XCanvas {
 
   saveOutput16 (opts) {
     var name = opts.name || 'output';
+    var callback = opts.callback || null;
     var srcWidth = opts.srcWidth || this.width;
     var srcHeight = opts.srcHeight || this.height;
     var destWidth = opts.destWidth || this.width;
@@ -551,6 +552,7 @@ class XCanvas {
     var pngAB = UPNG.encodeLL([bigEndianAB], destWidth, destHeight, 3, 1, 16);
     var blob = new Blob([pngAB], { type: 'image/png' });
     XUtils.downloadBlob(blob, `${name}.png`);
+    callback && callback(blob);
   }
 
   clearInput () {
