@@ -444,6 +444,115 @@ class XCanvas {
     });
   }
 
+  saveOutput16 (opts) {
+    var name = opts.name || 'output';
+    var srcWidth = opts.srcWidth || this.width;
+    var srcHeight = opts.srcHeight || this.height;
+    var destWidth = opts.destWidth || this.width;
+    var destHeight = opts.destHeight || this.height;
+    var scale = round(srcWidth / destWidth);
+    if (srcWidth !== scale * destWidth) {
+      console.error(`16-bit outputs require integer scale between source and destination.`);
+    }
+
+    // render the scene in 16-bit color
+    var texture = XGLUtils.createHalfFloatTexture(this.gl, srcWidth, srcHeight);
+    var fbo = XGLUtils.createFramebufferWithTexture(this.gl, texture);
+    var passes = this.scene.renderPasses;
+    var antialiasPass = passes[passes.length - 1];
+    antialiasPass.framebuffer = fbo;
+    antialiasPass.viewport = { width: srcWidth, height: srcHeight };
+    this.flushScene();
+    delete antialiasPass.framebuffer;
+    delete antialiasPass.viewport;
+
+    var floatBuffer = XGLUtils.readHalfFloatPixels(this.gl, srcWidth, srcHeight, fbo);
+    var totalPixels = destWidth * destHeight * 4;
+    var raw16 = new Uint16Array(totalPixels);
+
+    // box-filter from source to destination for anti-aliasing
+    for (var dstY = 0; dstY < destHeight; dstY++) {
+      for (var dstX = 0; dstX < destWidth; dstX++) {
+        var accumR = 0;
+        var accumG = 0;
+        var accumB = 0;
+        var accumA = 0;
+
+        for (var sy = 0; sy < scale; sy++) {
+          var srcRow = (destHeight - 1 - dstY) * scale + (scale - 1 - sy);
+          // note: WebGL readPixels is upside-down for row order
+          for (var sx = 0; sx < scale; sx++) {
+            var srcCol = dstX * scale + sx;
+            var idx = (srcRow * srcWidth + srcCol) * 4;
+            var sR = floatBuffer[idx + 0];
+            var sG = floatBuffer[idx + 1];
+            var sB = floatBuffer[idx + 2];
+            var sA = floatBuffer[idx + 3];
+            if (sA < 0) sA = 0; else if (sA > 1) sA = 1;
+            if (sR < 0) sR = 0; else if (sR > 1) sR = 1;
+            if (sG < 0) sG = 0; else if (sG > 1) sG = 1;
+            if (sB < 0) sB = 0; else if (sB > 1) sB = 1;
+
+            accumR += sR;
+            accumG += sG;
+            accumB += sB;
+            accumA += sA;
+          }
+        }
+
+        var invSamples = 1 / (scale * scale);
+        accumR *= invSamples;
+        accumG *= invSamples;
+        accumB *= invSamples;
+        accumA *= invSamples;
+
+        var finalR = 0;
+        var finalG = 0;
+        var finalB = 0;
+        var finalA = accumA;
+
+        // we have to un-premultiply before quantizing
+        if (accumA > 0) {
+          finalR = accumR / accumA;
+          finalG = accumG / accumA;
+          finalB = accumB / accumA;
+        }
+
+        finalR = (finalR < 0 ? 0 : (finalR > 1 ? 1 : finalR));
+        finalG = (finalG < 0 ? 0 : (finalG > 1 ? 1 : finalG));
+        finalB = (finalB < 0 ? 0 : (finalB > 1 ? 1 : finalB));
+        finalA = (finalA < 0 ? 0 : (finalA > 1 ? 1 : finalA));
+
+        // quantize from 0 ... 1 to 16-bit
+        var dstBase = (dstY * destWidth + dstX) * 4;
+        raw16[dstBase + 0] = round(finalR * 65535);
+        raw16[dstBase + 1] = round(finalG * 65535);
+        raw16[dstBase + 2] = round(finalB * 65535);
+        raw16[dstBase + 3] = round(finalA * 65535);
+      }
+    }
+
+    function swap16ToBigEndian (little16) {
+      var byteCount = little16.length * 2;
+      var srcBytes = new Uint8Array(little16.buffer);
+      var dstBytes = new Uint8Array(byteCount);
+
+      for (var i = 0; i < little16.length; i++) {
+        var littleLow  = srcBytes[2 * i + 0];
+        var littleHigh = srcBytes[2 * i + 1];
+        dstBytes[2 * i + 0] = littleHigh;
+        dstBytes[2 * i + 1] = littleLow;
+      }
+
+      return dstBytes.buffer;
+    }
+
+    var bigEndianAB = swap16ToBigEndian(raw16);
+    var pngAB = UPNG.encodeLL([bigEndianAB], destWidth, destHeight, 3, 1, 16);
+    var blob = new Blob([pngAB], { type: 'image/png' });
+    XUtils.downloadBlob(blob, `${name}.png`);
+  }
+
   clearInput () {
     this.keysDown = {};
     this.isDragging = false;

@@ -41,3 +41,5 @@ By default, the engine serves a simple example, found in projects/demo.
 
 * [MSDF Text Rendering](https://github.com/Chlumsky/msdf-atlas-gen) by Viktor Chlumský
 * [Kubelka-Munk Color Blending](https://github.com/rvanwijnen/spectral.js) by Ronald van Wijnen
+* [Javascript PNG encoding](https://github.com/photopea/UPNG.js) by Photopea
+* [Javascript zlib port](https://github.com/nodeca/pako) by Andrey Tupitsin & Vitaly Puzrin

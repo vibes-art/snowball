@@ -159,6 +159,34 @@ XGLUtils.createFloatDataTexture = function (gl, data, width, height, components)
   return texture;
 };
 
+XGLUtils.createHalfFloatTexture = function (gl, width, height) {
+  var texture = gl.createTexture();
+  XGLUtils.bindTexture(gl, SHARED_TEXTURE_UNIT, texture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, width, height, 0, gl.RGBA, gl.FLOAT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  return texture;
+};
+
+XGLUtils.createFramebufferWithTexture = function (gl, texture) {
+  var fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return fbo;
+};
+
+XGLUtils.readHalfFloatPixels = function (gl, width, height, fbo) {
+  var totalPixels = width * height * 4;
+  var floatBuffer = new Float32Array(totalPixels);
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.readPixels(0, 0, width, height, gl.RGBA, gl.FLOAT, floatBuffer);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+  return floatBuffer;
+};
+
 XGLUtils.updateTexture = function (gl, texture, data, width, height, components) {
   var internalFormat, format;
   switch (components) {
