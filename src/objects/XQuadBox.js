@@ -30,6 +30,7 @@ class XQuadBox {
     var defaultColor = this.color;
     var vertexIndices = this.isInverted ? INVERTED_VERTEX_INDICES : BOX_VERTEX_INDICES;
     var quadOpts = { ...opts };
+    var quadClass = opts.quadClass || XQuad;
 
     for (var f = 0; f < 6; f++) {
       if (this.skipFaces.indexOf(f) !== -1) continue;
@@ -63,7 +64,7 @@ class XQuadBox {
         });
       }
 
-      var quad = new XQuad({ ...quadOpts, vertices });
+      var quad = new quadClass({ ...quadOpts, vertices });
       quad.parentObject = this;
       this.quads.push(quad);
     }
