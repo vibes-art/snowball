@@ -27,6 +27,7 @@ class XCanvas {
     this.onTickListener = null;
     this.keysDown = {};
     this.isInitialized = false;
+    this.hasSetHandlers = false;
     this.hasSavedOutput = false;
     this.isLiveRendering = true;
     this.skipFlush = false;
@@ -47,9 +48,11 @@ class XCanvas {
 
     var isWebGL = this.type === CANVAS_WEBGL;
     var hasWorkingGL = isWebGL;
+
     if (!this.isInitialized) {
       this.createElements();
       this.listenForInput();
+      this.hasSetHandlers = true;
       hasWorkingGL = hasWorkingGL && this.checkGL();
     }
 
@@ -162,7 +165,7 @@ class XCanvas {
     XClock.onTick(this.onTickListener);
   }
 
-  reset (isError) {
+  reset (isError, delay) {
     this.skipFlush = true;
     this.hasSavedOutput = false;
 
@@ -175,7 +178,11 @@ class XCanvas {
     this.shader = null;
     this.textureShader = null;
 
-    setTimeout(() => this.init(), 0);
+    if (isError) {
+      this.isInitialized = false;
+    }
+
+    setTimeout(() => this.init(), delay || 0);
   }
 
   flushScene () {
@@ -203,13 +210,15 @@ class XCanvas {
   }
 
   createElements () {
+    if (this.canvas) document.body.removeChild(this.canvas);
+
     this.canvas = document.createElement('canvas');
     this.canvas.width = this.width;
     this.canvas.height = this.height;
     this.ctx = this.canvas.getContext(this.type, this.canvasOpts);
     document.body.appendChild(this.canvas);
 
-    this.setResizeHandler();
+    if (!this.hasSetHandlers) this.setResizeHandler();
   }
 
   checkGL () {
@@ -308,6 +317,8 @@ class XCanvas {
   }
 
   listenForInput () {
+    if (this.hasSetHandlers) return;
+
     document.addEventListener("keydown", (evt) => this.onKeyDown(evt), false);
     document.addEventListener("keyup", (evt) => this.onKeyUp(evt), false);
     window.addEventListener("mousedown", (evt) => this.onMouseDown(evt));
