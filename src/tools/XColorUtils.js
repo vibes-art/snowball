@@ -106,14 +106,14 @@ XColorUtils.smashColorsSpectral = function (c1, c2, pct) {
   if (!spectralColor) {
     var spec1 = new spectral.Color(str1);
     var spec2 = new spectral.Color(str2);
-    var mix = spectral.mix([spec1, 0.5], [spec2, 0.5]);
+    var mix = spectral.mix([spec1, 1 - pct], [spec2, pct]);
     spectralColor = spectralCache[cacheStr] = [mix.sRGB[0], mix.sRGB[1], mix.sRGB[2]];
-  };
+  }
 
   return [
-    spectralColor[0] / 255,
-    spectralColor[1] / 255,
-    spectralColor[2] / 255,
+    max(0, spectralColor[0] / 255),
+    max(0, spectralColor[1] / 255),
+    max(0, spectralColor[2] / 255),
   ];
 };
 
