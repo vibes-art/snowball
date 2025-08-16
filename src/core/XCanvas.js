@@ -21,6 +21,7 @@ class XCanvas {
     this.isWindowFit = this.width === 0;
     this.aspectRatioMin = opts.aspectRatioMin || 0;
     this.aspectRatioMax = opts.aspectRatioMax || 0;
+    this.maxTextureSize = 0;
 
     this.canvas = null;
     this.ctx = null;
@@ -62,6 +63,7 @@ class XCanvas {
       this.prepareRenderLoop();
     }
 
+    this.setDimensions();
     this.resizeCanvas();
 
     this.isInitialized = true;
@@ -204,8 +206,15 @@ class XCanvas {
   setDimensions () {
     this.windowWidth = window.innerWidth;
     this.windowHeight = window.innerHeight;
-    this.width = this.isWindowFit ? ceil(this.renderScale * this.windowWidth) : this.width;
-    this.height = this.isWindowFit ? ceil(this.renderScale * this.windowHeight) : this.height;
+
+    this.width = this.isWindowFit ? floor(this.renderScale * this.windowWidth) : this.width;
+    this.height = this.isWindowFit ? floor(this.renderScale * this.windowHeight) : this.height;
+
+    if (this.maxTextureSize) {
+      this.width = min(this.maxTextureSize - 1, this.width);
+      this.height = min(this.maxTextureSize - 1, this.height);
+    }
+
     this.dragSensitivity = PI / this.windowWidth;
   }
 
@@ -252,6 +261,8 @@ class XCanvas {
       this.reset(true);
     }, false);
 
+    this.maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+
     return true;
   }
 
@@ -284,15 +295,15 @@ class XCanvas {
     }
 
     if (canvas === this.canvas) {
-      var scaledWidth = ceil(width / this.renderScale);
-      var scaledHeight = ceil(height / this.renderScale);
+      var scaledWidth = round(width / this.renderScale);
+      var scaledHeight = round(height / this.renderScale);
       this.x = (this.windowWidth - scaledWidth) / 2;
       this.y = (this.windowHeight - scaledHeight) / 2;
       canvas.style.left = this.x + 'px';
       canvas.style.top = this.y + 'px';
       canvas.style.width = scaledWidth + 'px';
       canvas.style.height = scaledHeight + 'px';
-      canvas.style.margin = 'none';
+      canvas.style.margin = 0;
       canvas.style.position = 'absolute';
 
       this.gl && this.onGLResize(width, height);
