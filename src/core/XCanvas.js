@@ -167,15 +167,20 @@ class XCanvas {
     XClock.onTick(this.onTickListener);
   }
 
-  reset (isError, delay) {
+  reset (isError, delay, softReset) {
     this.skipFlush = true;
     this.hasSavedOutput = false;
 
     this.scene && this.scene.remove();
     this.scene = null;
 
-    XClock.reset();
-    XTimeline.reset();
+    if (!softReset) {
+      XClock.reset();
+      XTimeline.reset();
+    } else {
+      XClock.removeListener(this.onTickListener);
+    }
+
     this.onTickListener = null;
     this.shader = null;
     this.textureShader = null;
@@ -184,7 +189,7 @@ class XCanvas {
       this.isInitialized = false;
     }
 
-    setTimeout(() => this.init(), delay || 0);
+    !softReset && setTimeout(() => this.init(), delay || 0);
   }
 
   flushScene () {
