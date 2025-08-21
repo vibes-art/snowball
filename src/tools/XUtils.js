@@ -476,10 +476,10 @@ XUtils.recurseQuilt = function (x0, z0, dx, dz, depth, opts) {
   }
 };
 
-XUtils.downloadCanvas = function (canvas, name, callback) {
+XUtils.downloadCanvas = function (canvas, name, callback, skipDownload) {
   canvas.toBlob((blob) => {
     callback && callback(blob);
-    XUtils.downloadBlob(blob, name);
+    !skipDownload && XUtils.downloadBlob(blob, name);
   });
 };
 

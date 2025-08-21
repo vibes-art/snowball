@@ -440,6 +440,7 @@ class XCanvas {
     var destHeight = opts.destHeight || this.height;
     var name = opts.name || 'output';
     var callback = opts.callback || null;
+    var skipDownload = opts.skipDownload || false;
 
     if (this.gl) {
       this.gl.flush();
@@ -457,7 +458,7 @@ class XCanvas {
     XUtils.processImage(renderCanvas, destWidth, destHeight, (outputCanvas) => {
       if (!IS_HEADLESS) {
         var outputName = `${name}.png`;
-        XUtils.downloadCanvas(outputCanvas, outputName, (blob) => callback && callback(blob));
+        XUtils.downloadCanvas(outputCanvas, outputName, (blob) => callback && callback(blob), skipDownload);
       } else {
         document.body.removeChild(this.canvas);
         document.body.appendChild(outputCanvas);
@@ -469,6 +470,7 @@ class XCanvas {
   saveOutput16 (opts) {
     var name = opts.name || 'output';
     var callback = opts.callback || null;
+    var skipDownload = opts.skipDownload || false;
     var srcWidth = opts.srcWidth || this.width;
     var srcHeight = opts.srcHeight || this.height;
     var destWidth = opts.destWidth || this.width;
@@ -573,7 +575,7 @@ class XCanvas {
     var bigEndianAB = swap16ToBigEndian(raw16);
     var pngAB = UPNG.encodeLL([bigEndianAB], destWidth, destHeight, 3, 1, 16);
     var blob = new Blob([pngAB], { type: 'image/png' });
-    XUtils.downloadBlob(blob, `${name}.png`);
+    !skipDownload && XUtils.downloadBlob(blob, `${name}.png`);
     callback && callback(blob);
   }
 
