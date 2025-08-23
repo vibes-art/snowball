@@ -27,8 +27,8 @@ class XIsometricCamera extends XCamera {
 
   onTick (dt, keysDown) {
     var move = [0, 0, 0];
-    if (keysDown['W']) { move[2] -= 1; }
-    if (keysDown['S']) { move[2] += 1; }
+    if (keysDown['W']) { move[2] += 1; }
+    if (keysDown['S']) { move[2] -= 1; }
     if (keysDown['A']) { move[0] -= 1; }
     if (keysDown['D']) { move[0] += 1; }
     if (keysDown['V']) { move[1] -= 1; }
