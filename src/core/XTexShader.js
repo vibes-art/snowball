@@ -27,17 +27,17 @@ class XTexShader extends XShader {
 
     this.fragmentShaderSource = this.fragmentShaderSource.replace(
       /vColor.rgb/g,
-      'texColor.rgb'
+      'tintColor.rgb'
     );
 
     this.fragmentShaderSource = this.fragmentShaderSource.replace(
       /vec3 viewDir\) {/g,
-      'vec3 viewDir, vec4 texColor) {'
+      'vec3 viewDir, vec4 tintColor) {'
     );
 
     this.fragmentShaderSource = this.fragmentShaderSource.replace(
       /, viewDir\);/g,
-      ', viewDir, texColor);'
+      ', viewDir, tintColor);'
     );
   }
 
@@ -55,8 +55,8 @@ class XTexShader extends XShader {
 
   addFSMainHeader (opts) {
     var ambient = opts.disableLights
-      ? `vec3 ambient = texColor.rgb;`
-      : `vec3 ambient = texColor.rgb * ${UNI_KEY_AMBIENT_LIGHT}Color;`;
+      ? `vec3 ambient = tintColor.rgb;`
+      : `vec3 ambient = tintColor.rgb * ${UNI_KEY_AMBIENT_LIGHT}Color;`;
 
     var viewDir = opts.useStaticViewDirection
       ? `vec3 viewDir = normalize(${UNI_KEY_VIEW_DIRECTION});`
@@ -69,6 +69,7 @@ class XTexShader extends XShader {
         vec3 normalDir = normalize(vTBN * normalSample);
 
         vec4 texColor = texture(${UNI_KEY_ALBEDO_MAP}, vUV);
+        vec4 tintColor = texColor * vColor;
         ${ambient}
         vec3 finalColor = ambient;
         float alpha = texColor.a * vColor.a;
