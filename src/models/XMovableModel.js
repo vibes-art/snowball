@@ -2,6 +2,8 @@ class XMovableModel {
 
   constructor (opts) {
     this.position = opts.position || [0, 0, 0];
+    this.minBounds = opts.minBounds || null;
+    this.maxBounds = opts.maxBounds || null;
     this.velocity = opts.velocity || [0, 0, 0];
     this.velocityMax = opts.velocityMax || MAX_SAFE_INTEGER;
     this.accelTime = opts.accelTime || 1;
@@ -44,19 +46,17 @@ class XMovableModel {
     this.timeSinceUpdate += dt;
 
     var pct = max(0, min(1, this.timeSinceUpdate / this.accelTime));
-    var vx = this.velocity[0];
-    var vy = this.velocity[1];
-    var vz = this.velocity[2];
 
-    vx -= vx * pct / 2;
-    vy -= vy * pct / 2;
-    vz -= vz * pct / 2;
-    this.position[0] += dt * vx;
-    this.position[1] += dt * vy;
-    this.position[2] += dt * vz;
-    this.velocity[0] = vx - vx * pct / 2;
-    this.velocity[1] = vy - vy * pct / 2;
-    this.velocity[2] = vz - vz * pct / 2;
+    for (var i = 0; i < this.position.length; i++) {
+      var v = this.velocity[i];
+
+      v -= v * pct / 2;
+      this.position[i] += dt * v;
+      this.velocity[i] = v - v * pct / 2;
+
+      if (this.minBounds) this.position[i] = max(this.minBounds[i], this.position[i]);
+      if (this.maxBounds) this.position[i] = min(this.maxBounds[i], this.position[i]);
+    }
   }
 
 }

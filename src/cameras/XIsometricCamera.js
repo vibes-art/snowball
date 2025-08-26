@@ -9,8 +9,6 @@ class XIsometricCamera extends XCamera {
       yaw: 45 * PI / 180,
       pitch: 35.264 * PI / 180
     };
-
-    this.moveSpeed = opts.moveSpeed !== undefined ? opts.moveSpeed : 0.01;
   }
 
   logControls () {
@@ -26,20 +24,17 @@ class XIsometricCamera extends XCamera {
   }
 
   onTick (dt, keysDown) {
-    var move = [0, 0, 0];
-    if (keysDown['W']) { move[2] += 1; }
-    if (keysDown['S']) { move[2] -= 1; }
-    if (keysDown['A']) { move[0] -= 1; }
-    if (keysDown['D']) { move[0] += 1; }
-    if (keysDown['V']) { move[1] -= 1; }
-    if (keysDown[' ']) { move[1] += 1; }
+    var movement = [0, 0, 0];
+    if (keysDown['W']) { movement[2] += 1; }
+    if (keysDown['S']) { movement[2] -= 1; }
+    if (keysDown['A']) { movement[0] -= 1; }
+    if (keysDown['D']) { movement[0] += 1; }
+    if (keysDown['V']) { movement[1] -= 1; }
+    if (keysDown[' ']) { movement[1] += 1; }
 
-    move = XVector3.normalize(move);
+    movement = XVector3.normalize(movement);
 
-    var delta = dt * this.moveSpeed;
-    this.position[0] += move[0] * delta;
-    this.position[1] += move[1] * delta;
-    this.position[2] += move[2] * delta;
+    this.accelerate(dt, movement);
 
     super.onTick(dt, keysDown);
   }
