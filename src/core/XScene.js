@@ -817,8 +817,9 @@ class XScene {
   }
 
   selectObjects (screenX, screenY) {
-    var ndcX = (screenX / this.viewport.width) * 2 - 1;
-    var ndcY = 1 - (screenY / this.viewport.height) * 2;
+    var dpr = window.devicePixelRatio || 1;
+    var ndcX = (dpr * screenX / this.viewport.width) * 2 - 1;
+    var ndcY = 1 - (dpr * screenY / this.viewport.height) * 2;
     var nearClip = [ndcX, ndcY, -1, 1];
     var farClip = [ndcX, ndcY,  1, 1];
 

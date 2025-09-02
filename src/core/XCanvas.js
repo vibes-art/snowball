@@ -45,10 +45,10 @@ class XCanvas {
   }
 
   init () {
-    this.setDimensions();
-
     var isWebGL = this.type === CANVAS_WEBGL;
     var hasWorkingGL = isWebGL;
+
+    this.setDimensions();
 
     if (!this.isInitialized) {
       this.createElements();
@@ -63,7 +63,6 @@ class XCanvas {
       this.prepareRenderLoop();
     }
 
-    this.setDimensions();
     this.resizeCanvas();
 
     this.isInitialized = true;
@@ -212,15 +211,34 @@ class XCanvas {
     this.windowWidth = window.innerWidth;
     this.windowHeight = window.innerHeight;
 
-    this.width = this.isWindowFit ? floor(this.renderScale * this.windowWidth) : this.width;
-    this.height = this.isWindowFit ? floor(this.renderScale * this.windowHeight) : this.height;
+    var dpr = window.devicePixelRatio || 1;
+    var scale = dpr * this.renderScale;
+
+    this.width = this.isWindowFit ? floor(scale * this.windowWidth) : this.width;
+    this.height = this.isWindowFit ? floor(scale * this.windowHeight) : this.height;
+
+    var aspect = this.width / this.height;
+    if (this.aspectRatioMax && aspect > this.aspectRatioMax) {
+      this.width = this.aspectRatioMax * this.height;
+    }
+
+    if (this.aspectRatioMin && aspect < this.aspectRatioMin) {
+      this.height = this.width / this.aspectRatioMin;
+    }
 
     if (this.maxTextureSize) {
       this.width = min(this.maxTextureSize - 1, this.width);
       this.height = min(this.maxTextureSize - 1, this.height);
     }
 
-    this.dragSensitivity = PI / this.windowWidth;
+    var scaledWidth = round(this.width / scale);
+    var scaledHeight = round(this.height / scale);
+    this.x = (this.windowWidth - scaledWidth) / 2;
+    this.y = (this.windowHeight - scaledHeight) / 2;
+    this.cssWidth = scaledWidth;
+    this.cssHeight = scaledHeight;
+
+    this.dragSensitivity = PI / this.cssWidth;
   }
 
   createElements () {
@@ -283,31 +301,16 @@ class XCanvas {
     width = width || this.width;
     height = height || this.height;
 
-    if (canvas === this.canvas) {
-      var aspect = width / height;
-      if (this.aspectRatioMax && aspect > this.aspectRatioMax) {
-        width = this.aspectRatioMax * height;
-      }
-
-      if (this.aspectRatioMin && aspect < this.aspectRatioMin) {
-        height = width / this.aspectRatioMin;
-      }
-    }
-
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
       canvas.height = height;
     }
 
     if (canvas === this.canvas) {
-      var scaledWidth = round(width / this.renderScale);
-      var scaledHeight = round(height / this.renderScale);
-      this.x = (this.windowWidth - scaledWidth) / 2;
-      this.y = (this.windowHeight - scaledHeight) / 2;
       canvas.style.left = this.x + 'px';
       canvas.style.top = this.y + 'px';
-      canvas.style.width = scaledWidth + 'px';
-      canvas.style.height = scaledHeight + 'px';
+      canvas.style.width = this.cssWidth + 'px';
+      canvas.style.height = this.cssHeight + 'px';
       canvas.style.margin = 0;
       canvas.style.position = 'absolute';
 
