@@ -18,6 +18,9 @@ class XCanvas {
     this.y = 0;
     this.width = ceil(this.renderScale * (opts.width || 0));
     this.height = ceil(this.renderScale * (opts.height || 0));
+    this.cssWidth = this.width;
+    this.cssHeight = this.height;
+    this.cssScale = opts.cssScale || 1;
     this.isWindowFit = this.width === 0;
     this.aspectRatioMin = opts.aspectRatioMin || 0;
     this.aspectRatioMax = opts.aspectRatioMax || 0;
@@ -311,6 +314,7 @@ class XCanvas {
       canvas.style.top = this.y + 'px';
       canvas.style.width = this.cssWidth + 'px';
       canvas.style.height = this.cssHeight + 'px';
+      canvas.style.scale = this.cssScale;
       canvas.style.margin = 0;
       canvas.style.position = 'absolute';
 
