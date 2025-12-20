@@ -57,7 +57,7 @@ class XShader {
     this.vertexShaderSource += `
       void main() {
         vWorldPos = ${UNI_KEY_MODEL_MATRIX} * vec4(${ATTR_KEY_POSITIONS}, 1.0);
-        vNormal = ${UNI_KEY_NORMAL_MATRIX} * vec4(${ATTR_KEY_NORMALS}, 1.0);
+        vNormal = ${UNI_KEY_NORMAL_MATRIX} * vec4(${ATTR_KEY_NORMALS}, 0.0);
         vColor = ${ATTR_KEY_COLORS};
         vUV = ${ATTR_KEY_TEX_COORDS};
     `;
