@@ -201,10 +201,14 @@ class XShader {
       float ${uniKey}ShadowCompute${i}() {
         const int i = ${i};
         vec4 lightPos = ${uniKey}ViewProjMatrices[i] * vWorldPos;
+        vec3 lightDir = ${uniKey}Directions[i];
+        vec3 normalDir = normalize(vNormal.xyz);
         vec3 ndc = lightPos.xyz / lightPos.w;
         vec3 shadowUVdepth = ndc * 0.5 + 0.5;
 
-        float bias = ${SHADOW_BIAS};
+        float ndotl = max(dot(normalDir, normalize(lightDir)), 0.0);
+        float slope = 1.0 - ndotl;
+        float bias = ${SHADOW_BIAS} + ${SHADOW_SLOPE_BIAS} * slope;
         float currentDepth = shadowUVdepth.z - bias;
         float texelSize = 0.5 / ${SHADOW_MAP_SIZE}.0;
         float shadowSum = 0.0;
