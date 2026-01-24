@@ -206,7 +206,7 @@ class XShader {
         vec3 ndc = lightPos.xyz / lightPos.w;
         vec3 shadowUVdepth = ndc * 0.5 + 0.5;
 
-        float ndotl = max(dot(normalDir, normalize(lightDir)), 0.0);
+        float ndotl = max(dot(normalDir, normalize(-lightDir)), 0.0);
         float slope = 1.0 - ndotl;
         float bias = ${SHADOW_BIAS} + ${SHADOW_SLOPE_BIAS} * slope;
         float currentDepth = shadowUVdepth.z - bias;
