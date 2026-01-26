@@ -441,13 +441,20 @@ class XScene {
         gl.depthFunc(gl.LEQUAL);
       }
 
-      if (pass.type === RENDER_PASS_MAIN) {
+      if (pass.type === RENDER_PASS_MAIN || pass.type === RENDER_PASS_SHADOWS) {
         gl.enable(gl.CULL_FACE);
-        gl.cullFace(gl.BACK);
+        gl.cullFace(pass.type === RENDER_PASS_SHADOWS ? gl.FRONT : gl.BACK);
         gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
       } else {
         gl.disable(gl.CULL_FACE);
         gl.blendFunc(gl.ONE, gl.ZERO);
+      }
+
+      if (pass.type === RENDER_PASS_SHADOWS) {
+        gl.enable(gl.POLYGON_OFFSET_FILL);
+        gl.polygonOffset(2.0, 4.0);
+      } else {
+        gl.disable(gl.POLYGON_OFFSET_FILL);
       }
 
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);

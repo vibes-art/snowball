@@ -91,7 +91,10 @@ class XPBRShader extends XShader {
         ${lightProp}
 
         ${toLightDir}
-        vec3 halfDir = normalize(viewDir + toLightDir);
+
+        vec3 H = viewDir + toLightDir;
+        float hLen2 = dot(H, H);
+        vec3 halfDir = (hLen2 > 1e-8) ? (H * inversesqrt(hLen2)) : normalDir;
 
         ${attenuation}
         vec3 radiance = lightColor * attenuation; 
@@ -145,6 +148,10 @@ class XPBRShader extends XShader {
     this.fragmentShaderSource += `
       void main() {
         vec3 normalDir = normalize(vNormal.xyz);
+        if (!gl_FrontFacing) {
+          normalDir = -normalDir;
+        }
+
         ${viewDir}
         vec3 tintColor = ${UNI_KEY_BASE_COLOR}.rgb * vColor.rgb;
         vec3 finalColor = ${UNI_KEY_EMISSIVE_COLOR}.rgb;
