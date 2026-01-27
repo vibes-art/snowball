@@ -50,6 +50,8 @@ class XScene {
     this.lastShader = null;
     this.lastMaterial = null;
     this.lastFrontFace = this.gl.CCW;
+    this.isCullingEnabled = false;
+    this.lastCullingEnabled = false;
     this.currentProjViewMatrix = null;
     this.haveObjectsChanged = false;
     this.needsShaderConnect = false;
@@ -445,9 +447,13 @@ class XScene {
         gl.enable(gl.CULL_FACE);
         gl.cullFace(pass.type === RENDER_PASS_SHADOWS ? gl.FRONT : gl.BACK);
         gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        this.isCullingEnabled = true;
+        this.lastCullingEnabled = true;
       } else {
         gl.disable(gl.CULL_FACE);
         gl.blendFunc(gl.ONE, gl.ZERO);
+        this.isCullingEnabled = false;
+        this.lastCullingEnabled = false;
       }
 
       if (pass.type === RENDER_PASS_SHADOWS) {
@@ -525,6 +531,19 @@ class XScene {
 
         var obj = objects[i];
         var material = obj.material;
+
+        if (obj.isDoubleSided) {
+          if (this.lastCullingEnabled) {
+            gl.disable(gl.CULL_FACE);
+            this.lastCullingEnabled = false;
+          }
+        } else {
+          if (this.isCullingEnabled && !this.lastCullingEnabled) {
+            gl.enable(gl.CULL_FACE);
+            this.lastCullingEnabled = true;
+          }
+        }
+
         if (!hasStartedTransparencyPass && obj.isTransparent && pass.type === RENDER_PASS_MAIN) {
           hasStartedTransparencyPass = true;
           gl.enable(gl.BLEND);
@@ -603,8 +622,6 @@ class XScene {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       }
     }
-
-    // debugger;
 
     this.onDrawFinish();
 

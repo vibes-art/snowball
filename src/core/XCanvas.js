@@ -170,6 +170,8 @@ class XCanvas {
   }
 
   reset (isError, delay, softReset) {
+    this.clearInput();
+
     this.skipFlush = true;
     this.hasSavedOutput = false;
 
@@ -366,13 +368,12 @@ class XCanvas {
   }
 
   onKeyUp (evt) {
-    if (!this.acceptInput) return;
-
     var key = evt.key.toUpperCase();
     this.keysDown[key] = false;
 
-    this.camera && this.camera.onKeyUp(evt);
+    if (!this.acceptInput) return;
 
+    this.camera && this.camera.onKeyUp(evt);
     return key;
   }
 
@@ -398,9 +399,9 @@ class XCanvas {
   }
 
   onMouseUp (evt) {
-    if (!this.acceptInput) return;
-
     this.isDragging = false;
+
+    if (!this.acceptInput) return;
 
     this.camera && this.camera.onMouseUp(evt);
   }
