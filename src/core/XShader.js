@@ -222,7 +222,37 @@ class XShader {
         float slope = 1.0 - ndotl;
         float bias = ${SHADOW_BIAS} + ${SHADOW_SLOPE_BIAS} * slope;
         float currentDepth = shadowUVdepth.z - bias;
+    `;
+
+    if (ENABLE_SHADOW_PCF) {
+      this.fragmentShaderSource += `
+        vec2 texelSize = ${SHADOW_TEXEL_SIZE} / vec2(textureSize(${uniKey}ShadowMap[i], 0));
+        float shadowSum = 0.0;
+        int samples = 0;
+
+        for (int x = -${SHADOW_PCF_SIZE}; x <= ${SHADOW_PCF_SIZE}; x++) {
+          for (int y = -${SHADOW_PCF_SIZE}; y <= ${SHADOW_PCF_SIZE}; y++) {
+            vec2 offset = vec2(float(x), float(y)) * texelSize;
+            vec2 uv = shadowUVdepth.xy + offset;
+            if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+              shadowSum += 1.0;
+            } else {
+              shadowSum += texture(${uniKey}ShadowMap[i], vec3(uv, currentDepth));
+            }
+            samples++;
+          }
+        }
+
+        float avgShadow = shadowSum / float(samples);
+        return avgShadow;
+      `;
+    } else {
+      this.fragmentShaderSource += `
         return texture(${uniKey}ShadowMap[i], vec3(shadowUVdepth.xy, currentDepth));
+      `;
+    }
+
+    this.fragmentShaderSource += `
       }
     `;
   }
