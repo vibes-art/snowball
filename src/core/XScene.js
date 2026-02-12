@@ -22,6 +22,18 @@ var OBJECT_RENDER_SORT = function (a, b) {
 };
 
 var FRUSTUM_CULL_PASSES = [RENDER_PASS_SHADOWS, RENDER_PASS_MAIN];
+var PASS_CACHE_DEP_OBJECTS = 'objects';
+var PASS_CACHE_DEP_LIGHTS = 'lights';
+var PASS_CACHE_DEP_VIEW = 'view';
+var PASS_CACHE_DEP_PROJECTION = 'projection';
+var PASS_CACHE_DEP_VIEWPORT = 'viewport';
+var PASS_CACHE_DEPENDENCIES = [
+  PASS_CACHE_DEP_OBJECTS,
+  PASS_CACHE_DEP_LIGHTS,
+  PASS_CACHE_DEP_VIEW,
+  PASS_CACHE_DEP_PROJECTION,
+  PASS_CACHE_DEP_VIEWPORT
+];
 
 class XScene {
 
@@ -57,6 +69,7 @@ class XScene {
     this.needsShaderConnect = false;
     this.appliedObjectMatrices = false;
     this.objectSort = OBJECT_RENDER_SORT;
+    this.passDependencyVersions = {};
 
     this.addRenderPass(RENDER_PASS_MAIN, {
       framebufferKey: RENDER_PASS_MAIN
@@ -74,6 +87,11 @@ class XScene {
     this.stats.uniformSkips = 0;
     this.stats.programCalls = 0;
     this.stats.objectsCulled = 0;
+    this.stats.passesSkipped = 0;
+
+    PASS_CACHE_DEPENDENCIES.forEach((dependency) => {
+      this.passDependencyVersions[dependency] = 0;
+    });
   };
 
   initUniforms (opts) {
@@ -143,11 +161,30 @@ class XScene {
   }
 
   setViewMatrix (viewMatrix) {
-    this.matrices.view.data = viewMatrix;
+    var viewUniform = this.matrices.view;
+    var viewData = viewUniform.data;
+    var hasViewChanged = !XUtils.areValuesEqual(viewData, viewMatrix);
+    var viewPosition = this.uniforms[UNI_KEY_VIEW_POSITION];
+    var viewDirection = this.uniforms[UNI_KEY_VIEW_DIRECTION];
+    var needsViewUniformSync = viewPosition.isDirty || viewDirection.isDirty;
+    if (!hasViewChanged && !needsViewUniformSync) return;
+
+    if (hasViewChanged) {
+      viewUniform.data = viewMatrix;
+      this.bumpPassDependencyVersion(PASS_CACHE_DEP_VIEW);
+    }
 
     var invView = XMatrix4.invert(viewMatrix);
-    this.uniforms[UNI_KEY_VIEW_POSITION].data = [invView[12], invView[13], invView[14]];
-    this.uniforms[UNI_KEY_VIEW_DIRECTION].data = [invView[8], invView[9], invView[10]];
+    var viewPosData = viewPosition.data;
+    var viewDirData = viewDirection.data;
+
+    if (viewPosData[0] !== invView[12] || viewPosData[1] !== invView[13] || viewPosData[2] !== invView[14]) {
+      viewPosition.data = [invView[12], invView[13], invView[14]];
+    }
+
+    if (viewDirData[0] !== invView[8] || viewDirData[1] !== invView[9] || viewDirData[2] !== invView[10]) {
+      viewDirection.data = [invView[8], invView[9], invView[10]];
+    }
   }
 
   addRenderPass (type, opts) {
@@ -156,7 +193,19 @@ class XScene {
     opts.textures = opts.textures || {};
 
     var isBeforeMain = opts.isBeforeMain || false;
-    var pass = { type, ...opts, isFirstDraw: true };
+    var pass = {
+      type,
+      ...opts,
+      isFirstDraw: true,
+      cacheEnabled: !!opts.cacheEnabled,
+      cacheDirty: true,
+      cacheDependencies: opts.cacheDependencies ? opts.cacheDependencies.slice() : [],
+      cacheVersions: {}
+    };
+
+    if (pass.cacheEnabled && !pass.cacheDependencies.length) {
+      pass.cacheDependencies = PASS_CACHE_DEPENDENCIES.slice();
+    }
 
     if (isBeforeMain) {
       this.renderPasses.unshift(pass);
@@ -183,6 +232,61 @@ class XScene {
           this.renderPasses.splice(i, 1);
         }
       }
+    }
+  }
+
+  bumpPassDependencyVersion (dependency) {
+    if (this.passDependencyVersions[dependency] === undefined) return;
+    this.passDependencyVersions[dependency]++;
+  }
+
+  markRenderPassDirty (pass) {
+    if (!pass || !pass.cacheEnabled) return;
+    pass.cacheDirty = true;
+  }
+
+  invalidateRenderPass (type) {
+    for (var i = 0; i < this.renderPasses.length; i++) {
+      var pass = this.renderPasses[i];
+      if (pass.type === type) {
+        this.markRenderPassDirty(pass);
+      }
+    }
+  }
+
+  invalidateAllRenderPasses () {
+    for (var i = 0; i < this.renderPasses.length; i++) {
+      this.markRenderPassDirty(this.renderPasses[i]);
+    }
+  }
+
+  hasPassDependencyChanged (pass, dependency) {
+    if (!pass.cacheEnabled) return true;
+    return pass.cacheVersions[dependency] !== this.passDependencyVersions[dependency];
+  }
+
+  shouldRenderPass (pass) {
+    if (!pass.cacheEnabled) return true;
+    if (!pass.framebuffer && !pass.framebufferKey) return true;
+    if (pass.cacheDirty || pass.isFirstDraw) return true;
+
+    for (var i = 0; i < pass.cacheDependencies.length; i++) {
+      var dependency = pass.cacheDependencies[i];
+      if (this.hasPassDependencyChanged(pass, dependency)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  onRenderPassComplete (pass) {
+    if (!pass.cacheEnabled) return;
+
+    pass.cacheDirty = false;
+    for (var i = 0; i < pass.cacheDependencies.length; i++) {
+      var dependency = pass.cacheDependencies[i];
+      pass.cacheVersions[dependency] = this.passDependencyVersions[dependency];
     }
   }
 
@@ -243,6 +347,7 @@ class XScene {
 
     this.objects.push(object);
     this.haveObjectsChanged = true;
+    this.bumpPassDependencyVersion(PASS_CACHE_DEP_OBJECTS);
   };
 
   removeObject (object) {
@@ -262,6 +367,7 @@ class XScene {
 
     object.isActive = false;
     this.haveObjectsChanged = true;
+    this.bumpPassDependencyVersion(PASS_CACHE_DEP_OBJECTS);
   }
 
   addDirectionalLight (opts) {
@@ -293,6 +399,7 @@ class XScene {
     var light = new lightClass(opts);
     if (key !== UNI_KEY_POINT_LIGHT) this.addShadowsForLight(light, maxLights);
     lights.push(light);
+    this.bumpPassDependencyVersion(PASS_CACHE_DEP_LIGHTS);
     return light;
   }
 
@@ -307,7 +414,13 @@ class XScene {
       shader: this.getShadowShader(light.key, maxLights),
       uniforms: { lightIndex: light.index },
       viewport: { width: SHADOW_MAP_SIZE, height: SHADOW_MAP_SIZE },
-      isBeforeMain: true
+      isBeforeMain: true,
+      cacheEnabled: true,
+      cacheDependencies: [
+        PASS_CACHE_DEP_OBJECTS,
+        PASS_CACHE_DEP_LIGHTS,
+        PASS_CACHE_DEP_VIEWPORT
+      ]
     });
   }
 
@@ -361,6 +474,9 @@ class XScene {
     this.viewport.height = height;
     this.uniforms.resolution.data = [width, height];
     this.matrices.projection.data = projectionMatrix;
+    this.bumpPassDependencyVersion(PASS_CACHE_DEP_VIEWPORT);
+    this.bumpPassDependencyVersion(PASS_CACHE_DEP_PROJECTION);
+    this.invalidateAllRenderPasses();
 
     for (var key in this.framebufferObjects) {
       this.framebufferObjects[key].onResize(width, height);
@@ -372,6 +488,40 @@ class XScene {
     this.onDrawListeners.push(cb);
   }
 
+  hasDirtyObjects () {
+    for (var i = 0; i < this.objects.length; i++) {
+      if (this.objects[i].isDirty) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  hasDirtyLights () {
+    for (var key in this.lights) {
+      var lightType = this.lights[key];
+
+      if (lightType.length !== undefined) {
+        for (var i = 0; i < lightType.length; i++) {
+          var light = lightType[i];
+          var uniforms = light.getUniforms();
+          for (var j = 0; j < uniforms.length; j++) {
+            if (uniforms[j].isDirty) return true;
+          }
+
+          var textures = light.getTextures();
+          for (var t = 0; t < textures.length; t++) {
+            if (textures[t].uniform.isDirty) return true;
+          }
+        }
+      } else if (lightType.color && lightType.color.isDirty) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   draw (dt) {
     var cpuStart = performance.now();
     this.stats.drawCalls = 0;
@@ -379,10 +529,19 @@ class XScene {
     this.stats.uniformSkips = 0;
     this.stats.programCalls = 0;
     this.stats.objectsCulled = 0;
+    this.stats.passesSkipped = 0;
 
     var len = this.onDrawListeners.length;
     for (var i = len - 1; i >= 0; i--) {
       this.onDrawListeners[i](dt);
+    }
+
+    if (this.haveObjectsChanged || this.hasDirtyObjects()) {
+      this.bumpPassDependencyVersion(PASS_CACHE_DEP_OBJECTS);
+    }
+
+    if (this.hasDirtyLights()) {
+      this.bumpPassDependencyVersion(PASS_CACHE_DEP_LIGHTS);
     }
 
     if (!this.isDrawing) return;
@@ -416,6 +575,10 @@ class XScene {
     for (var passIndex = 0; passIndex < this.renderPasses.length; passIndex++) {
       var pass = this.renderPasses[passIndex];
       if (DEBUG_LIGHTS && pass.type !== RENDER_PASS_SHADOWS) continue;
+      if (!this.shouldRenderPass(pass)) {
+        this.stats.passesSkipped++;
+        continue;
+      }
 
       var framebuffer = pass.framebuffer || null;
       if (pass.framebufferKey) {
@@ -621,6 +784,8 @@ class XScene {
       if (framebuffer) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       }
+
+      this.onRenderPassComplete(pass);
     }
 
     this.onDrawFinish();
@@ -634,6 +799,7 @@ class XScene {
       console.log(`uniformCalls: ${this.stats.uniformCalls}`);
       console.log(`uniformSkips: ${this.stats.uniformSkips}`);
       console.log(`programCalls: ${this.stats.programCalls}`);
+      console.log(`passesSkipped: ${this.stats.passesSkipped}`);
       console.log(`objectsCulled: ${this.stats.objectsCulled}`);
     }
 
@@ -669,6 +835,7 @@ class XScene {
       if (lightType.length !== undefined) {
         for (var i = 0; i < lightType.length; i++) {
           lightType[i].getUniforms().forEach(uniform => uniform.isDirty = false);
+          lightType[i].getTextures().forEach(texture => texture.uniform.isDirty = false);
         }
       } else {
         lightType.color.isDirty = false;

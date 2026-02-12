@@ -118,7 +118,15 @@ class XObject {
   }
 
   enableRenderPass (type, isEnabled) {
-    this.renderPasses[type] = isEnabled !== undefined ? isEnabled : true;
+    var nextValue = isEnabled !== undefined ? isEnabled : true;
+    var previousValue = this.renderPasses[type];
+    this.renderPasses[type] = nextValue;
+
+    if (previousValue === nextValue || !this.scene) return;
+
+    this.scene.haveObjectsChanged = true;
+    this.scene.bumpPassDependencyVersion(PASS_CACHE_DEP_OBJECTS);
+    this.scene.invalidateRenderPass(type);
   }
 
   addAttribute (key, opts) {
