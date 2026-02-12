@@ -78,7 +78,8 @@ class XCanvas {
     this.scene = new XScene({ gl: this.gl, ...opts });
     this.scene.addFramebuffer(RENDER_PASS_MAIN, {
       width: this.width,
-      height: this.height
+      height: this.height,
+      colorAttachmentCount: opts.mainColorAttachments || 1
     });
 
     this.initLights(opts);

@@ -85,7 +85,7 @@ class XShader {
       in vec4 vWorldPos;
       in vec4 vNormal;
       in vec4 vColor;
-      out vec4 fragColor;
+      layout(location = 0) out vec4 fragColor;
 
       uniform vec3 ${UNI_KEY_VIEW_POSITION};
       uniform vec3 ${UNI_KEY_VIEW_DIRECTION};

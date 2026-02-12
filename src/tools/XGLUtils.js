@@ -402,16 +402,33 @@ XGLUtils.loadShader = function (gl, type, source) {
   return shader;
 };
 
-XGLUtils.createFramebuffer = function (gl, width, height) {
+XGLUtils.createFramebuffer = function (gl, width, height, opts) {
+  opts = opts || {};
+  var colorAttachmentCount = max(1, opts.colorAttachmentCount || 1);
+  var maxColorAttachments = gl.getParameter(gl.MAX_COLOR_ATTACHMENTS) || 1;
+  colorAttachmentCount = min(colorAttachmentCount, maxColorAttachments);
+
   var framebuffer = gl.createFramebuffer();
   gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
 
-  var colorsTexture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, colorsTexture);
-  XGLUtils.textureBestColorBuffer(gl, width, height);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, colorsTexture, 0);
+  var colorsTextures = [];
+  for (var i = 0; i < colorAttachmentCount; i++) {
+    var colorsTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, colorsTexture);
+    XGLUtils.textureBestColorBuffer(gl, width, height);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, gl.TEXTURE_2D, colorsTexture, 0);
+    colorsTextures.push(colorsTexture);
+  }
+
+  if (colorAttachmentCount > 1) {
+    var drawBuffers = [];
+    for (var i = 0; i < colorAttachmentCount; i++) {
+      drawBuffers.push(gl.COLOR_ATTACHMENT0 + i);
+    }
+    gl.drawBuffers(drawBuffers);
+  }
 
   var renderbuffer = gl.createRenderbuffer();
   gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
@@ -422,13 +439,22 @@ XGLUtils.createFramebuffer = function (gl, width, height) {
   gl.bindRenderbuffer(gl.RENDERBUFFER, null);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-  return { framebuffer, colorsTexture, renderbuffer };
+  return {
+    framebuffer,
+    colorsTexture: colorsTextures[0],
+    colorsTextures,
+    renderbuffer
+  };
 };
 
 XGLUtils.deleteFramebuffer = function (gl, fbo) {
-  gl.deleteFramebuffer(fbo.framebuffer);
-  gl.deleteRenderbuffer(fbo.renderbuffer);
-  XGLUtils.unloadTexture(gl, fbo.colorsTexture);
+  fbo.framebuffer && gl.deleteFramebuffer(fbo.framebuffer);
+  fbo.renderbuffer && gl.deleteRenderbuffer(fbo.renderbuffer);
+
+  var colorsTextures = fbo.colorsTextures || (fbo.colorsTexture ? [fbo.colorsTexture] : []);
+  for (var i = 0; i < colorsTextures.length; i++) {
+    colorsTextures[i] && XGLUtils.unloadTexture(gl, colorsTextures[i]);
+  }
 };
 
 XGLUtils.textureBestColorBuffer = function (gl, width, height) {

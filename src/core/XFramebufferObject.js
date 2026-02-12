@@ -6,11 +6,13 @@ class XFramebufferObject {
     this.width = opts.width;
     this.height = opts.height;
     this.scale = opts.scale || 1;
+    this.colorAttachmentCount = opts.colorAttachmentCount || 1;
     this.offscreenPass = opts.offscreenPass || false;
 
     this.framebuffer = null;
     this.renderbuffer = null;
     this.colorsTexture = null;
+    this.colorsTextures = null;
 
     this.linkedAttributes = [];
     this.linkedTextures = [];
@@ -21,15 +23,18 @@ class XFramebufferObject {
   init () {
     var width = round(this.width * this.scale);
     var height = round(this.height * this.scale);
-    var fbo = XGLUtils.createFramebuffer(this.gl, width, height);
+    var fbo = XGLUtils.createFramebuffer(this.gl, width, height, {
+      colorAttachmentCount: this.colorAttachmentCount
+    });
 
     this.framebuffer = fbo.framebuffer;
     this.renderbuffer = fbo.renderbuffer;
     this.colorsTexture = fbo.colorsTexture;
+    this.colorsTextures = fbo.colorsTextures || [fbo.colorsTexture];
   }
 
-  linkAttribute (obj, key) {
-    var link = { obj, key };
+  linkAttribute (obj, key, colorAttachmentIndex) {
+    var link = { obj, key, colorAttachmentIndex: colorAttachmentIndex || 0 };
     this.linkedAttributes.push(link);
     this.updateLinkedAttribute(link);
   }
@@ -38,6 +43,7 @@ class XFramebufferObject {
     var obj = link.obj;
     var key = link.key;
     var attrib = obj.attributes[key];
+    var colorAttachmentIndex = link.colorAttachmentIndex || 0;
     var width = round(this.width * this.scale);
     var height = round(this.height * this.scale);
 
@@ -45,19 +51,25 @@ class XFramebufferObject {
     attrib.textureHeight = height;
 
     var texture = new XTexture({ gl: this.gl, key: key + 'Texture' });
-    texture.setGLTexture(this.colorsTexture);
+    texture.setGLTexture(this.colorsTextures[colorAttachmentIndex] || this.colorsTexture);
     obj.setTextureForAttribute(texture, key);
   }
 
-  getLinkedTextureForUniform (key) {
+  getLinkedTextureForUniform (key, colorAttachmentIndex) {
     var texture = new XTexture({ gl: this.gl, key });
-    this.linkedTextures.push(texture);
-    this.updateLinkedTexture(texture);
+    var link = {
+      texture,
+      colorAttachmentIndex: colorAttachmentIndex || 0
+    };
+    this.linkedTextures.push(link);
+    this.updateLinkedTexture(link);
     return texture;
   }
 
-  updateLinkedTexture (texture) {
-    texture.setGLTexture(this.colorsTexture);
+  updateLinkedTexture (link) {
+    var texture = link.texture || link;
+    var colorAttachmentIndex = link.colorAttachmentIndex || 0;
+    texture.setGLTexture(this.colorsTextures[colorAttachmentIndex] || this.colorsTexture);
   }
 
   onResize (width, height) {
@@ -87,6 +99,7 @@ class XFramebufferObject {
     this.framebuffer = null;
     this.renderbuffer = null;
     this.colorsTexture = null;
+    this.colorsTextures = null;
 
     this.linkedAttributes = [];
     this.linkedTextures = [];
