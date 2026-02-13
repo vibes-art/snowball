@@ -29,11 +29,15 @@ class XCanvas {
     this.canvas = null;
     this.ctx = null;
     this.onTickListener = null;
+    this.onNextRenderFrame = null;
     this.keysDown = {};
     this.isInitialized = false;
     this.hasSetHandlers = false;
     this.hasSavedOutput = false;
     this.isLiveRendering = true;
+    this.renderOnDemand = !!opts.renderOnDemand;
+    this.isRenderLoopActive = false;
+    this.hasPendingRenderFrame = false;
     this.skipFlush = false;
     this.acceptInput = false;
     this.isDragging = false;
@@ -166,8 +170,48 @@ class XCanvas {
     this.skipFlush = this.type === CANVAS_2D;
     this.acceptInput = true;
 
-    this.onTickListener = (dt, dtReal) => this.draw(dt, dtReal);
+    if (!this.onTickListener) {
+      this.onTickListener = (dt, dtReal) => this.draw(dt, dtReal);
+    }
+
+    if (this.renderOnDemand) {
+      this.requestRenderFrame();
+    } else {
+      this.startRenderLoop();
+    }
+  }
+
+  startRenderLoop () {
+    if (!this.onTickListener) {
+      this.onTickListener = (dt, dtReal) => this.draw(dt, dtReal);
+    }
+
+    if (this.isRenderLoopActive) return;
+
     XClock.onTick(this.onTickListener);
+    this.isRenderLoopActive = true;
+  }
+
+  stopRenderLoop () {
+    if (!this.isRenderLoopActive || !this.onTickListener) return;
+
+    XClock.removeListener(this.onTickListener);
+    this.isRenderLoopActive = false;
+  }
+
+  requestRenderFrame () {
+    if (this.isRenderLoopActive || this.hasPendingRenderFrame) return;
+
+    this.hasPendingRenderFrame = true;
+    this.onNextRenderFrame = (dt, dtReal) => {
+      this.hasPendingRenderFrame = false;
+      this.onNextRenderFrame = null;
+
+      if (!this.scene || !this.gl) return;
+      this.draw(dt, dtReal);
+    };
+
+    XClock.onNextTick(this.onNextRenderFrame);
   }
 
   reset (isError, delay, softReset) {
@@ -175,6 +219,13 @@ class XCanvas {
 
     this.skipFlush = true;
     this.hasSavedOutput = false;
+    this.stopRenderLoop();
+
+    if (this.onNextRenderFrame) {
+      XClock.removeListener(this.onNextRenderFrame);
+      this.onNextRenderFrame = null;
+    }
+    this.hasPendingRenderFrame = false;
 
     this.scene && this.scene.remove();
     this.scene = null;
@@ -182,11 +233,10 @@ class XCanvas {
     if (!softReset) {
       XClock.reset();
       XTimeline.reset();
-    } else {
-      XClock.removeListener(this.onTickListener);
     }
 
     this.onTickListener = null;
+    this.isRenderLoopActive = false;
     this.shader = null;
     this.textureShader = null;
 
@@ -331,6 +381,9 @@ class XCanvas {
     if (this.scene) {
       this.scene.onResize(width, height, this.getProjectionMatrix());
       this.effects.forEach(effect => effect.onResize(width, height));
+      if (this.renderOnDemand && this.acceptInput) {
+        this.requestRenderFrame();
+      }
     }
   }
 
@@ -364,6 +417,7 @@ class XCanvas {
     this.keysDown[key] = true;
 
     this.camera && this.camera.onKeyDown(evt);
+    this.renderOnDemand && this.requestRenderFrame();
 
     return key;
   }
@@ -375,6 +429,7 @@ class XCanvas {
     if (!this.acceptInput) return;
 
     this.camera && this.camera.onKeyUp(evt);
+    this.renderOnDemand && this.requestRenderFrame();
     return key;
   }
 
@@ -397,6 +452,7 @@ class XCanvas {
     this.dragLast.y = evt.y;
 
     this.camera && this.camera.onMouseMove(evt, dx, dy);
+    this.renderOnDemand && this.requestRenderFrame();
   }
 
   onMouseUp (evt) {
@@ -407,7 +463,10 @@ class XCanvas {
     this.camera && this.camera.onMouseUp(evt);
   }
 
-  onMouseWheel (evt) { this.camera && this.camera.onMouseWheel(evt); }
+  onMouseWheel (evt) {
+    this.camera && this.camera.onMouseWheel(evt);
+    this.renderOnDemand && this.requestRenderFrame();
+  }
 
   // by default, touch events mimic mouse events
   onTouchStart (touchEvt) {
@@ -602,11 +661,13 @@ class XCanvas {
   resetCamera () {
     this.clearInput();
     this.camera.reset();
+    this.renderOnDemand && this.requestRenderFrame();
   }
 
   stopCamera () {
     this.clearInput();
     this.camera.stop();
+    this.renderOnDemand && this.requestRenderFrame();
   }
 
   updateCamera (dt) {
