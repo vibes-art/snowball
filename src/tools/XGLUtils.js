@@ -15,6 +15,47 @@ XGLUtils.maxTextureMemory = min(
   (IS_MOBILE ? 512 : 1024) * 1024 * 1024 // capped at 512 MB mobile, 1 GB desktop
 );
 
+XGLUtils.getRecommendedShadowMapSize = function (gl, opts) {
+  opts = opts || {};
+
+  var isMobile = opts.isMobile !== undefined ? opts.isMobile : IS_MOBILE;
+  var isIOS = opts.isIOS !== undefined ? opts.isIOS : IS_IOS;
+  var hasDeviceMemory = navigator.deviceMemory !== undefined && navigator.deviceMemory !== null;
+  var deviceMemory = hasDeviceMemory ? navigator.deviceMemory : 0;
+  var maxTextureSize = opts.maxTextureSize;
+  if (!maxTextureSize && gl && gl.getParameter) {
+    maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 0;
+  }
+
+  var minShadowSize = isMobile ? 512 : 4096;
+  var maxShadowSize = isMobile ? 2048 : 8192;
+  if (isMobile && hasDeviceMemory && deviceMemory <= 3) {
+    maxShadowSize = min(maxShadowSize, 1024);
+  }
+
+  if (isIOS) {
+    var iosShadowCap = 1024;
+    if (maxTextureSize >= 8192 && (!hasDeviceMemory || deviceMemory >= 4)) {
+      iosShadowCap = 2048;
+    }
+    maxShadowSize = min(maxShadowSize, iosShadowCap);
+  }
+
+  if (!maxTextureSize) {
+    return minShadowSize;
+  }
+
+  var divisor = isMobile ? 4 : 2;
+  var targetSize = floor(maxTextureSize / divisor);
+  targetSize = max(minShadowSize, min(maxShadowSize, targetSize));
+
+  // keep shadow maps at power-of-two sizes for predictable allocations/perf
+  var shadowSize = 1;
+  while (2 * shadowSize <= targetSize) shadowSize *= 2;
+
+  return min(maxShadowSize, max(minShadowSize, shadowSize));
+};
+
 XGLUtils.setBuffer = function (gl, buffer, srcData, opts) {
   var target = opts.target !== undefined ? opts.target : gl.ARRAY_BUFFER;
   var isDirty = opts.isDirty;
@@ -455,6 +496,14 @@ XGLUtils.deleteFramebuffer = function (gl, fbo) {
   for (var i = 0; i < colorsTextures.length; i++) {
     colorsTextures[i] && XGLUtils.unloadTexture(gl, colorsTextures[i]);
   }
+};
+
+XGLUtils.deleteDepthFramebuffer = function (gl, depthFBO) {
+  if (!depthFBO) return;
+
+  depthFBO.framebuffer && gl.deleteFramebuffer(depthFBO.framebuffer);
+  depthFBO.depthTexture && XGLUtils.unloadTexture(gl, depthFBO.depthTexture);
+  depthFBO.debugColorTex && XGLUtils.unloadTexture(gl, depthFBO.debugColorTex);
 };
 
 XGLUtils.textureBestColorBuffer = function (gl, width, height) {

@@ -36,6 +36,9 @@ class XCanvas {
     this.hasSavedOutput = false;
     this.isLiveRendering = true;
     this.renderOnDemand = !!opts.renderOnDemand;
+    this.resetGlobalClock = opts.resetGlobalClock !== undefined
+      ? opts.resetGlobalClock
+      : true;
     this.isRenderLoopActive = false;
     this.hasPendingRenderFrame = false;
     this.skipFlush = false;
@@ -230,7 +233,7 @@ class XCanvas {
     this.scene && this.scene.remove();
     this.scene = null;
 
-    if (!softReset) {
+    if (!softReset && this.resetGlobalClock) {
       XClock.reset();
       XTimeline.reset();
     }
@@ -298,7 +301,9 @@ class XCanvas {
   }
 
   createElements () {
-    if (this.canvas) document.body.removeChild(this.canvas);
+    if (this.canvas && this.canvas.parentNode) {
+      this.canvas.parentNode.removeChild(this.canvas);
+    }
 
     this.canvas = document.createElement('canvas');
     this.canvas.width = this.width;

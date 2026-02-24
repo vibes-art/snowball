@@ -411,6 +411,7 @@ class XScene {
 
     this.addRenderPass(RENDER_PASS_SHADOWS, {
       framebuffer: shadowFBO.framebuffer,
+      shadowFBO,
       shader: this.getShadowShader(light.key, maxLights),
       uniforms: { lightIndex: light.index },
       viewport: { width: SHADOW_MAP_SIZE, height: SHADOW_MAP_SIZE },
@@ -1042,14 +1043,56 @@ class XScene {
   remove () {
     var objCount = this.objects.length;
     var shaders = [];
+    var gl = this.gl;
+
+    var trackShader = (shader) => {
+      if (shader && shaders.indexOf(shader) === -1) {
+        shaders.push(shader);
+      }
+    };
 
     for (var i = objCount - 1; i >= 0; i--) {
       var obj = this.objects[i];
-      if (obj.shader && shaders.indexOf(obj.shader) === -1) {
-        shaders.push(obj.shader);
+      trackShader(obj.shader);
+      obj.remove();
+    }
+
+    var passCount = this.renderPasses.length;
+    for (var i = 0; i < passCount; i++) {
+      var pass = this.renderPasses[i];
+      trackShader(pass.shader);
+
+      if (pass.shadowFBO) {
+        XGLUtils.deleteDepthFramebuffer(gl, pass.shadowFBO);
+        pass.shadowFBO = null;
+      } else if (pass.framebuffer && !pass.framebufferKey) {
+        gl.deleteFramebuffer(pass.framebuffer);
       }
 
-      obj.remove();
+      pass.framebuffer = null;
+    }
+
+    for (var key in this.shadowShaders) {
+      trackShader(this.shadowShaders[key]);
+    }
+    trackShader(this.textShader);
+    trackShader(this.shader);
+    trackShader(this.textureShader);
+
+    for (var key in this.lights) {
+      var lightType = this.lights[key];
+      if (lightType && lightType.length !== undefined) {
+        for (var i = 0; i < lightType.length; i++) {
+          var light = lightType[i];
+          if (!light || !light.getTextures) continue;
+
+          var lightTextures = light.getTextures();
+          for (var t = 0; t < lightTextures.length; t++) {
+            var lightTexture = lightTextures[t];
+            lightTexture && lightTexture.remove && lightTexture.remove();
+          }
+        }
+      }
     }
 
     var shaderCount = shaders.length;
@@ -1065,6 +1108,13 @@ class XScene {
     }
     this.framebufferObjects = {};
 
+    this.objects = [];
+    this.renderPasses = [];
+    this.lights = {};
+    this.shader = null;
+    this.textureShader = null;
+    this.shadowShaders = {};
+    this.textShader = null;
     this.shaderUniformCache = null;
   }
 
