@@ -1,6 +1,6 @@
 class ABRandom {
 
-  constructor () {
+  constructor (seedHash) {
     this.useA = false;
     let sfc32 = function (uint128Hex) {
       let a = parseInt(uint128Hex.substring(0, 8), 16);
@@ -21,10 +21,12 @@ class ABRandom {
         return (t >>> 0) / 4294967296;
       };
     };
-    // seed prngA with first half of tokenData.hash
-    this.prngA = new sfc32(tokenData.hash.substring(2, 34));
-    // seed prngB with second half of tokenData.hash
-    this.prngB = new sfc32(tokenData.hash.substring(34, 66));
+
+    var hash = seedHash || tokenData.hash;
+    // seed prngA with first half of hash
+    this.prngA = new sfc32(hash.substring(2, 34));
+    // seed prngB with second half of hash
+    this.prngB = new sfc32(hash.substring(34, 66));
     for (let i = 0; i < 1e6; i += 2) {
       this.prngA();
       this.prngB();

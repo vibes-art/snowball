@@ -173,8 +173,8 @@ XUtils.enableXorshift128PRNG = function (seed) {
   };'tx piter';
 };
 
-XUtils.enableArtBlocksPRNG = function () {
-  var abr = new ABRandom();
+XUtils.enableArtBlocksPRNG = function (seedHash) {
+  var abr = new ABRandom(seedHash);
   random = () => abr.random_dec();
 };
 
