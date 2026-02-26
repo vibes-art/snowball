@@ -210,6 +210,10 @@ class XObject {
     }
   }
 
+  getShaderForRenderPass (pass, fallbackShader) {
+    return fallbackShader;
+  }
+
   get alpha () {
     return this._alpha !== undefined ? this._alpha : 1;
   }

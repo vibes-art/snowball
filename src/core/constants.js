@@ -150,6 +150,7 @@ var UNI_KEY_TEXTURE_SIZE = 'textureSize';
 var UNI_KEY_EXPOSURE = 'exposure';
 var UNI_KEY_THICKNESS = 'thickness';
 var UNI_KEY_SOFTNESS = 'softness';
+var UNI_KEY_TEXT_SHADOW_ALPHA_CUTOFF = 'textShadowAlphaCutoff';
 
 var NOISE_TYPE_HEIGHT = 'height';
 var NOISE_TYPE_COLOR_HEIGHT_OFFSET = 'colorHeightOffset';

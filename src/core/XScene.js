@@ -48,6 +48,7 @@ class XScene {
     this.fonts = {};
     this.fontsLoading = {};
     this.shadowShaders = {};
+    this.textShadowShaders = {};
     this.matrices = {};
     this.viewport = {};
     this.renderPasses = [];
@@ -137,6 +138,24 @@ class XScene {
     if (!shader) {
       shader = this.shadowShaders[uniformKey] = new XShadowShader({
         scene: this, uniformKey, maxLights
+      });
+    }
+
+    return shader;
+  }
+
+  getTextShadowShader (uniformKey, maxLights, mode) {
+    mode = mode || TEXT_SHADOW_MODE_SDF_BINARY;
+
+    var shadersByMode = this.textShadowShaders[uniformKey];
+    if (!shadersByMode) {
+      shadersByMode = this.textShadowShaders[uniformKey] = {};
+    }
+
+    var shader = shadersByMode[mode];
+    if (!shader) {
+      shader = shadersByMode[mode] = new XTextShadowShader({
+        scene: this, uniformKey, maxLights, mode
       });
     }
 
@@ -414,6 +433,8 @@ class XScene {
       shadowFBO,
       shader: this.getShadowShader(light.key, maxLights),
       uniforms: { lightIndex: light.index },
+      shadowUniformKey: light.key,
+      shadowMaxLights: maxLights,
       viewport: { width: SHADOW_MAP_SIZE, height: SHADOW_MAP_SIZE },
       isBeforeMain: true,
       cacheEnabled: true,
@@ -723,6 +744,7 @@ class XScene {
         }
 
         var shader = pass.shader || obj.shader;
+        shader = obj.getShaderForRenderPass(pass, shader) || shader;
         var isNewShader = isNewPass || this.lastShader !== shader;
         var isNewMaterial = isNewShader || this.lastMaterial !== material;
 
@@ -1075,6 +1097,14 @@ class XScene {
     for (var key in this.shadowShaders) {
       trackShader(this.shadowShaders[key]);
     }
+
+    for (var key in this.textShadowShaders) {
+      var modes = this.textShadowShaders[key];
+      for (var mode in modes) {
+        trackShader(modes[mode]);
+      }
+    }
+
     trackShader(this.textShader);
     trackShader(this.shader);
     trackShader(this.textureShader);
@@ -1114,6 +1144,7 @@ class XScene {
     this.shader = null;
     this.textureShader = null;
     this.shadowShaders = {};
+    this.textShadowShaders = {};
     this.textShader = null;
     this.shaderUniformCache = null;
   }

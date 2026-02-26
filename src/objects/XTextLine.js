@@ -9,6 +9,7 @@ var TEXT_VERT_ALIGN_CENTER = 'center';
 class XTextLine extends XObject {
 
   constructor (opts) {
+    opts = opts || {};
     opts.type = opts.gl.TRIANGLE_STRIP;
     opts.shader = opts.shader !== undefined ? opts.shader : opts.scene.getTextShader();
     super(opts);
@@ -26,9 +27,13 @@ class XTextLine extends XObject {
     this.hasVertAligned = false;
     this.previousVertAlignment = 0;
 
-    this.setText(opts.text);
+    this.textShadow = new XTextShadow(opts.textShadow);
+    if (opts.castTextShadow !== undefined) {
+      this.textShadow.setEnabled(opts.castTextShadow);
+    }
 
-    this.enableRenderPass(RENDER_PASS_SHADOWS, false);
+    this.setText(opts.text);
+    this.setTextShadow(this.textShadow);
   }
 
   setText (text) {
@@ -74,6 +79,7 @@ class XTextLine extends XObject {
     this.height = height;
     this.align = this.align; // trigger update
     this.vertAlign = this.vertAlign;
+    this.updateTextShadowPass();
   }
 
   get align () {
@@ -108,9 +114,14 @@ class XTextLine extends XObject {
   defineUniforms (opts) {
     super.defineUniforms(opts);
 
+    var textShadow = opts.textShadow || {};
+    var alphaCutoff = textShadow.alphaCutoff !== undefined
+      ? textShadow.alphaCutoff
+      : TEXT_SHADOW_ALPHA_CUTOFF_DEFAULT;
     this.addUniform(UNI_KEY_BASE_COLOR, { data: opts.baseColor || [1, 1, 1, 1] });
     this.addUniform(UNI_KEY_THICKNESS, { components: 1, data: opts.thickness || 0 });
     this.addUniform(UNI_KEY_SOFTNESS, { components: 1, data: opts.softness || 0 });
+    this.addUniform(UNI_KEY_TEXT_SHADOW_ALPHA_CUTOFF, { components: 1, data: alphaCutoff });
   }
 
   defineTextures (opts) {
@@ -208,6 +219,69 @@ class XTextLine extends XObject {
     }
 
     this.indicesDirty = true;
+  }
+
+  hasTextShadowCaster () {
+    return !!(this.textShadow
+      && this.textShadow.enabled
+      && this.glyphs
+      && this.glyphs.length);
+  }
+
+  updateTextShadowPass () {
+    this.enableRenderPass(RENDER_PASS_SHADOWS, this.hasTextShadowCaster());
+  }
+
+  setTextShadow (textShadow) {
+    if (textShadow instanceof XTextShadow) {
+      this.textShadow = textShadow;
+    } else if (typeof textShadow === 'boolean') {
+      this.textShadow.setEnabled(textShadow);
+    } else if (textShadow) {
+      this.textShadow.apply(textShadow);
+    }
+
+    this.setTextShadowMode(this.textShadow.mode);
+    this.setTextShadowAlphaCutoff(this.textShadow.alphaCutoff);
+    this.updateTextShadowPass();
+    return this.textShadow;
+  }
+
+  setTextShadowEnabled (enabled) {
+    this.textShadow.setEnabled(enabled);
+    this.updateTextShadowPass();
+    return this.textShadow.enabled;
+  }
+
+  setTextShadowMode (mode) {
+    var previousMode = this.textShadow.mode;
+    this.textShadow.setMode(mode);
+
+    if (previousMode !== this.textShadow.mode && this.scene) {
+      this.scene.haveObjectsChanged = true;
+      this.scene.invalidateRenderPass(RENDER_PASS_SHADOWS);
+    }
+
+    this.updateTextShadowPass();
+    return this.textShadow.mode;
+  }
+
+  setTextShadowAlphaCutoff (alphaCutoff) {
+    this.textShadow.setAlphaCutoff(alphaCutoff);
+    this.uniforms[UNI_KEY_TEXT_SHADOW_ALPHA_CUTOFF].data = this.textShadow.alphaCutoff;
+    return this.textShadow.alphaCutoff;
+  }
+
+  getShaderForRenderPass (pass, fallbackShader) {
+    if (!pass || pass.type !== RENDER_PASS_SHADOWS) return fallbackShader;
+    if (!this.hasTextShadowCaster()) return fallbackShader;
+    if (!pass.shadowUniformKey || !pass.shadowMaxLights) return fallbackShader;
+
+    return this.scene.getTextShadowShader(
+      pass.shadowUniformKey,
+      pass.shadowMaxLights,
+      this.textShadow.mode
+    );
   }
 
   isInFrustum (planes) {
