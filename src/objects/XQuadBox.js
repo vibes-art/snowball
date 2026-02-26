@@ -1,7 +1,7 @@
 var BOX_VERTEX_SIGNS = [[-1,1,1],[ 1,1,1],[ 1,1,-1],[-1,1,-1],[-1,-1,1],[ 1,-1,1],[ 1,-1,-1],[-1,-1,-1]];
 var BOX_VERTEX_INDICES = [[1,2,3,0],[5,1,0,4],[6,2,1,5],[7,3,2,6],[4,0,3,7],[5,4,7,6]];
-var INVERTED_VERTEX_INDICES = [];
-BOX_VERTEX_INDICES.forEach((v) => INVERTED_VERTEX_INDICES.push([v[0], v[3], v[2], v[1]]));
+// Keep explicit per-face order so inverted quads preserve expected UV orientation.
+var INVERTED_VERTEX_INDICES = [[1,0,3,2],[0,1,5,4],[5,1,2,6],[6,2,3,7],[7,3,0,4],[4,5,6,7]];
 
 class XQuadBox {
 
