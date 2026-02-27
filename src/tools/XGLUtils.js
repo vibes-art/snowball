@@ -266,7 +266,16 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries, data) {
 
   if (cacheEntry) {
     cacheEntry.lastUsedTime = time;
-    onLoad && onLoad(cacheEntry.texture);
+
+    if (onLoad) {
+      if (cacheEntry.isLoaded) {
+        onLoad(cacheEntry.texture, cacheEntry.width, cacheEntry.height);
+      } else {
+        cacheEntry.callbacks = cacheEntry.callbacks || [];
+        cacheEntry.callbacks.push(onLoad);
+      }
+    }
+
     return cacheEntry.texture;
   }
 
@@ -285,7 +294,8 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries, data) {
     width: 1,
     height: 1,
     sizeInBytes: 4,
-    lastUsedTime: time
+    lastUsedTime: time,
+    callbacks: onLoad ? [onLoad] : []
   };
 
   XGLUtils.bindTexture(gl, SHARED_TEXTURE_UNIT, texture);
@@ -341,18 +351,27 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries, data) {
 
     XGLUtils.loadsActive--;
 
-    onLoad && onLoad(texture, img.width, img.height);
+    var callbacks = cacheEntry.callbacks || [];
+    cacheEntry.callbacks = [];
+    for (var i = 0; i < callbacks.length; i++) {
+      callbacks[i] && callbacks[i](texture, img.width, img.height);
+    }
   }
 
   function loadWithImage () {
     var image = new Image();
     image.onload = () => uploadToGPU(image);
     image.onerror = () => {
+      var retryCallbacks = (cacheEntry && cacheEntry.callbacks && cacheEntry.callbacks.slice()) || [];
       delete XGLUtils.textureCache[url];
       XGLUtils.loadsActive--;
 
       if (retries < MAX_IMAGE_RETRIES) {
-        setTimeout(() => XGLUtils.loadTexture(gl, url, sRGB, onLoad, retries, data), 100 * retries++);
+        setTimeout(() => XGLUtils.loadTexture(gl, url, sRGB, (texture, width, height) => {
+          for (var i = 0; i < retryCallbacks.length; i++) {
+            retryCallbacks[i] && retryCallbacks[i](texture, width, height);
+          }
+        }, retries, data), 100 * retries++);
       } else {
         console.error(`Failed to load ${url} after ${MAX_IMAGE_RETRIES} retries.`);
       }

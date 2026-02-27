@@ -15,6 +15,8 @@ class XTextLine extends XObject {
     super(opts);
 
     this.font = opts.font;
+    this.font && this.font.onLoaded && this.font.onLoaded(() => this.updateTextShadowPass());
+
     this.scale = opts.scale || 1;
     this._alpha = 1;
     this.hasTransparency = true;
@@ -224,12 +226,26 @@ class XTextLine extends XObject {
   hasTextShadowCaster () {
     return !!(this.textShadow
       && this.textShadow.enabled
+      && this.isFontTextureReady()
       && this.glyphs
       && this.glyphs.length);
   }
 
   updateTextShadowPass () {
     this.enableRenderPass(RENDER_PASS_SHADOWS, this.hasTextShadowCaster());
+  }
+
+  draw () {
+    if (!this.isFontTextureReady()) return;
+    super.draw();
+  }
+
+  isFontTextureReady () {
+    var texture = this.font && this.font.sourceTexture;
+    return !!(texture
+      && texture.isLoaded
+      && !texture.isLoading
+      && !(texture.width <= 1 && texture.height <= 1));
   }
 
   setTextShadow (textShadow) {

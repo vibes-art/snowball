@@ -28,6 +28,8 @@ class XTextShader extends XShader {
 
     this.fragmentShaderSource += `
         vec4 baseColor = ${UNI_KEY_BASE_COLOR};
+        vec2 atlasSize = vec2(textureSize(${UNI_KEY_SOURCE_TEXTURE}, 0));
+        if (atlasSize.x <= 1.0 && atlasSize.y <= 1.0) discard;
         vec3 texColor = texture(${UNI_KEY_SOURCE_TEXTURE}, vUV).rgb;
         float signedDistance = median(texColor.r, texColor.g, texColor.b);
         float screenPxDistance = screenPxRange() * (signedDistance - 0.5 + ${UNI_KEY_THICKNESS});

@@ -8,6 +8,9 @@ class XFont {
     var data = opts.data;
     var atlasPath = opts.atlasPath;
 
+    this.isLoaded = false;
+    this.onLoadCallbacks = [];
+
     var atlasInfo = data.atlas || {};
     var metrics = data.metrics || {};
     this.atlasWidth = atlasInfo.width || 1;
@@ -19,7 +22,16 @@ class XFont {
     data.glyphs.forEach(g => glyphs[g.unicode] = g);
     this.glyphs = glyphs;
 
-    this.sourceTexture = new XTexture({ gl, key: UNI_KEY_SOURCE_TEXTURE, url: atlasPath });
+    this.sourceTexture = new XTexture({
+      gl,
+      key: UNI_KEY_SOURCE_TEXTURE,
+      url: atlasPath,
+      onLoad: () => this.markLoaded()
+    });
+
+    if (!atlasPath) {
+      this.markLoaded();
+    }
   }
 
   getGlyphsForText (text) {
@@ -48,6 +60,28 @@ class XFont {
   getGlyphByIndex (text, index) {
     var c = text.charCodeAt(index);
     return this.glyphs[c] || this.glyphs[ASCII_SPACE];
+  }
+
+  onLoaded (onLoad) {
+    if (!onLoad) return;
+
+    if (this.isLoaded) {
+      return onLoad(this);
+    }
+
+    this.onLoadCallbacks.push(onLoad);
+  }
+
+  markLoaded () {
+    if (this.isLoaded) return;
+
+    this.isLoaded = true;
+
+    var callbacks = this.onLoadCallbacks;
+    this.onLoadCallbacks = [];
+    for (var i = 0; i < callbacks.length; i++) {
+      callbacks[i] && callbacks[i](this);
+    }
   }
 
 }
