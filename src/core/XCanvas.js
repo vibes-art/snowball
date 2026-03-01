@@ -11,13 +11,10 @@ class XCanvas {
       alpha: false
     };
 
-    this.useSupersampleAA = this.type === CANVAS_WEBGL
-      && AA_SUPERSAMPLE !== 1;
-    this.renderScale = this.useSupersampleAA ? AA_SUPERSAMPLE : 1;
     this.x = 0;
     this.y = 0;
-    this.width = ceil(this.renderScale * (opts.width || 0));
-    this.height = ceil(this.renderScale * (opts.height || 0));
+    this.width = ceil(opts.width || 0);
+    this.height = ceil(opts.height || 0);
     this.cssWidth = this.width;
     this.cssHeight = this.height;
     this.cssScale = opts.cssScale || 1;
@@ -271,7 +268,7 @@ class XCanvas {
     this.windowHeight = window.innerHeight;
 
     var dpr = window.devicePixelRatio || 1;
-    var scale = dpr * this.renderScale;
+    var scale = dpr;
 
     this.width = this.isWindowFit ? floor(scale * this.windowWidth) : this.width;
     this.height = this.isWindowFit ? floor(scale * this.windowHeight) : this.height;

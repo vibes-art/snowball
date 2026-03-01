@@ -72,7 +72,6 @@ var CAMERA_FOV = 45 * PI / 180;
 var CAMERA_Z_NEAR = 0.1;
 var CAMERA_Z_FAR = 100.0;
 var UP_VECTOR = [0, 1, 0];
-var AA_SUPERSAMPLE = 1;
 var AMBIENT_LIGHT = [0.8, 0.8, 0.8];
 var MAX_DIR_LIGHTS = 1;
 var MAX_SPOT_LIGHTS = 3;
