@@ -535,9 +535,15 @@ class XCanvas {
         var outputName = `${name}.png`;
         XUtils.downloadCanvas(outputCanvas, outputName, (blob) => callback && callback(blob), skipDownload);
       } else {
-        document.body.removeChild(this.canvas);
-        document.body.appendChild(outputCanvas);
-        this.resizeCanvas(outputCanvas, destWidth, destHeight);
+        if (callback) {
+          outputCanvas.toBlob((blob) => callback(blob));
+        }
+
+        var parent = this.canvas && this.canvas.parentNode;
+        if (!parent) return;
+
+        outputCanvas.style.cssText = this.canvas.style.cssText;
+        parent.replaceChild(outputCanvas, this.canvas);
       }
     });
   }
