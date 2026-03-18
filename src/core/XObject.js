@@ -15,6 +15,7 @@ class XObject {
     this.hasTransparency = opts.hasTransparency || false;
     this.ignoreFrustumCulling = opts.ignoreFrustumCulling || false;
     this.disableDepthMask = opts.disableDepthMask || false;
+    this.disableDepthTest = opts.disableDepthTest || false;
     this.isDoubleSided = opts.isDoubleSided || false;
 
     this.attributes = {};

@@ -65,6 +65,7 @@ class XScene {
     this.lastFrontFace = this.gl.CCW;
     this.isCullingEnabled = false;
     this.lastCullingEnabled = false;
+    this.lastDepthTestEnabled = true;
     this.currentProjViewMatrix = null;
     this.haveObjectsChanged = false;
     this.needsShaderConnect = false;
@@ -709,6 +710,7 @@ class XScene {
       gl.enable(gl.DEPTH_TEST);
       gl.disable(gl.BLEND);
       gl.depthMask(true);
+      this.lastDepthTestEnabled = true;
 
       for (var i = 0; i < objects.length; i++) {
         // reset with each object
@@ -751,6 +753,16 @@ class XScene {
         if (obj.frontFace !== this.lastFrontFace) {
           gl.frontFace(obj.frontFace);
           this.lastFrontFace = obj.frontFace;
+        }
+
+        if (pass.type === RENDER_PASS_MAIN && obj.disableDepthTest) {
+          if (this.lastDepthTestEnabled) {
+            gl.disable(gl.DEPTH_TEST);
+            this.lastDepthTestEnabled = false;
+          }
+        } else if (!this.lastDepthTestEnabled) {
+          gl.enable(gl.DEPTH_TEST);
+          this.lastDepthTestEnabled = true;
         }
 
         if ((this.needsShaderConnect || this.haveObjectsChanged) && isNewShader) {
