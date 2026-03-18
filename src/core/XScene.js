@@ -48,6 +48,7 @@ class XScene {
     this.fonts = {};
     this.fontsLoading = {};
     this.shadowShaders = {};
+    this.alphaShadowShaders = {};
     this.textShadowShaders = {};
     this.matrices = {};
     this.viewport = {};
@@ -157,6 +158,18 @@ class XScene {
     if (!shader) {
       shader = shadersByMode[mode] = new XTextShadowShader({
         scene: this, uniformKey, maxLights, mode
+      });
+    }
+
+    return shader;
+  }
+
+  getAlphaShadowShader (uniformKey, maxLights) {
+    var shader = this.alphaShadowShaders[uniformKey];
+
+    if (!shader) {
+      shader = this.alphaShadowShaders[uniformKey] = new XAlphaShadowShader({
+        scene: this, uniformKey, maxLights
       });
     }
 
@@ -557,6 +570,10 @@ class XScene {
     var len = this.onDrawListeners.length;
     for (var i = len - 1; i >= 0; i--) {
       this.onDrawListeners[i](dt);
+    }
+
+    for (var i = 0; i < this.objects.length; i++) {
+      this.objects[i].updateRenderPassState && this.objects[i].updateRenderPassState();
     }
 
     if (this.haveObjectsChanged || this.hasDirtyObjects()) {
@@ -1110,6 +1127,10 @@ class XScene {
       trackShader(this.shadowShaders[key]);
     }
 
+    for (var key in this.alphaShadowShaders) {
+      trackShader(this.alphaShadowShaders[key]);
+    }
+
     for (var key in this.textShadowShaders) {
       var modes = this.textShadowShaders[key];
       for (var mode in modes) {
@@ -1156,6 +1177,7 @@ class XScene {
     this.shader = null;
     this.textureShader = null;
     this.shadowShaders = {};
+    this.alphaShadowShaders = {};
     this.textShadowShaders = {};
     this.textShader = null;
     this.shaderUniformCache = null;

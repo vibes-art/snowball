@@ -17,6 +17,7 @@ class XObject {
     this.disableDepthMask = opts.disableDepthMask || false;
     this.disableDepthTest = opts.disableDepthTest || false;
     this.isDoubleSided = opts.isDoubleSided || false;
+    this.castAlphaShadow = !!opts.castAlphaShadow;
 
     this.attributes = {};
     this.uniforms = {};
@@ -34,6 +35,10 @@ class XObject {
     this.indicesDirty = false;
 
     this.renderPasses = {};
+    this.alphaShadowHasTexCoords = false;
+    this.alphaShadowTextureURL = '';
+    this.alphaShadowTextureRef = null;
+    this.alphaShadowTextureReady = false;
 
     this.initialize(opts);
   }
@@ -54,6 +59,8 @@ class XObject {
     if (opts.alpha !== undefined) {
       this.alpha = opts.alpha;
     }
+
+    this.updateRenderPassState(true);
   }
 
   defineAttributes (opts) {
@@ -62,6 +69,27 @@ class XObject {
 
   defineUniforms (opts) {
     this.setModelMatrix(opts.modelMatrix);
+
+    if (this.castAlphaShadow) {
+      var shadowAlphaMode = opts.shadowAlphaMode;
+      if (shadowAlphaMode !== SHADOW_ALPHA_MODE_BINARY
+        && shadowAlphaMode !== SHADOW_ALPHA_MODE_DITHER) {
+        shadowAlphaMode = SHADOW_ALPHA_MODE_BINARY;
+      }
+
+      this.addUniform(UNI_KEY_SHADOW_ALPHA_CUTOFF, {
+        components: 1,
+        data: opts.shadowAlphaCutoff !== undefined
+          ? opts.shadowAlphaCutoff
+          : SHADOW_ALPHA_CUTOFF_DEFAULT
+      });
+
+      this.addUniform(UNI_KEY_SHADOW_ALPHA_MODE, {
+        components: 1,
+        type: UNI_TYPE_INT,
+        data: shadowAlphaMode
+      });
+    }
   }
 
   defineTextures (opts) {}
@@ -212,7 +240,70 @@ class XObject {
   }
 
   getShaderForRenderPass (pass, fallbackShader) {
-    return fallbackShader;
+    if (!pass || pass.type !== RENDER_PASS_SHADOWS) return fallbackShader;
+    if (!this.hasAlphaShadowCaster()) return fallbackShader;
+    if (!pass.shadowUniformKey || !pass.shadowMaxLights) return fallbackShader;
+
+    return this.scene.getAlphaShadowShader(
+      pass.shadowUniformKey,
+      pass.shadowMaxLights
+    );
+  }
+
+  getAlphaShadowTexture () {
+    if (!this.material || !this.material.textures) return null;
+    return this.material.textures[UNI_KEY_ALBEDO_MAP] || null;
+  }
+
+  isAlphaShadowTextureReady (texture) {
+    texture = texture || this.getAlphaShadowTexture();
+    if (!texture) return false;
+
+    var hasRealSize = !(texture.width <= 1 && texture.height <= 1);
+    var isDynamicTexture = !texture.url;
+    return !!(texture.glTexture
+      && texture.isLoaded
+      && !texture.isLoading
+      && (hasRealSize || isDynamicTexture));
+  }
+
+  hasAlphaShadowCaster () {
+    return !!(this.castAlphaShadow
+      && this.hasAttribute(ATTR_KEY_TEX_COORDS)
+      && this.isAlphaShadowTextureReady());
+  }
+
+  updateRenderPassState (force) {
+    if (!this.castAlphaShadow || !this.scene) return false;
+
+    var texture = this.getAlphaShadowTexture();
+    var hasTexCoords = this.hasAttribute(ATTR_KEY_TEX_COORDS);
+    var textureURL = texture ? (texture.url || '') : '';
+    var textureRef = texture ? texture.glTexture : null;
+    var isReady = hasTexCoords && this.isAlphaShadowTextureReady(texture);
+
+    var hasStateChanged = force
+      || this.alphaShadowHasTexCoords !== hasTexCoords
+      || this.alphaShadowTextureURL !== textureURL
+      || this.alphaShadowTextureRef !== textureRef
+      || this.alphaShadowTextureReady !== isReady;
+
+    this.alphaShadowHasTexCoords = hasTexCoords;
+    this.alphaShadowTextureURL = textureURL;
+    this.alphaShadowTextureRef = textureRef;
+    this.alphaShadowTextureReady = isReady;
+
+    if (this.renderPasses[RENDER_PASS_SHADOWS] !== isReady) {
+      this.enableRenderPass(RENDER_PASS_SHADOWS, isReady);
+      return true;
+    }
+
+    if (hasStateChanged) {
+      this.scene.haveObjectsChanged = true;
+      this.scene.invalidateRenderPass(RENDER_PASS_SHADOWS);
+    }
+
+    return hasStateChanged;
   }
 
   get alpha () {

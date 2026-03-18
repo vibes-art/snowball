@@ -149,7 +149,13 @@ var UNI_KEY_TEXTURE_SIZE = 'textureSize';
 var UNI_KEY_EXPOSURE = 'exposure';
 var UNI_KEY_THICKNESS = 'thickness';
 var UNI_KEY_SOFTNESS = 'softness';
+var UNI_KEY_SHADOW_ALPHA_CUTOFF = 'shadowAlphaCutoff';
+var UNI_KEY_SHADOW_ALPHA_MODE = 'shadowAlphaMode';
 var UNI_KEY_TEXT_SHADOW_ALPHA_CUTOFF = 'textShadowAlphaCutoff';
+
+var SHADOW_ALPHA_MODE_BINARY = 0;
+var SHADOW_ALPHA_MODE_DITHER = 1;
+var SHADOW_ALPHA_CUTOFF_DEFAULT = 0.01;
 
 var NOISE_TYPE_HEIGHT = 'height';
 var NOISE_TYPE_COLOR_HEIGHT_OFFSET = 'colorHeightOffset';
