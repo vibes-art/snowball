@@ -15,9 +15,14 @@ class XTextLine extends XObject {
     super(opts);
 
     this.font = opts.font;
-    this.font && this.font.onLoaded && this.font.onLoaded(() => this.updateTextShadowPass());
+    this.font.onLoaded(() => this.updateTextShadowPass());
 
     this.scale = opts.scale || 1;
+    this.useKerning = opts.useKerning !== undefined ? opts.useKerning : true;
+
+    var tracking = opts.tracking !== undefined ? opts.tracking : this.font.defaultTracking;
+    this.tracking = this.normalizeTrackingValue(tracking) || 0;
+
     this._alpha = 1;
     this.hasTransparency = true;
 
@@ -41,7 +46,10 @@ class XTextLine extends XObject {
   setText (text) {
     this.text = text = text || '';
 
-    var glyphs = this.font.getGlyphsForText(text);
+    var glyphs = this.font.getGlyphsForText(text, {
+      useKerning: this.useKerning,
+      tracking: this.tracking
+    });
 
     // 4 verts per glyph, plus 2 degenerate between each
     var totalVertices = 4 * glyphs.length;
@@ -82,6 +90,32 @@ class XTextLine extends XObject {
     this.align = this.align; // trigger update
     this.vertAlign = this.vertAlign;
     this.updateTextShadowPass();
+  }
+
+  setUseKerning (useKerning) {
+    var nextValue = !!useKerning;
+    if (this.useKerning === nextValue) {
+      return nextValue;
+    }
+
+    this.useKerning = nextValue;
+    this.setText(this.text);
+    return nextValue;
+  }
+
+  setTracking (tracking) {
+    var nextValue = this.normalizeTrackingValue(tracking);
+    if (this.tracking === nextValue) {
+      return nextValue;
+    }
+
+    this.tracking = nextValue;
+    this.setText(this.text);
+    return nextValue;
+  }
+
+  normalizeTrackingValue (value) {
+    return this.font.normalizeTrackingValue(value) || 0;
   }
 
   get align () {
@@ -241,7 +275,7 @@ class XTextLine extends XObject {
   }
 
   isFontTextureReady () {
-    var texture = this.font && this.font.sourceTexture;
+    var texture = this.font.sourceTexture;
     return !!(texture
       && texture.isLoaded
       && !texture.isLoading
