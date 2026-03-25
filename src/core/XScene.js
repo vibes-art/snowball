@@ -17,6 +17,12 @@ var OBJECT_RENDER_SORT = function (a, b) {
   } else if (!bIsTransparent) {
     return 1;
   } else {
+    var aIsOverlay = a.disableDepthTest || false;
+    var bIsOverlay = b.disableDepthTest || false;
+    if (aIsOverlay !== bIsOverlay) {
+      // treat depth-test-disabled objects as UI overlays; render after regular scene geometry
+      return aIsOverlay ? 1 : -1;
+    }
     return b.distanceFromCamera - a.distanceFromCamera;
   }
 };
