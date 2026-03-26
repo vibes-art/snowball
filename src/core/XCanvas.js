@@ -531,6 +531,12 @@ class XCanvas {
       0, 0, destWidth, destHeight);
 
     XUtils.processImage(renderCanvas, destWidth, destHeight, (outputCanvas) => {
+      try {
+        outputCanvas = this.transformOutputCanvas(outputCanvas, opts) || outputCanvas;
+      } catch (err) {
+        console.error('Error transforming output canvas, using base output instead.', err);
+      }
+
       if (!IS_HEADLESS) {
         var outputName = `${name}.png`;
         XUtils.downloadCanvas(outputCanvas, outputName, (blob) => callback && callback(blob), skipDownload);
@@ -638,6 +644,13 @@ class XCanvas {
       }
     }
 
+    var output = { data: raw16, width: destWidth, height: destHeight };
+    try {
+      output = this.transformOutput16(output, opts) || output;
+    } catch (err) {
+      console.error('Error transforming 16-bit output, using base output instead.', err);
+    }
+
     function swap16ToBigEndian (little16) {
       var byteCount = little16.length * 2;
       var srcBytes = new Uint8Array(little16.buffer);
@@ -653,11 +666,19 @@ class XCanvas {
       return dstBytes.buffer;
     }
 
-    var bigEndianAB = swap16ToBigEndian(raw16);
-    var pngAB = UPNG.encodeLL([bigEndianAB], destWidth, destHeight, 3, 1, 16);
+    var bigEndianAB = swap16ToBigEndian(output.data);
+    var pngAB = UPNG.encodeLL([bigEndianAB], output.width, output.height, 3, 1, 16);
     var blob = new Blob([pngAB], { type: 'image/png' });
     !skipDownload && XUtils.downloadBlob(blob, `${name}.png`);
     callback && callback(blob);
+  }
+
+  transformOutputCanvas (outputCanvas, opts) {
+    return outputCanvas;
+  }
+
+  transformOutput16 (output, opts) {
+    return output;
   }
 
   clearInput () {
