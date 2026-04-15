@@ -522,9 +522,9 @@ XUtils.reduceImage = function (img, w, h) {
   var srcW = img.naturalWidth;
   var srcH = img.naturalHeight;
   var srcCan = Object.assign(document.createElement('canvas'), { width: srcW, height: srcH });
-  var sCtx = srcCan.getContext('2d');
+  var sCtx = srcCan.getContext('2d', { willReadFrequently: true });
   var destCan = Object.assign(document.createElement('canvas'), { width: w, height: h });
-  var dCtx = destCan.getContext('2d');
+  var dCtx = destCan.getContext('2d', { willReadFrequently: true });
 
   sCtx.drawImage(img, 0, 0);
 
