@@ -1,5 +1,6 @@
 var BOX_VERTEX_SIGNS = [[-1,1,1],[ 1,1,1],[ 1,1,-1],[-1,1,-1],[-1,-1,1],[ 1,-1,1],[ 1,-1,-1],[-1,-1,-1]];
-var BOX_VERTEX_INDICES = [[1,2,3,0],[5,1,0,4],[6,2,1,5],[7,3,2,6],[4,0,3,7],[6,5,4,7]];
+var BOX_VERTEX_INDICES = [[1,2,3,0],[5,1,0,4],[6,2,1,5],[7,3,2,6],[4,0,3,7],[5,4,7,6]];
+// Keep explicit per-face order so inverted quads preserve expected UV orientation.
 var INVERTED_VERTEX_INDICES = [[1,0,3,2],[0,1,5,4],[5,1,2,6],[6,2,3,7],[7,3,0,4],[4,5,6,7]];
 
 class XQuadBox {
@@ -10,7 +11,7 @@ class XQuadBox {
     this.center = opts.center || [0, 0, 0];
     this.dimensions = opts.dimensions || [0, 0, 0];
     this.size = opts.size || 1;
-    this.color = opts.color || [0.5, 0.5, 0.5, 1];
+    this.color = opts.color || [1, 1, 1, 1];
     this.isInverted = opts.isInverted || false;
 
     this.faces = opts.faces || [];
@@ -30,6 +31,7 @@ class XQuadBox {
     var defaultColor = this.color;
     var vertexIndices = this.isInverted ? INVERTED_VERTEX_INDICES : BOX_VERTEX_INDICES;
     var quadOpts = { ...opts };
+    var quadClass = opts.quadClass || XQuad;
 
     for (var f = 0; f < 6; f++) {
       if (this.skipFaces.indexOf(f) !== -1) continue;
@@ -63,7 +65,7 @@ class XQuadBox {
         });
       }
 
-      var quad = new XQuad({ ...quadOpts, vertices });
+      var quad = new quadClass({ ...quadOpts, vertices });
       quad.parentObject = this;
       this.quads.push(quad);
     }

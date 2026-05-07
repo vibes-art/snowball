@@ -17,11 +17,29 @@ var OBJECT_RENDER_SORT = function (a, b) {
   } else if (!bIsTransparent) {
     return 1;
   } else {
+    var aIsOverlay = a.disableDepthTest || false;
+    var bIsOverlay = b.disableDepthTest || false;
+    if (aIsOverlay !== bIsOverlay) {
+      // treat depth-test-disabled objects as UI overlays; render after regular scene geometry
+      return aIsOverlay ? 1 : -1;
+    }
     return b.distanceFromCamera - a.distanceFromCamera;
   }
 };
 
-var FRUSTUM_CULL_PASSES = [RENDER_PASS_MAIN];
+var FRUSTUM_CULL_PASSES = [RENDER_PASS_SHADOWS, RENDER_PASS_MAIN];
+var PASS_CACHE_DEP_OBJECTS = 'objects';
+var PASS_CACHE_DEP_LIGHTS = 'lights';
+var PASS_CACHE_DEP_VIEW = 'view';
+var PASS_CACHE_DEP_PROJECTION = 'projection';
+var PASS_CACHE_DEP_VIEWPORT = 'viewport';
+var PASS_CACHE_DEPENDENCIES = [
+  PASS_CACHE_DEP_OBJECTS,
+  PASS_CACHE_DEP_LIGHTS,
+  PASS_CACHE_DEP_VIEW,
+  PASS_CACHE_DEP_PROJECTION,
+  PASS_CACHE_DEP_VIEWPORT
+];
 
 class XScene {
 
@@ -36,6 +54,8 @@ class XScene {
     this.fonts = {};
     this.fontsLoading = {};
     this.shadowShaders = {};
+    this.alphaShadowShaders = {};
+    this.textShadowShaders = {};
     this.matrices = {};
     this.viewport = {};
     this.renderPasses = [];
@@ -50,10 +70,15 @@ class XScene {
     this.lastShader = null;
     this.lastMaterial = null;
     this.lastFrontFace = this.gl.CCW;
+    this.isCullingEnabled = false;
+    this.lastCullingEnabled = false;
+    this.lastDepthTestEnabled = true;
     this.currentProjViewMatrix = null;
     this.haveObjectsChanged = false;
     this.needsShaderConnect = false;
     this.appliedObjectMatrices = false;
+    this.objectSort = OBJECT_RENDER_SORT;
+    this.passDependencyVersions = {};
 
     this.addRenderPass(RENDER_PASS_MAIN, {
       framebufferKey: RENDER_PASS_MAIN
@@ -71,12 +96,19 @@ class XScene {
     this.stats.uniformSkips = 0;
     this.stats.programCalls = 0;
     this.stats.objectsCulled = 0;
+    this.stats.passesSkipped = 0;
+
+    PASS_CACHE_DEPENDENCIES.forEach((dependency) => {
+      this.passDependencyVersions[dependency] = 0;
+    });
   };
 
   initUniforms (opts) {
     this.addUniform(UNI_KEY_SPECULAR_SHININESS, { components: 1, data: 128.0 });
     this.addUniform(UNI_KEY_SPECULAR_STRENGTH, { components: 1, data: 0.5 });
     this.addUniform(UNI_KEY_RESOLUTION, { components: 2 });
+    this.addUniform(UNI_KEY_VIEW_POSITION, { components: 3 });
+    this.addUniform(UNI_KEY_VIEW_DIRECTION, { components: 3 });
   }
 
   addUniform (key, opts) {
@@ -120,6 +152,36 @@ class XScene {
     return shader;
   }
 
+  getTextShadowShader (uniformKey, maxLights, mode) {
+    mode = mode || TEXT_SHADOW_MODE_SDF_BINARY;
+
+    var shadersByMode = this.textShadowShaders[uniformKey];
+    if (!shadersByMode) {
+      shadersByMode = this.textShadowShaders[uniformKey] = {};
+    }
+
+    var shader = shadersByMode[mode];
+    if (!shader) {
+      shader = shadersByMode[mode] = new XTextShadowShader({
+        scene: this, uniformKey, maxLights, mode
+      });
+    }
+
+    return shader;
+  }
+
+  getAlphaShadowShader (uniformKey, maxLights) {
+    var shader = this.alphaShadowShaders[uniformKey];
+
+    if (!shader) {
+      shader = this.alphaShadowShaders[uniformKey] = new XAlphaShadowShader({
+        scene: this, uniformKey, maxLights
+      });
+    }
+
+    return shader;
+  }
+
   getTextShader () {
     if (this.textShader) return this.textShader;
     return this.textShader = new XTextShader({ scene: this });
@@ -138,10 +200,30 @@ class XScene {
   }
 
   setViewMatrix (viewMatrix) {
-    this.matrices.view.data = viewMatrix;
+    var viewUniform = this.matrices.view;
+    var viewData = viewUniform.data;
+    var hasViewChanged = !XUtils.areValuesEqual(viewData, viewMatrix);
+    var viewPosition = this.uniforms[UNI_KEY_VIEW_POSITION];
+    var viewDirection = this.uniforms[UNI_KEY_VIEW_DIRECTION];
+    var needsViewUniformSync = viewPosition.isDirty || viewDirection.isDirty;
+    if (!hasViewChanged && !needsViewUniformSync) return;
+
+    if (hasViewChanged) {
+      viewUniform.data = viewMatrix;
+      this.bumpPassDependencyVersion(PASS_CACHE_DEP_VIEW);
+    }
 
     var invView = XMatrix4.invert(viewMatrix);
-    this.cameraPosition = [invView[12], invView[13], invView[14]];
+    var viewPosData = viewPosition.data;
+    var viewDirData = viewDirection.data;
+
+    if (viewPosData[0] !== invView[12] || viewPosData[1] !== invView[13] || viewPosData[2] !== invView[14]) {
+      viewPosition.data = [invView[12], invView[13], invView[14]];
+    }
+
+    if (viewDirData[0] !== invView[8] || viewDirData[1] !== invView[9] || viewDirData[2] !== invView[10]) {
+      viewDirection.data = [invView[8], invView[9], invView[10]];
+    }
   }
 
   addRenderPass (type, opts) {
@@ -150,7 +232,19 @@ class XScene {
     opts.textures = opts.textures || {};
 
     var isBeforeMain = opts.isBeforeMain || false;
-    var pass = { type, ...opts, isFirstDraw: true };
+    var pass = {
+      type,
+      ...opts,
+      isFirstDraw: true,
+      cacheEnabled: !!opts.cacheEnabled,
+      cacheDirty: true,
+      cacheDependencies: opts.cacheDependencies ? opts.cacheDependencies.slice() : [],
+      cacheVersions: {}
+    };
+
+    if (pass.cacheEnabled && !pass.cacheDependencies.length) {
+      pass.cacheDependencies = PASS_CACHE_DEPENDENCIES.slice();
+    }
 
     if (isBeforeMain) {
       this.renderPasses.unshift(pass);
@@ -180,6 +274,61 @@ class XScene {
     }
   }
 
+  bumpPassDependencyVersion (dependency) {
+    if (this.passDependencyVersions[dependency] === undefined) return;
+    this.passDependencyVersions[dependency]++;
+  }
+
+  markRenderPassDirty (pass) {
+    if (!pass || !pass.cacheEnabled) return;
+    pass.cacheDirty = true;
+  }
+
+  invalidateRenderPass (type) {
+    for (var i = 0; i < this.renderPasses.length; i++) {
+      var pass = this.renderPasses[i];
+      if (pass.type === type) {
+        this.markRenderPassDirty(pass);
+      }
+    }
+  }
+
+  invalidateAllRenderPasses () {
+    for (var i = 0; i < this.renderPasses.length; i++) {
+      this.markRenderPassDirty(this.renderPasses[i]);
+    }
+  }
+
+  hasPassDependencyChanged (pass, dependency) {
+    if (!pass.cacheEnabled) return true;
+    return pass.cacheVersions[dependency] !== this.passDependencyVersions[dependency];
+  }
+
+  shouldRenderPass (pass) {
+    if (!pass.cacheEnabled) return true;
+    if (!pass.framebuffer && !pass.framebufferKey) return true;
+    if (pass.cacheDirty || pass.isFirstDraw) return true;
+
+    for (var i = 0; i < pass.cacheDependencies.length; i++) {
+      var dependency = pass.cacheDependencies[i];
+      if (this.hasPassDependencyChanged(pass, dependency)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  onRenderPassComplete (pass) {
+    if (!pass.cacheEnabled) return;
+
+    pass.cacheDirty = false;
+    for (var i = 0; i < pass.cacheDependencies.length; i++) {
+      var dependency = pass.cacheDependencies[i];
+      pass.cacheVersions[dependency] = this.passDependencyVersions[dependency];
+    }
+  }
+
   addFramebuffer (key, opts) {
     opts = opts || {};
 
@@ -188,6 +337,7 @@ class XScene {
     opts.width = opts.width || this.viewport.width;
     opts.height = opts.height || this.viewport.height;
     opts.scale = opts.scale || 1;
+    opts.offscreenPass = opts.offscreenPass || false;
 
     return this.framebufferObjects[key] = new XFramebufferObject(opts);
   }
@@ -200,7 +350,7 @@ class XScene {
 
     if (lastPass && lastPass.type) {
       var lastFBO = this.framebufferObjects[lastPass.type];
-      if (lastFBO) {
+      if (lastFBO && !lastFBO.offscreenPass) {
         sourceFBO = lastFBO;
       } else {
         return this.getSourceFramebuffer(index - 1);
@@ -236,6 +386,7 @@ class XScene {
 
     this.objects.push(object);
     this.haveObjectsChanged = true;
+    this.bumpPassDependencyVersion(PASS_CACHE_DEP_OBJECTS);
   };
 
   removeObject (object) {
@@ -255,6 +406,7 @@ class XScene {
 
     object.isActive = false;
     this.haveObjectsChanged = true;
+    this.bumpPassDependencyVersion(PASS_CACHE_DEP_OBJECTS);
   }
 
   addDirectionalLight (opts) {
@@ -286,6 +438,7 @@ class XScene {
     var light = new lightClass(opts);
     if (key !== UNI_KEY_POINT_LIGHT) this.addShadowsForLight(light, maxLights);
     lights.push(light);
+    this.bumpPassDependencyVersion(PASS_CACHE_DEP_LIGHTS);
     return light;
   }
 
@@ -297,10 +450,19 @@ class XScene {
 
     this.addRenderPass(RENDER_PASS_SHADOWS, {
       framebuffer: shadowFBO.framebuffer,
+      shadowFBO,
       shader: this.getShadowShader(light.key, maxLights),
       uniforms: { lightIndex: light.index },
+      shadowUniformKey: light.key,
+      shadowMaxLights: maxLights,
       viewport: { width: SHADOW_MAP_SIZE, height: SHADOW_MAP_SIZE },
-      isBeforeMain: true
+      isBeforeMain: true,
+      cacheEnabled: true,
+      cacheDependencies: [
+        PASS_CACHE_DEP_OBJECTS,
+        PASS_CACHE_DEP_LIGHTS,
+        PASS_CACHE_DEP_VIEWPORT
+      ]
     });
   }
 
@@ -354,6 +516,9 @@ class XScene {
     this.viewport.height = height;
     this.uniforms.resolution.data = [width, height];
     this.matrices.projection.data = projectionMatrix;
+    this.bumpPassDependencyVersion(PASS_CACHE_DEP_VIEWPORT);
+    this.bumpPassDependencyVersion(PASS_CACHE_DEP_PROJECTION);
+    this.invalidateAllRenderPasses();
 
     for (var key in this.framebufferObjects) {
       this.framebufferObjects[key].onResize(width, height);
@@ -365,6 +530,40 @@ class XScene {
     this.onDrawListeners.push(cb);
   }
 
+  hasDirtyObjects () {
+    for (var i = 0; i < this.objects.length; i++) {
+      if (this.objects[i].isDirty) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  hasDirtyLights () {
+    for (var key in this.lights) {
+      var lightType = this.lights[key];
+
+      if (lightType.length !== undefined) {
+        for (var i = 0; i < lightType.length; i++) {
+          var light = lightType[i];
+          var uniforms = light.getUniforms();
+          for (var j = 0; j < uniforms.length; j++) {
+            if (uniforms[j].isDirty) return true;
+          }
+
+          var textures = light.getTextures();
+          for (var t = 0; t < textures.length; t++) {
+            if (textures[t].uniform.isDirty) return true;
+          }
+        }
+      } else if (lightType.color && lightType.color.isDirty) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   draw (dt) {
     var cpuStart = performance.now();
     this.stats.drawCalls = 0;
@@ -372,10 +571,23 @@ class XScene {
     this.stats.uniformSkips = 0;
     this.stats.programCalls = 0;
     this.stats.objectsCulled = 0;
+    this.stats.passesSkipped = 0;
 
     var len = this.onDrawListeners.length;
     for (var i = len - 1; i >= 0; i--) {
       this.onDrawListeners[i](dt);
+    }
+
+    for (var i = 0; i < this.objects.length; i++) {
+      this.objects[i].updateRenderPassState && this.objects[i].updateRenderPassState();
+    }
+
+    if (this.haveObjectsChanged || this.hasDirtyObjects()) {
+      this.bumpPassDependencyVersion(PASS_CACHE_DEP_OBJECTS);
+    }
+
+    if (this.hasDirtyLights()) {
+      this.bumpPassDependencyVersion(PASS_CACHE_DEP_LIGHTS);
     }
 
     if (!this.isDrawing) return;
@@ -383,7 +595,6 @@ class XScene {
     var proj = this.matrices.projection.data;
     var view = this.matrices.view.data;
     this.currentProjViewMatrix = XMatrix4.multiply(proj, view);
-    var frustumPlanes = XMatrix4.extractFrustumPlanes(this.currentProjViewMatrix);
 
     var gl = this.gl;
 
@@ -410,6 +621,10 @@ class XScene {
     for (var passIndex = 0; passIndex < this.renderPasses.length; passIndex++) {
       var pass = this.renderPasses[passIndex];
       if (DEBUG_LIGHTS && pass.type !== RENDER_PASS_SHADOWS) continue;
+      if (!this.shouldRenderPass(pass)) {
+        this.stats.passesSkipped++;
+        continue;
+      }
 
       var framebuffer = pass.framebuffer || null;
       if (pass.framebufferKey) {
@@ -437,19 +652,41 @@ class XScene {
         gl.depthFunc(gl.LEQUAL);
       }
 
-      if (pass.type === RENDER_PASS_MAIN) {
+      if (pass.type === RENDER_PASS_MAIN || pass.type === RENDER_PASS_SHADOWS) {
         gl.enable(gl.CULL_FACE);
-        gl.cullFace(gl.BACK);
+        gl.cullFace(pass.type === RENDER_PASS_SHADOWS ? gl.FRONT : gl.BACK);
         gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        this.isCullingEnabled = true;
+        this.lastCullingEnabled = true;
       } else {
         gl.disable(gl.CULL_FACE);
         gl.blendFunc(gl.ONE, gl.ZERO);
+        this.isCullingEnabled = false;
+        this.lastCullingEnabled = false;
+      }
+
+      if (pass.type === RENDER_PASS_SHADOWS) {
+        gl.enable(gl.POLYGON_OFFSET_FILL);
+        gl.polygonOffset(2.0, 4.0);
+      } else {
+        gl.disable(gl.POLYGON_OFFSET_FILL);
       }
 
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
       var objects = [];
       var objectCount = this.objects.length;
+
+      var frustumPlanes;
+      if (pass.type === RENDER_PASS_MAIN) {
+        frustumPlanes = XMatrix4.extractFrustumPlanes(this.currentProjViewMatrix);
+      } else if (pass.uniforms && pass.uniforms.lightIndex !== undefined) {
+        var lightKey = pass.uniforms.lightIndex.key.replace('Index', '');
+        var lightIndex = pass.uniforms.lightIndex.data;
+        var light = this.getLight(lightKey, lightIndex);
+        frustumPlanes = XMatrix4.extractFrustumPlanes(light.viewProjMatrix.data);
+      }
+
       for (var o = 0; o < objectCount; o++) {
         var obj = this.objects[o];
         if (!obj.renderPasses[pass.type] || !obj.isActive) continue;
@@ -489,13 +726,14 @@ class XScene {
 
       var isNewPass = true;
       var hasStartedTransparencyPass = false;
-
-      objects.forEach(obj => obj.updateCameraDistance(this.cameraPosition));
-      objects.sort(OBJECT_RENDER_SORT);
+      var cameraPos = this.uniforms[UNI_KEY_VIEW_POSITION].data;
+      objects.forEach(obj => obj.updateCameraDistance(cameraPos));
+      objects.sort(this.objectSort);
 
       gl.enable(gl.DEPTH_TEST);
       gl.disable(gl.BLEND);
       gl.depthMask(true);
+      this.lastDepthTestEnabled = true;
 
       for (var i = 0; i < objects.length; i++) {
         // reset with each object
@@ -503,19 +741,51 @@ class XScene {
 
         var obj = objects[i];
         var material = obj.material;
+
+        if (obj.isDoubleSided) {
+          if (this.lastCullingEnabled) {
+            gl.disable(gl.CULL_FACE);
+            this.lastCullingEnabled = false;
+          }
+        } else {
+          if (this.isCullingEnabled && !this.lastCullingEnabled) {
+            gl.enable(gl.CULL_FACE);
+            this.lastCullingEnabled = true;
+          }
+        }
+
         if (!hasStartedTransparencyPass && obj.isTransparent && pass.type === RENDER_PASS_MAIN) {
           hasStartedTransparencyPass = true;
           gl.enable(gl.BLEND);
           gl.depthMask(false);
         }
 
+        if (!hasStartedTransparencyPass) {
+          if (obj.disableDepthMask && pass.type === RENDER_PASS_MAIN) {
+            gl.depthMask(false);
+          } else {
+            gl.depthMask(true);
+          }
+        }
+
         var shader = pass.shader || obj.shader;
+        shader = obj.getShaderForRenderPass(pass, shader) || shader;
         var isNewShader = isNewPass || this.lastShader !== shader;
         var isNewMaterial = isNewShader || this.lastMaterial !== material;
 
         if (obj.frontFace !== this.lastFrontFace) {
           gl.frontFace(obj.frontFace);
           this.lastFrontFace = obj.frontFace;
+        }
+
+        if (pass.type === RENDER_PASS_MAIN && obj.disableDepthTest) {
+          if (this.lastDepthTestEnabled) {
+            gl.disable(gl.DEPTH_TEST);
+            this.lastDepthTestEnabled = false;
+          }
+        } else if (!this.lastDepthTestEnabled) {
+          gl.enable(gl.DEPTH_TEST);
+          this.lastDepthTestEnabled = true;
         }
 
         if ((this.needsShaderConnect || this.haveObjectsChanged) && isNewShader) {
@@ -572,9 +842,9 @@ class XScene {
       if (framebuffer) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       }
-    }
 
-    // debugger;
+      this.onRenderPassComplete(pass);
+    }
 
     this.onDrawFinish();
 
@@ -587,6 +857,7 @@ class XScene {
       console.log(`uniformCalls: ${this.stats.uniformCalls}`);
       console.log(`uniformSkips: ${this.stats.uniformSkips}`);
       console.log(`programCalls: ${this.stats.programCalls}`);
+      console.log(`passesSkipped: ${this.stats.passesSkipped}`);
       console.log(`objectsCulled: ${this.stats.objectsCulled}`);
     }
 
@@ -622,6 +893,7 @@ class XScene {
       if (lightType.length !== undefined) {
         for (var i = 0; i < lightType.length; i++) {
           lightType[i].getUniforms().forEach(uniform => uniform.isDirty = false);
+          lightType[i].getTextures().forEach(texture => texture.uniform.isDirty = false);
         }
       } else {
         lightType.color.isDirty = false;
@@ -794,8 +1066,9 @@ class XScene {
   }
 
   selectObjects (screenX, screenY) {
-    var ndcX = (screenX / this.viewport.width) * 2 - 1;
-    var ndcY = 1 - (screenY / this.viewport.height) * 2;
+    var dpr = window.devicePixelRatio || 1;
+    var ndcX = (dpr * screenX / this.viewport.width) * 2 - 1;
+    var ndcY = 1 - (dpr * screenY / this.viewport.height) * 2;
     var nearClip = [ndcX, ndcY, -1, 1];
     var farClip = [ndcX, ndcY,  1, 1];
 
@@ -827,14 +1100,68 @@ class XScene {
   remove () {
     var objCount = this.objects.length;
     var shaders = [];
+    var gl = this.gl;
+
+    var trackShader = (shader) => {
+      if (shader && shaders.indexOf(shader) === -1) {
+        shaders.push(shader);
+      }
+    };
 
     for (var i = objCount - 1; i >= 0; i--) {
       var obj = this.objects[i];
-      if (obj.shader && shaders.indexOf(obj.shader) === -1) {
-        shaders.push(obj.shader);
+      trackShader(obj.shader);
+      obj.remove();
+    }
+
+    var passCount = this.renderPasses.length;
+    for (var i = 0; i < passCount; i++) {
+      var pass = this.renderPasses[i];
+      trackShader(pass.shader);
+
+      if (pass.shadowFBO) {
+        XGLUtils.deleteDepthFramebuffer(gl, pass.shadowFBO);
+        pass.shadowFBO = null;
+      } else if (pass.framebuffer && !pass.framebufferKey) {
+        gl.deleteFramebuffer(pass.framebuffer);
       }
 
-      obj.remove();
+      pass.framebuffer = null;
+    }
+
+    for (var key in this.shadowShaders) {
+      trackShader(this.shadowShaders[key]);
+    }
+
+    for (var key in this.alphaShadowShaders) {
+      trackShader(this.alphaShadowShaders[key]);
+    }
+
+    for (var key in this.textShadowShaders) {
+      var modes = this.textShadowShaders[key];
+      for (var mode in modes) {
+        trackShader(modes[mode]);
+      }
+    }
+
+    trackShader(this.textShader);
+    trackShader(this.shader);
+    trackShader(this.textureShader);
+
+    for (var key in this.lights) {
+      var lightType = this.lights[key];
+      if (lightType && lightType.length !== undefined) {
+        for (var i = 0; i < lightType.length; i++) {
+          var light = lightType[i];
+          if (!light || !light.getTextures) continue;
+
+          var lightTextures = light.getTextures();
+          for (var t = 0; t < lightTextures.length; t++) {
+            var lightTexture = lightTextures[t];
+            lightTexture && lightTexture.remove && lightTexture.remove();
+          }
+        }
+      }
     }
 
     var shaderCount = shaders.length;
@@ -848,7 +1175,17 @@ class XScene {
     for (var key in this.framebufferObjects) {
       this.framebufferObjects[key].remove();
     }
+    this.framebufferObjects = {};
 
+    this.objects = [];
+    this.renderPasses = [];
+    this.lights = {};
+    this.shader = null;
+    this.textureShader = null;
+    this.shadowShaders = {};
+    this.alphaShadowShaders = {};
+    this.textShadowShaders = {};
+    this.textShader = null;
     this.shaderUniformCache = null;
   }
 

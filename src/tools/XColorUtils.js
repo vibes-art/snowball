@@ -49,9 +49,11 @@ XColorUtils.SRGBtoRGB = function (c) {
   ];
 };
 
-XColorUtils.smashColorsRGB = function (c1, c2, pct) {
-  c1 = XColorUtils.SRGBtoRGB(c1);
-  c2 = XColorUtils.SRGBtoRGB(c2);
+XColorUtils.smashColorsRGB = function (c1, c2, pct, skipSRGB) {
+  if (!skipSRGB) {
+    c1 = XColorUtils.SRGBtoRGB(c1);
+    c2 = XColorUtils.SRGBtoRGB(c2);
+  }
 
   var dr = c2[0] - c1[0];
   var dg = c2[1] - c1[1];
@@ -64,7 +66,11 @@ XColorUtils.smashColorsRGB = function (c1, c2, pct) {
     c1[3] + pct * da
   ];
 
-  return XColorUtils.RGBtoSRGB(result);
+  if (!skipSRGB) {
+    return XColorUtils.RGBtoSRGB(result);
+  } else {
+    return result;
+  }
 };
 
 XColorUtils.smashColorsHSL = function (c1, c2, pct) {
@@ -98,22 +104,16 @@ XColorUtils.smashColorsSpectral = function (c1, c2, pct) {
   var spectralColor = spectralCache[cacheStr];
 
   if (!spectralColor) {
-    var newColorStr = spectral.mix(str1, str2, pct, spectral.RGB);
-    newColorStr = newColorStr.replace('rgb(', '');
-    newColorStr = newColorStr.replace(')', '');
-    newColorStr = newColorStr.replace(' ', '');
-    var newColorValues = newColorStr.split(',');
-    spectralColor = spectralCache[cacheStr] = [
-      +newColorValues[0],
-      +newColorValues[1],
-      +newColorValues[2]
-    ];
-  };
+    var spec1 = new spectral.Color(str1);
+    var spec2 = new spectral.Color(str2);
+    var mix = spectral.mix([spec1, 1 - pct], [spec2, pct]);
+    spectralColor = spectralCache[cacheStr] = [mix.sRGB[0], mix.sRGB[1], mix.sRGB[2]];
+  }
 
   return [
-    spectralColor[0] / 255,
-    spectralColor[1] / 255,
-    spectralColor[2] / 255,
+    max(0, spectralColor[0] / 255),
+    max(0, spectralColor[1] / 255),
+    max(0, spectralColor[2] / 255),
   ];
 };
 

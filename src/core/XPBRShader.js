@@ -65,6 +65,14 @@ class XPBRShader extends XShader {
       ? `float lightRadius = ${uniKey}Radii[i];`
       : `vec3 lightDir = ${uniKey}Directions[i]; // from light to lookAtPoint`;
 
+    var toLightDir = uniKey === UNI_KEY_DIR_LIGHT
+      ? `vec3 toLightDir = normalize(-lightDir);`
+      : `
+        vec3 toLight = lightPos - vWorldPos.xyz; // from frag to light
+        float toLightDist = length(toLight);
+        vec3 toLightDir = normalize(toLight);
+      `;
+
     var combinedRoughness = uniKey === UNI_KEY_POINT_LIGHT
       ? `
         float sphereFactor = lightRadius / toLightDist;
@@ -82,10 +90,11 @@ class XPBRShader extends XShader {
         float lightPower = ${uniKey}Powers[i];
         ${lightProp}
 
-        vec3 toLight = lightPos - vWorldPos.xyz; // from frag to light
-        float toLightDist = length(toLight);
-        vec3 toLightDir = normalize(toLight);
-        vec3 halfDir = normalize(viewDir + toLightDir);
+        ${toLightDir}
+
+        vec3 H = viewDir + toLightDir;
+        float hLen2 = dot(H, H);
+        vec3 halfDir = (hLen2 > 1e-8) ? (H * inversesqrt(hLen2)) : normalDir;
 
         ${attenuation}
         vec3 radiance = lightColor * attenuation; 
@@ -132,10 +141,18 @@ class XPBRShader extends XShader {
   }
 
   addFSMainHeader (opts) {
+    var viewDir = opts.useStaticViewDirection
+      ? `vec3 viewDir = normalize(${UNI_KEY_VIEW_DIRECTION});`
+      : `vec3 viewDir = normalize(${UNI_KEY_VIEW_POSITION} - vWorldPos.xyz); // frag to camera`
+
     this.fragmentShaderSource += `
       void main() {
         vec3 normalDir = normalize(vNormal.xyz);
-        vec3 viewDir = normalize(vViewPos - vWorldPos.xyz);
+        if (!gl_FrontFacing) {
+          normalDir = -normalDir;
+        }
+
+        ${viewDir}
         vec3 tintColor = ${UNI_KEY_BASE_COLOR}.rgb * vColor.rgb;
         vec3 finalColor = ${UNI_KEY_EMISSIVE_COLOR}.rgb;
 

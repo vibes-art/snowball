@@ -63,7 +63,7 @@ class _XClock {
       for (var i = 0; i < this.frameDeltas.length; i++) {
         sum += this.frameDeltas[i];
       }
-      console.log('FPS: ', floor(1000 / (sum / this.frameDeltas.length)));
+      sum && console.log('FPS: ', floor(1000 / (sum / this.frameDeltas.length)));
     }
   }
 

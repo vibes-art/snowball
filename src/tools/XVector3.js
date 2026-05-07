@@ -12,6 +12,17 @@ XVector3.subtract = function (a, b) {
   return XVector3.get(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 };
 
+XVector3.multiply = function (a, b) {
+  return XVector3.get(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
+};
+
+XVector3.mix = function (a, b, pct) {
+  var d0 = b[0] - a[0];
+  var d1 = b[1] - a[1];
+  var d2 = b[2] - a[2];
+  return XVector3.get(a[0] + pct * d0, a[1] + pct * d1, a[2] + pct * d2);
+};
+
 XVector3.dot = function (a, b) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 };

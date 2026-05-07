@@ -13,6 +13,12 @@ function createNoise (scale, exponent, amplitude, scaleX, scaleY) {
 
   var pow = Math.pow;
   var noiseObj = {};
+  noiseObj.perm = perm;
+  noiseObj.permMod12 = permMod12;
+  noiseObj.scaleX = scaleX;
+  noiseObj.scaleY = scaleY;
+  noiseObj.exponent = exponent;
+  noiseObj.amplitude = amplitude;
   noiseObj.get = function (x, y) {
     x *= scaleX;
     y *= scaleY;

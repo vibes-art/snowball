@@ -11,24 +11,33 @@ class XCanvas {
       alpha: false
     };
 
-    this.useSupersampleAA = this.type === CANVAS_WEBGL
-      && AA_SUPERSAMPLE !== 1;
-    this.renderScale = this.useSupersampleAA ? AA_SUPERSAMPLE : 1;
     this.x = 0;
     this.y = 0;
-    this.width = ceil(this.renderScale * (opts.width || 0));
-    this.height = ceil(this.renderScale * (opts.height || 0));
+    this.width = ceil(opts.width || 0);
+    this.height = ceil(opts.height || 0);
+    this.cssWidth = this.width;
+    this.cssHeight = this.height;
+    this.cssScale = opts.cssScale || 1;
     this.isWindowFit = this.width === 0;
     this.aspectRatioMin = opts.aspectRatioMin || 0;
     this.aspectRatioMax = opts.aspectRatioMax || 0;
+    this.maxTextureSize = 0;
 
     this.canvas = null;
     this.ctx = null;
     this.onTickListener = null;
+    this.onNextRenderFrame = null;
     this.keysDown = {};
     this.isInitialized = false;
+    this.hasSetHandlers = false;
     this.hasSavedOutput = false;
     this.isLiveRendering = true;
+    this.renderOnDemand = !!opts.renderOnDemand;
+    this.resetGlobalClock = opts.resetGlobalClock !== undefined
+      ? opts.resetGlobalClock
+      : true;
+    this.isRenderLoopActive = false;
+    this.hasPendingRenderFrame = false;
     this.skipFlush = false;
     this.acceptInput = false;
     this.isDragging = false;
@@ -43,13 +52,15 @@ class XCanvas {
   }
 
   init () {
-    this.setDimensions();
-
     var isWebGL = this.type === CANVAS_WEBGL;
     var hasWorkingGL = isWebGL;
+
+    this.setDimensions();
+
     if (!this.isInitialized) {
       this.createElements();
       this.listenForInput();
+      this.hasSetHandlers = true;
       hasWorkingGL = hasWorkingGL && this.checkGL();
     }
 
@@ -71,7 +82,8 @@ class XCanvas {
     this.scene = new XScene({ gl: this.gl, ...opts });
     this.scene.addFramebuffer(RENDER_PASS_MAIN, {
       width: this.width,
-      height: this.height
+      height: this.height,
+      colorAttachmentCount: opts.mainColorAttachments || 1
     });
 
     this.initLights(opts);
@@ -92,13 +104,18 @@ class XCanvas {
   }
 
   initShader (opts) {
+    var shaderOpts = {
+      scene: this.scene,
+      useStaticViewDirection: opts.useStaticViewDirection || false
+    };
+
     if (!this.shader) {
       if (USE_PBR) {
-        this.shader = new XPBRShader({ scene: this.scene });
-        this.textureShader = new XPBRTexShader({ scene: this.scene });
+        this.shader = new XPBRShader(shaderOpts);
+        this.textureShader = new XPBRTexShader(shaderOpts);
       } else {
-        this.shader = new XShader({ scene: this.scene });
-        this.textureShader = new XTexShader({ scene: this.scene });
+        this.shader = new XShader(shaderOpts);
+        this.textureShader = new XTexShader(shaderOpts);
       }
     }
 
@@ -153,24 +170,81 @@ class XCanvas {
     this.skipFlush = this.type === CANVAS_2D;
     this.acceptInput = true;
 
-    this.onTickListener = (dt, dtReal) => this.draw(dt, dtReal);
-    XClock.onTick(this.onTickListener);
+    if (!this.onTickListener) {
+      this.onTickListener = (dt, dtReal) => this.draw(dt, dtReal);
+    }
+
+    if (this.renderOnDemand) {
+      this.requestRenderFrame();
+    } else {
+      this.startRenderLoop();
+    }
   }
 
-  reset (isError) {
+  startRenderLoop () {
+    if (!this.onTickListener) {
+      this.onTickListener = (dt, dtReal) => this.draw(dt, dtReal);
+    }
+
+    if (this.isRenderLoopActive) return;
+
+    XClock.onTick(this.onTickListener);
+    this.isRenderLoopActive = true;
+  }
+
+  stopRenderLoop () {
+    if (!this.isRenderLoopActive || !this.onTickListener) return;
+
+    XClock.removeListener(this.onTickListener);
+    this.isRenderLoopActive = false;
+  }
+
+  requestRenderFrame () {
+    if (this.isRenderLoopActive || this.hasPendingRenderFrame) return;
+
+    this.hasPendingRenderFrame = true;
+    this.onNextRenderFrame = (dt, dtReal) => {
+      this.hasPendingRenderFrame = false;
+      this.onNextRenderFrame = null;
+
+      if (!this.scene || !this.gl) return;
+      this.draw(dt, dtReal);
+    };
+
+    XClock.onNextTick(this.onNextRenderFrame);
+  }
+
+  reset (isError, delay, softReset) {
+    this.clearInput();
+
     this.skipFlush = true;
     this.hasSavedOutput = false;
+    this.stopRenderLoop();
+
+    if (this.onNextRenderFrame) {
+      XClock.removeListener(this.onNextRenderFrame);
+      this.onNextRenderFrame = null;
+    }
+    this.hasPendingRenderFrame = false;
 
     this.scene && this.scene.remove();
     this.scene = null;
 
-    XClock.reset();
-    XTimeline.reset();
+    if (!softReset && this.resetGlobalClock) {
+      XClock.reset();
+      XTimeline.reset();
+    }
+
     this.onTickListener = null;
+    this.isRenderLoopActive = false;
     this.shader = null;
     this.textureShader = null;
 
-    setTimeout(() => this.init(), 0);
+    if (isError) {
+      this.isInitialized = false;
+    }
+
+    !softReset && setTimeout(() => this.init(), delay || 0);
   }
 
   flushScene () {
@@ -192,19 +266,49 @@ class XCanvas {
   setDimensions () {
     this.windowWidth = window.innerWidth;
     this.windowHeight = window.innerHeight;
-    this.width = this.isWindowFit ? ceil(this.renderScale * this.windowWidth) : this.width;
-    this.height = this.isWindowFit ? ceil(this.renderScale * this.windowHeight) : this.height;
-    this.dragSensitivity = PI / this.windowWidth;
+
+    var dpr = window.devicePixelRatio || 1;
+    var scale = dpr;
+
+    this.width = this.isWindowFit ? floor(scale * this.windowWidth) : this.width;
+    this.height = this.isWindowFit ? floor(scale * this.windowHeight) : this.height;
+
+    var aspect = this.width / this.height;
+    if (this.aspectRatioMax && aspect > this.aspectRatioMax) {
+      this.width = this.aspectRatioMax * this.height;
+    }
+
+    if (this.aspectRatioMin && aspect < this.aspectRatioMin) {
+      this.height = this.width / this.aspectRatioMin;
+    }
+
+    if (this.maxTextureSize) {
+      this.width = min(this.maxTextureSize - 1, this.width);
+      this.height = min(this.maxTextureSize - 1, this.height);
+    }
+
+    var scaledWidth = round(this.width / scale);
+    var scaledHeight = round(this.height / scale);
+    this.x = (this.windowWidth - scaledWidth) / 2;
+    this.y = (this.windowHeight - scaledHeight) / 2;
+    this.cssWidth = scaledWidth;
+    this.cssHeight = scaledHeight;
+
+    this.dragSensitivity = PI / this.cssWidth;
   }
 
   createElements () {
+    if (this.canvas && this.canvas.parentNode) {
+      this.canvas.parentNode.removeChild(this.canvas);
+    }
+
     this.canvas = document.createElement('canvas');
     this.canvas.width = this.width;
     this.canvas.height = this.height;
     this.ctx = this.canvas.getContext(this.type, this.canvasOpts);
     document.body.appendChild(this.canvas);
 
-    this.setResizeHandler();
+    if (!this.hasSetHandlers) this.setResizeHandler();
   }
 
   checkGL () {
@@ -238,6 +342,8 @@ class XCanvas {
       this.reset(true);
     }, false);
 
+    this.maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+
     return true;
   }
 
@@ -253,32 +359,18 @@ class XCanvas {
     width = width || this.width;
     height = height || this.height;
 
-    if (canvas === this.canvas) {
-      var aspect = width / height;
-      if (this.aspectRatioMax && aspect > this.aspectRatioMax) {
-        width = this.aspectRatioMax * height;
-      }
-
-      if (this.aspectRatioMin && aspect < this.aspectRatioMin) {
-        height = width / this.aspectRatioMin;
-      }
-    }
-
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
       canvas.height = height;
     }
 
     if (canvas === this.canvas) {
-      var scaledWidth = ceil(width / this.renderScale);
-      var scaledHeight = ceil(height / this.renderScale);
-      this.x = (this.windowWidth - scaledWidth) / 2;
-      this.y = (this.windowHeight - scaledHeight) / 2;
       canvas.style.left = this.x + 'px';
       canvas.style.top = this.y + 'px';
-      canvas.style.width = scaledWidth + 'px';
-      canvas.style.height = scaledHeight + 'px';
-      canvas.style.margin = 'none';
+      canvas.style.width = this.cssWidth + 'px';
+      canvas.style.height = this.cssHeight + 'px';
+      canvas.style.scale = this.cssScale;
+      canvas.style.margin = 0;
       canvas.style.position = 'absolute';
 
       this.gl && this.onGLResize(width, height);
@@ -291,6 +383,9 @@ class XCanvas {
     if (this.scene) {
       this.scene.onResize(width, height, this.getProjectionMatrix());
       this.effects.forEach(effect => effect.onResize(width, height));
+      if (this.renderOnDemand && this.acceptInput) {
+        this.requestRenderFrame();
+      }
     }
   }
 
@@ -303,6 +398,8 @@ class XCanvas {
   }
 
   listenForInput () {
+    if (this.hasSetHandlers) return;
+
     document.addEventListener("keydown", (evt) => this.onKeyDown(evt), false);
     document.addEventListener("keyup", (evt) => this.onKeyUp(evt), false);
     window.addEventListener("mousedown", (evt) => this.onMouseDown(evt));
@@ -322,18 +419,19 @@ class XCanvas {
     this.keysDown[key] = true;
 
     this.camera && this.camera.onKeyDown(evt);
+    this.renderOnDemand && this.requestRenderFrame();
 
     return key;
   }
 
   onKeyUp (evt) {
-    if (!this.acceptInput) return;
-
     var key = evt.key.toUpperCase();
     this.keysDown[key] = false;
 
-    this.camera && this.camera.onKeyUp(evt);
+    if (!this.acceptInput) return;
 
+    this.camera && this.camera.onKeyUp(evt);
+    this.renderOnDemand && this.requestRenderFrame();
     return key;
   }
 
@@ -356,17 +454,21 @@ class XCanvas {
     this.dragLast.y = evt.y;
 
     this.camera && this.camera.onMouseMove(evt, dx, dy);
+    this.renderOnDemand && this.requestRenderFrame();
   }
 
   onMouseUp (evt) {
-    if (!this.acceptInput) return;
-
     this.isDragging = false;
+
+    if (!this.acceptInput) return;
 
     this.camera && this.camera.onMouseUp(evt);
   }
 
-  onMouseWheel (evt) { this.camera && this.camera.onMouseWheel(evt); }
+  onMouseWheel (evt) {
+    this.camera && this.camera.onMouseWheel(evt);
+    this.renderOnDemand && this.requestRenderFrame();
+  }
 
   // by default, touch events mimic mouse events
   onTouchStart (touchEvt) {
@@ -413,6 +515,7 @@ class XCanvas {
     var destHeight = opts.destHeight || this.height;
     var name = opts.name || 'output';
     var callback = opts.callback || null;
+    var skipDownload = opts.skipDownload || false;
 
     if (this.gl) {
       this.gl.flush();
@@ -428,15 +531,154 @@ class XCanvas {
       0, 0, destWidth, destHeight);
 
     XUtils.processImage(renderCanvas, destWidth, destHeight, (outputCanvas) => {
+      try {
+        outputCanvas = this.transformOutputCanvas(outputCanvas, opts) || outputCanvas;
+      } catch (err) {
+        console.error('Error transforming output canvas, using base output instead.', err);
+      }
+
       if (!IS_HEADLESS) {
         var outputName = `${name}.png`;
-        XUtils.downloadCanvas(outputCanvas, outputName, (blob) => callback && callback(blob));
+        XUtils.downloadCanvas(outputCanvas, outputName, (blob) => callback && callback(blob), skipDownload);
       } else {
-        document.body.removeChild(this.canvas);
-        document.body.appendChild(outputCanvas);
-        this.resizeCanvas(outputCanvas, destWidth, destHeight);
+        if (callback) {
+          outputCanvas.toBlob((blob) => callback(blob));
+        }
+
+        var parent = this.canvas && this.canvas.parentNode;
+        if (!parent) return;
+
+        outputCanvas.style.cssText = this.canvas.style.cssText;
+        parent.replaceChild(outputCanvas, this.canvas);
       }
     });
+  }
+
+  saveOutput16 (opts) {
+    var name = opts.name || 'output';
+    var callback = opts.callback || null;
+    var skipDownload = opts.skipDownload || false;
+    var srcWidth = opts.srcWidth || this.width;
+    var srcHeight = opts.srcHeight || this.height;
+    var destWidth = opts.destWidth || this.width;
+    var destHeight = opts.destHeight || this.height;
+    var scale = round(srcWidth / destWidth);
+    if (srcWidth !== scale * destWidth) {
+      console.error(`16-bit outputs require integer scale between source and destination.`);
+    }
+
+    // render the scene in 16-bit color
+    var texture = XGLUtils.createHalfFloatTexture(this.gl, srcWidth, srcHeight);
+    var fbo = XGLUtils.createFramebufferWithTexture(this.gl, texture);
+    var passes = this.scene.renderPasses;
+    var antialiasPass = passes[passes.length - 1];
+    antialiasPass.framebuffer = fbo;
+    antialiasPass.viewport = { width: srcWidth, height: srcHeight };
+    this.flushScene();
+    delete antialiasPass.framebuffer;
+    delete antialiasPass.viewport;
+
+    var floatBuffer = XGLUtils.readHalfFloatPixels(this.gl, srcWidth, srcHeight, fbo);
+    var totalPixels = destWidth * destHeight * 4;
+    var raw16 = new Uint16Array(totalPixels);
+
+    // box-filter from source to destination for anti-aliasing
+    for (var dstY = 0; dstY < destHeight; dstY++) {
+      for (var dstX = 0; dstX < destWidth; dstX++) {
+        var accumR = 0;
+        var accumG = 0;
+        var accumB = 0;
+        var accumA = 0;
+
+        for (var sy = 0; sy < scale; sy++) {
+          var srcRow = (destHeight - 1 - dstY) * scale + (scale - 1 - sy);
+          // note: WebGL readPixels is upside-down for row order
+          for (var sx = 0; sx < scale; sx++) {
+            var srcCol = dstX * scale + sx;
+            var idx = (srcRow * srcWidth + srcCol) * 4;
+            var sR = floatBuffer[idx + 0];
+            var sG = floatBuffer[idx + 1];
+            var sB = floatBuffer[idx + 2];
+            var sA = floatBuffer[idx + 3];
+            if (sA < 0) sA = 0; else if (sA > 1) sA = 1;
+            if (sR < 0) sR = 0; else if (sR > 1) sR = 1;
+            if (sG < 0) sG = 0; else if (sG > 1) sG = 1;
+            if (sB < 0) sB = 0; else if (sB > 1) sB = 1;
+
+            accumR += sR;
+            accumG += sG;
+            accumB += sB;
+            accumA += sA;
+          }
+        }
+
+        var invSamples = 1 / (scale * scale);
+        accumR *= invSamples;
+        accumG *= invSamples;
+        accumB *= invSamples;
+        accumA *= invSamples;
+
+        var finalR = 0;
+        var finalG = 0;
+        var finalB = 0;
+        var finalA = accumA;
+
+        // we have to un-premultiply before quantizing
+        if (accumA > 0) {
+          finalR = accumR / accumA;
+          finalG = accumG / accumA;
+          finalB = accumB / accumA;
+        }
+
+        finalR = (finalR < 0 ? 0 : (finalR > 1 ? 1 : finalR));
+        finalG = (finalG < 0 ? 0 : (finalG > 1 ? 1 : finalG));
+        finalB = (finalB < 0 ? 0 : (finalB > 1 ? 1 : finalB));
+        finalA = (finalA < 0 ? 0 : (finalA > 1 ? 1 : finalA));
+
+        // quantize from 0 ... 1 to 16-bit
+        var dstBase = (dstY * destWidth + dstX) * 4;
+        raw16[dstBase + 0] = round(finalR * 65535);
+        raw16[dstBase + 1] = round(finalG * 65535);
+        raw16[dstBase + 2] = round(finalB * 65535);
+        raw16[dstBase + 3] = round(finalA * 65535);
+      }
+    }
+
+    var output = { data: raw16, width: destWidth, height: destHeight };
+    try {
+      output = this.transformOutput16(output, opts) || output;
+    } catch (err) {
+      console.error('Error transforming 16-bit output, using base output instead.', err);
+    }
+
+    function swap16ToBigEndian (little16) {
+      var byteCount = little16.length * 2;
+      var srcBytes = new Uint8Array(little16.buffer);
+      var dstBytes = new Uint8Array(byteCount);
+
+      for (var i = 0; i < little16.length; i++) {
+        var littleLow  = srcBytes[2 * i + 0];
+        var littleHigh = srcBytes[2 * i + 1];
+        dstBytes[2 * i + 0] = littleHigh;
+        dstBytes[2 * i + 1] = littleLow;
+      }
+
+      return dstBytes.buffer;
+    }
+
+    var bigEndianAB = swap16ToBigEndian(output.data);
+    var pngAB = UPNG.encodeLL([bigEndianAB], output.width, output.height, 3, 1, 16);
+    var blob = new Blob([pngAB], { type: 'image/png' });
+    !skipDownload && XUtils.downloadBlob(blob, `${name}.png`);
+    callback && callback(blob);
+  }
+
+  transformOutputCanvas (outputCanvas, opts) {
+    return outputCanvas;
+  }
+
+  transformOutput16 (output, opts) {
+    return output;
   }
 
   clearInput () {
@@ -448,11 +690,13 @@ class XCanvas {
   resetCamera () {
     this.clearInput();
     this.camera.reset();
+    this.renderOnDemand && this.requestRenderFrame();
   }
 
   stopCamera () {
     this.clearInput();
     this.camera.stop();
+    this.renderOnDemand && this.requestRenderFrame();
   }
 
   updateCamera (dt) {

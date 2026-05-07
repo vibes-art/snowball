@@ -15,6 +15,47 @@ XGLUtils.maxTextureMemory = min(
   (IS_MOBILE ? 512 : 1024) * 1024 * 1024 // capped at 512 MB mobile, 1 GB desktop
 );
 
+XGLUtils.getRecommendedShadowMapSize = function (gl, opts) {
+  opts = opts || {};
+
+  var isMobile = opts.isMobile !== undefined ? opts.isMobile : IS_MOBILE;
+  var isIOS = opts.isIOS !== undefined ? opts.isIOS : IS_IOS;
+  var hasDeviceMemory = navigator.deviceMemory !== undefined && navigator.deviceMemory !== null;
+  var deviceMemory = hasDeviceMemory ? navigator.deviceMemory : 0;
+  var maxTextureSize = opts.maxTextureSize;
+  if (!maxTextureSize && gl && gl.getParameter) {
+    maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 0;
+  }
+
+  var minShadowSize = isMobile ? 512 : 4096;
+  var maxShadowSize = isMobile ? 2048 : 8192;
+  if (isMobile && hasDeviceMemory && deviceMemory <= 3) {
+    maxShadowSize = min(maxShadowSize, 1024);
+  }
+
+  if (isIOS) {
+    var iosShadowCap = 1024;
+    if (maxTextureSize >= 8192 && (!hasDeviceMemory || deviceMemory >= 4)) {
+      iosShadowCap = 2048;
+    }
+    maxShadowSize = min(maxShadowSize, iosShadowCap);
+  }
+
+  if (!maxTextureSize) {
+    return minShadowSize;
+  }
+
+  var divisor = isMobile ? 4 : 2;
+  var targetSize = floor(maxTextureSize / divisor);
+  targetSize = max(minShadowSize, min(maxShadowSize, targetSize));
+
+  // keep shadow maps at power-of-two sizes for predictable allocations/perf
+  var shadowSize = 1;
+  while (2 * shadowSize <= targetSize) shadowSize *= 2;
+
+  return min(maxShadowSize, max(minShadowSize, shadowSize));
+};
+
 XGLUtils.setBuffer = function (gl, buffer, srcData, opts) {
   var target = opts.target !== undefined ? opts.target : gl.ARRAY_BUFFER;
   var isDirty = opts.isDirty;
@@ -130,6 +171,63 @@ XGLUtils.createTexture = function (gl, data, width, height, components) {
   return texture;
 };
 
+XGLUtils.createIntDataTexture = function (gl, data, width, height, components) {
+  var format;
+  switch (components) {
+    case 4: format = gl.RGBA; break;
+    case 3: format = gl.RGB; break;
+    case 1: format = gl.RED; break;
+    default: console.error("Unsupported component size: " + components);
+  }
+
+  if (data.length !== width * height * components) {
+    console.error("Data size does not match texture dimensions.");
+  }
+
+  var texture = gl.createTexture();
+  XGLUtils.bindTexture(gl, SHARED_TEXTURE_UNIT, texture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, format, gl.UNSIGNED_BYTE, data);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  return texture;
+};
+
+XGLUtils.createFloatDataTexture = function (gl, data, width, height, components) {
+  var texture = gl.createTexture();
+  XGLUtils.updateTexture(gl, texture, data, width, height, components);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  return texture;
+};
+
+XGLUtils.createHalfFloatTexture = function (gl, width, height) {
+  var texture = gl.createTexture();
+  XGLUtils.bindTexture(gl, SHARED_TEXTURE_UNIT, texture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, width, height, 0, gl.RGBA, gl.FLOAT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  return texture;
+};
+
+XGLUtils.createFramebufferWithTexture = function (gl, texture) {
+  var fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return fbo;
+};
+
+XGLUtils.readHalfFloatPixels = function (gl, width, height, fbo) {
+  var totalPixels = width * height * 4;
+  var floatBuffer = new Float32Array(totalPixels);
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.readPixels(0, 0, width, height, gl.RGBA, gl.FLOAT, floatBuffer);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+  return floatBuffer;
+};
+
 XGLUtils.updateTexture = function (gl, texture, data, width, height, components) {
   var internalFormat, format;
   switch (components) {
@@ -168,7 +266,16 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries, data) {
 
   if (cacheEntry) {
     cacheEntry.lastUsedTime = time;
-    onLoad && onLoad(cacheEntry.texture);
+
+    if (onLoad) {
+      if (cacheEntry.isLoaded) {
+        onLoad(cacheEntry.texture, cacheEntry.width, cacheEntry.height);
+      } else {
+        cacheEntry.callbacks = cacheEntry.callbacks || [];
+        cacheEntry.callbacks.push(onLoad);
+      }
+    }
+
     return cacheEntry.texture;
   }
 
@@ -187,7 +294,8 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries, data) {
     width: 1,
     height: 1,
     sizeInBytes: 4,
-    lastUsedTime: time
+    lastUsedTime: time,
+    callbacks: onLoad ? [onLoad] : []
   };
 
   XGLUtils.bindTexture(gl, SHARED_TEXTURE_UNIT, texture);
@@ -243,18 +351,27 @@ XGLUtils.loadTexture = function (gl, url, sRGB, onLoad, retries, data) {
 
     XGLUtils.loadsActive--;
 
-    onLoad && onLoad(texture, img.width, img.height);
+    var callbacks = cacheEntry.callbacks || [];
+    cacheEntry.callbacks = [];
+    for (var i = 0; i < callbacks.length; i++) {
+      callbacks[i] && callbacks[i](texture, img.width, img.height);
+    }
   }
 
   function loadWithImage () {
     var image = new Image();
     image.onload = () => uploadToGPU(image);
     image.onerror = () => {
+      var retryCallbacks = (cacheEntry && cacheEntry.callbacks && cacheEntry.callbacks.slice()) || [];
       delete XGLUtils.textureCache[url];
       XGLUtils.loadsActive--;
 
       if (retries < MAX_IMAGE_RETRIES) {
-        setTimeout(() => XGLUtils.loadTexture(gl, url, sRGB, onLoad, retries, data), 100 * retries++);
+        setTimeout(() => XGLUtils.loadTexture(gl, url, sRGB, (texture, width, height) => {
+          for (var i = 0; i < retryCallbacks.length; i++) {
+            retryCallbacks[i] && retryCallbacks[i](texture, width, height);
+          }
+        }, retries, data), 100 * retries++);
       } else {
         console.error(`Failed to load ${url} after ${MAX_IMAGE_RETRIES} retries.`);
       }
@@ -345,16 +462,33 @@ XGLUtils.loadShader = function (gl, type, source) {
   return shader;
 };
 
-XGLUtils.createFramebuffer = function (gl, width, height) {
+XGLUtils.createFramebuffer = function (gl, width, height, opts) {
+  opts = opts || {};
+  var colorAttachmentCount = max(1, opts.colorAttachmentCount || 1);
+  var maxColorAttachments = gl.getParameter(gl.MAX_COLOR_ATTACHMENTS) || 1;
+  colorAttachmentCount = min(colorAttachmentCount, maxColorAttachments);
+
   var framebuffer = gl.createFramebuffer();
   gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
 
-  var colorsTexture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, colorsTexture);
-  XGLUtils.textureBestColorBuffer(gl, width, height);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, colorsTexture, 0);
+  var colorsTextures = [];
+  for (var i = 0; i < colorAttachmentCount; i++) {
+    var colorsTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, colorsTexture);
+    XGLUtils.textureBestColorBuffer(gl, width, height);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, gl.TEXTURE_2D, colorsTexture, 0);
+    colorsTextures.push(colorsTexture);
+  }
+
+  if (colorAttachmentCount > 1) {
+    var drawBuffers = [];
+    for (var i = 0; i < colorAttachmentCount; i++) {
+      drawBuffers.push(gl.COLOR_ATTACHMENT0 + i);
+    }
+    gl.drawBuffers(drawBuffers);
+  }
 
   var renderbuffer = gl.createRenderbuffer();
   gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
@@ -365,13 +499,30 @@ XGLUtils.createFramebuffer = function (gl, width, height) {
   gl.bindRenderbuffer(gl.RENDERBUFFER, null);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-  return { framebuffer, colorsTexture, renderbuffer };
+  return {
+    framebuffer,
+    colorsTexture: colorsTextures[0],
+    colorsTextures,
+    renderbuffer
+  };
 };
 
 XGLUtils.deleteFramebuffer = function (gl, fbo) {
-  gl.deleteFramebuffer(fbo.framebuffer);
-  gl.deleteRenderbuffer(fbo.renderbuffer);
-  XGLUtils.unloadTexture(gl, fbo.colorsTexture);
+  fbo.framebuffer && gl.deleteFramebuffer(fbo.framebuffer);
+  fbo.renderbuffer && gl.deleteRenderbuffer(fbo.renderbuffer);
+
+  var colorsTextures = fbo.colorsTextures || (fbo.colorsTexture ? [fbo.colorsTexture] : []);
+  for (var i = 0; i < colorsTextures.length; i++) {
+    colorsTextures[i] && XGLUtils.unloadTexture(gl, colorsTextures[i]);
+  }
+};
+
+XGLUtils.deleteDepthFramebuffer = function (gl, depthFBO) {
+  if (!depthFBO) return;
+
+  depthFBO.framebuffer && gl.deleteFramebuffer(depthFBO.framebuffer);
+  depthFBO.depthTexture && XGLUtils.unloadTexture(gl, depthFBO.depthTexture);
+  depthFBO.debugColorTex && XGLUtils.unloadTexture(gl, depthFBO.debugColorTex);
 };
 
 XGLUtils.textureBestColorBuffer = function (gl, width, height) {

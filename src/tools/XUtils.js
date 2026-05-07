@@ -173,8 +173,8 @@ XUtils.enableXorshift128PRNG = function (seed) {
   };'tx piter';
 };
 
-XUtils.enableArtBlocksPRNG = function () {
-  var abr = new ABRandom();
+XUtils.enableArtBlocksPRNG = function (seedHash) {
+  var abr = new ABRandom(seedHash);
   random = () => abr.random_dec();
 };
 
@@ -214,7 +214,7 @@ XUtils.getPackedCircles = function (shape, count, opts) {
   var maxR = opts.maxR || 100;
   var stepR = opts.stepR || 1;
   var insideOnly = opts.insideOnly || false;
-  var tries = opts.tries || 10000;
+  var tries = opts.tries || 1000;
   var circles = [];
   var r = maxR;
   var countInit = count;
@@ -275,7 +275,8 @@ XUtils.getPackedSquares = function (shape, count, opts) {
   var stepSize = opts.stepSize || 1;
   var theta = opts.theta || 0;
   var insideOnly = opts.insideOnly || false;
-  var tries = opts.tries || 10000;
+  var randomSize = opts.randomSize || false;
+  var tries = opts.tries || 1000;
   var squares = [];
   var size = maxSize;
   var packX = shape.x;
@@ -287,6 +288,8 @@ XUtils.getPackedSquares = function (shape, count, opts) {
   var countInit = count;
 
   while (count > 0 && size >= minSize) {
+    if (randomSize) size = minSize + (maxSize - minSize) * random();
+
     var foundSquare = false;
     var halfSize = size / 2;
     for (var i = 0; i < tries; i++) {
@@ -322,6 +325,66 @@ XUtils.getPackedSquares = function (shape, count, opts) {
 
   UTIL_LOGS && console.log(`square pack: ${countInit}, fit: ${squares.length}`);
   return squares;
+};
+
+XUtils.getPackedRects = function (shape, count, opts) {
+  opts = opts || {};
+
+  var minWidth = opts.minWidth || 1;
+  var maxWidth = opts.maxWidth || 100;
+  var minDepth = opts.minDepth || 1;
+  var maxDepth = opts.maxDepth || 100;
+
+  var theta = opts.theta || 0;
+  var insideOnly = opts.insideOnly || false;
+  var tries = opts.tries || 1000;
+  var rects = [];
+
+  var packX = shape.x;
+  var packZ = shape.z;
+  var packWidth = shape.width;
+  var packDepth = shape.depth;
+  var halfPackWidth = packWidth / 2;
+  var halfPackDepth = packDepth / 2;
+  var countInit = count;
+
+  while (count > 0) {
+    var width = minWidth + (maxWidth - minWidth) * random();
+    var depth = minDepth + (maxDepth - minDepth) * random();
+
+    var halfWidth = width / 2;
+    var halfDepth = depth / 2;
+    for (var i = 0; i < tries; i++) {
+      var isValid = true;
+      var xc = 0;
+      var zc = 0;
+      if (insideOnly) {
+        xc = packX - halfPackWidth + halfWidth + (packWidth - width) * random();
+        zc = packZ - halfPackDepth + halfDepth + (packDepth - depth) * random();
+      } else {
+        xc = packX - halfPackWidth + packWidth * random();
+        zc = packZ - halfPackDepth + packDepth * random();
+      }
+
+      var testRect = new XRect({ x: xc, z: zc, width, depth, theta });
+      for (var q = 0; q < rects.length; q++) {
+        if (rects[q].collidesWith(testRect)) {
+          isValid = false;
+          break;
+        }
+      }
+
+      if (isValid) {
+        rects.push(testRect);
+        break;
+      }
+    }
+
+    count--;
+  }
+
+  UTIL_LOGS && console.log(`rect pack: ${countInit}, fit: ${rects.length}`);
+  return rects;
 };
 
 XUtils.getGoldenCircle = function (radius, dx, dz, forceOpts) {
@@ -390,7 +453,14 @@ XUtils.recurseQuilt = function (x0, z0, dx, dz, depth, opts) {
   }
 
   var recurseChance = opts.recurseChance || QUILT_RECURSION_CHANCE;
-  if (!depth || random() < recurseChance - QUILT_RECURSION_DECREMENT * depth) {
+  var recurseDecrement = opts.recurseDecrement || QUILT_RECURSION_DECREMENT;
+  var recurseSchedule = opts.recurseSchedule;
+  if (recurseSchedule) {
+    recurseChance = recurseSchedule[min(depth, recurseSchedule.length - 1)];
+    recurseDecrement = 0;
+  }
+
+  if (!depth || random() < recurseChance - recurseDecrement * depth) {
     var dx1 = x1 - x0;
     var dz1 = z1 - z0;
     x1 += buffer;
@@ -406,10 +476,10 @@ XUtils.recurseQuilt = function (x0, z0, dx, dz, depth, opts) {
   }
 };
 
-XUtils.downloadCanvas = function (canvas, name, callback) {
+XUtils.downloadCanvas = function (canvas, name, callback, skipDownload) {
   canvas.toBlob((blob) => {
     callback && callback(blob);
-    XUtils.downloadBlob(blob, name);
+    !skipDownload && XUtils.downloadBlob(blob, name);
   });
 };
 
@@ -452,9 +522,9 @@ XUtils.reduceImage = function (img, w, h) {
   var srcW = img.naturalWidth;
   var srcH = img.naturalHeight;
   var srcCan = Object.assign(document.createElement('canvas'), { width: srcW, height: srcH });
-  var sCtx = srcCan.getContext('2d');
+  var sCtx = srcCan.getContext('2d', { willReadFrequently: true });
   var destCan = Object.assign(document.createElement('canvas'), { width: w, height: h });
-  var dCtx = destCan.getContext('2d');
+  var dCtx = destCan.getContext('2d', { willReadFrequently: true });
 
   sCtx.drawImage(img, 0, 0);
 

@@ -46,7 +46,6 @@ class XShader {
       in vec4 ${ATTR_KEY_COLORS};
       in vec2 ${ATTR_KEY_TEX_COORDS};
 
-      out vec3 vViewPos;
       out vec4 vWorldPos;
       out vec4 vNormal;
       out vec4 vColor;
@@ -57,9 +56,8 @@ class XShader {
   addVSMainHeader (opts) {
     this.vertexShaderSource += `
       void main() {
-        vViewPos = inverse(${UNI_KEY_VIEW_MATRIX})[3].xyz;
         vWorldPos = ${UNI_KEY_MODEL_MATRIX} * vec4(${ATTR_KEY_POSITIONS}, 1.0);
-        vNormal = ${UNI_KEY_NORMAL_MATRIX} * vec4(${ATTR_KEY_NORMALS}, 1.0);
+        vNormal = ${UNI_KEY_NORMAL_MATRIX} * vec4(${ATTR_KEY_NORMALS}, 0.0);
         vColor = ${ATTR_KEY_COLORS};
         vUV = ${ATTR_KEY_TEX_COORDS};
     `;
@@ -84,12 +82,13 @@ class XShader {
       precision ${PRECISION} float;
       precision ${PRECISION} sampler2DShadow;
 
-      in vec3 vViewPos;
       in vec4 vWorldPos;
       in vec4 vNormal;
       in vec4 vColor;
-      out vec4 fragColor;
+      layout(location = 0) out vec4 fragColor;
 
+      uniform vec3 ${UNI_KEY_VIEW_POSITION};
+      uniform vec3 ${UNI_KEY_VIEW_DIRECTION};
       uniform vec3 ${UNI_KEY_AMBIENT_LIGHT}Color;
       uniform float ${UNI_KEY_SPECULAR_SHININESS};
       uniform float ${UNI_KEY_SPECULAR_STRENGTH};
@@ -201,27 +200,59 @@ class XShader {
     this.fragmentShaderSource += `
       float ${uniKey}ShadowCompute${i}() {
         const int i = ${i};
-        vec4 lightPos = ${uniKey}ViewProjMatrices[i] * vWorldPos;
-        vec3 ndc = lightPos.xyz / lightPos.w;
-        vec3 shadowUVdepth = ndc * 0.5 + 0.5;
+        vec4 lightClip = ${uniKey}ViewProjMatrices[i] * vWorldPos;
+        if (lightClip.w <= 0.0) return 1.0;
 
-        float bias = ${SHADOW_BIAS};
+        vec3 lightDir = ${uniKey}Directions[i];
+        vec3 normalDir = normalize(vNormal.xyz);
+        if (!gl_FrontFacing) {
+          normalDir = -normalDir;
+        }
+
+        vec3 ndc = lightClip.xyz / lightClip.w;
+        vec3 shadowUVdepth = ndc * 0.5 + 0.5;
+        if (shadowUVdepth.x < 0.0 || shadowUVdepth.x > 1.0
+          || shadowUVdepth.y < 0.0 || shadowUVdepth.y > 1.0
+          || shadowUVdepth.z < 0.0 || shadowUVdepth.z > 1.0)
+        {
+          return 1.0; // outside shadow map, treat as lit
+        }
+
+        float ndotl = max(dot(normalDir, normalize(-lightDir)), 0.0);
+        float slope = 1.0 - ndotl;
+        float bias = ${SHADOW_BIAS} + ${SHADOW_SLOPE_BIAS} * slope;
         float currentDepth = shadowUVdepth.z - bias;
-        float texelSize = 0.5 / ${SHADOW_MAP_SIZE}.0;
+    `;
+
+    if (ENABLE_SHADOW_PCF) {
+      this.fragmentShaderSource += `
+        vec2 texelSize = ${SHADOW_TEXEL_SIZE} / vec2(textureSize(${uniKey}ShadowMap[i], 0));
         float shadowSum = 0.0;
         int samples = 0;
 
-        for (int x = -2; x <= 2; x++) {
-          for (int y = -2; y <= 2; y++) {
+        for (int x = -${SHADOW_PCF_SIZE}; x <= ${SHADOW_PCF_SIZE}; x++) {
+          for (int y = -${SHADOW_PCF_SIZE}; y <= ${SHADOW_PCF_SIZE}; y++) {
             vec2 offset = vec2(float(x), float(y)) * texelSize;
-            float shadowSample = texture(${uniKey}ShadowMap[i], vec3(shadowUVdepth.xy + offset, currentDepth));
-            shadowSum += shadowSample;
+            vec2 uv = shadowUVdepth.xy + offset;
+            if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+              shadowSum += 1.0;
+            } else {
+              shadowSum += texture(${uniKey}ShadowMap[i], vec3(uv, currentDepth));
+            }
             samples++;
           }
         }
 
         float avgShadow = shadowSum / float(samples);
         return avgShadow;
+      `;
+    } else {
+      this.fragmentShaderSource += `
+        return texture(${uniKey}ShadowMap[i], vec3(shadowUVdepth.xy, currentDepth));
+      `;
+    }
+
+    this.fragmentShaderSource += `
       }
     `;
   }
@@ -265,7 +296,7 @@ class XShader {
       uniform float ${UNI_KEY_FOG_DENSITY};
 
       vec3 fogCompute(vec3 color) {
-        float distFromView = length(vWorldPos.xyz - vViewPos);
+        float distFromView = length(vWorldPos.xyz - ${UNI_KEY_VIEW_POSITION});
         float fogFactor = 1.0 - exp(-${UNI_KEY_FOG_DENSITY} * distFromView * distFromView);
         return mix(color, ${UNI_KEY_FOG_COLOR}, clamp(fogFactor, 0.0, 1.0));
       }
@@ -277,11 +308,21 @@ class XShader {
       ? `vec3 ambient = vColor.rgb;`
       : `vec3 ambient = vColor.rgb * ${UNI_KEY_AMBIENT_LIGHT}Color;`;
 
+    var viewDir = opts.useStaticViewDirection
+      ? `vec3 viewDir = normalize(${UNI_KEY_VIEW_DIRECTION});`
+      : `vec3 viewDir = normalize(${UNI_KEY_VIEW_POSITION} - vWorldPos.xyz); // frag to camera`
+
     this.fragmentShaderSource += `
       void main() {
         ${ambient}
+
         vec3 normalDir = normalize(vNormal.xyz);
-        vec3 viewDir = normalize(vViewPos - vWorldPos.xyz); // frag to camera
+        if (!gl_FrontFacing) {
+          normalDir = -normalDir;
+        }
+
+        ${viewDir}
+
         vec3 finalColor = ambient;
         float alpha = vColor.a;
     `;
