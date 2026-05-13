@@ -43,6 +43,12 @@ class XCanvas {
     this.isDragging = false;
     this.dragLast = { x: 0, y: 0 };
     this.effects = [];
+    this.isDisposed = false;
+    this._onResize = null;
+    this._inputHandlers = null;
+    this._webGLContextLostCanvas = null;
+    this._webGLContextLostHandler = null;
+    this._isReleasingGLContext = false;
 
     window.onload = () => this.init();
   }
@@ -52,6 +58,7 @@ class XCanvas {
   }
 
   init () {
+    this.isDisposed = false;
     var isWebGL = this.type === CANVAS_WEBGL;
     var hasWorkingGL = isWebGL;
 
@@ -247,6 +254,62 @@ class XCanvas {
     !softReset && setTimeout(() => this.init(), delay || 0);
   }
 
+  dispose () {
+    this.isDisposed = true;
+    this.acceptInput = false;
+    this.clearInput();
+    this.stopRenderLoop();
+
+    if (this.onNextRenderFrame) {
+      XClock.removeListener(this.onNextRenderFrame);
+      this.onNextRenderFrame = null;
+    }
+    this.hasPendingRenderFrame = false;
+
+    this.scene && this.scene.remove();
+    this.scene = null;
+
+    this.removeInputListeners();
+    this.removeResizeHandler();
+    this.releaseCanvas();
+
+    this.onTickListener = null;
+    this.isRenderLoopActive = false;
+    this.shader = null;
+    this.textureShader = null;
+    this.effects = [];
+    this.isInitialized = false;
+  }
+
+  releaseCanvas () {
+    if (!this.canvas) {
+      this.removeWebGLContextLostHandler();
+      this.ctx = null;
+      return;
+    }
+
+    var canvas = this.canvas;
+    this.removeWebGLContextLostHandler();
+
+    if (this.ctx && this.type === CANVAS_WEBGL) {
+      this._isReleasingGLContext = true;
+      try {
+        var loseContext = this.ctx.getExtension && this.ctx.getExtension('WEBGL_lose_context');
+        loseContext && loseContext.loseContext && loseContext.loseContext();
+      } catch (err) {
+        console.warn('Failed to release WebGL context:', err);
+      }
+      this._isReleasingGLContext = false;
+    }
+
+    if (canvas.parentNode) {
+      canvas.parentNode.removeChild(canvas);
+    }
+
+    this.canvas = null;
+    this.ctx = null;
+  }
+
   flushScene () {
     if (this.skipFlush || !this.isLiveRendering) return;
 
@@ -260,7 +323,10 @@ class XCanvas {
 
   onNextFrame (callback) {
     this.flushScene();
-    XClock.onNextTick(callback);
+    XClock.onNextTick((dt, dtReal) => {
+      if (this.isDisposed) return;
+      callback(dt, dtReal);
+    });
   }
 
   setDimensions () {
@@ -298,8 +364,8 @@ class XCanvas {
   }
 
   createElements () {
-    if (this.canvas && this.canvas.parentNode) {
-      this.canvas.parentNode.removeChild(this.canvas);
+    if (this.canvas) {
+      this.releaseCanvas();
     }
 
     this.canvas = document.createElement('canvas');
@@ -336,11 +402,15 @@ class XCanvas {
       ENABLE_LOGS && console.warn('EXT_color_buffer_half_float is not supported!');
     };
 
-    this.canvas.addEventListener('webglcontextlost', (evt) => {
+    this.removeWebGLContextLostHandler();
+    this._webGLContextLostHandler = (evt) => {
       evt.preventDefault();
+      if (this._isReleasingGLContext || this.isDisposed) return;
       console.error("WebGL context lost!");
       this.reset(true);
-    }, false);
+    };
+    this._webGLContextLostCanvas = this.canvas;
+    this.canvas.addEventListener('webglcontextlost', this._webGLContextLostHandler, false);
 
     this.maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
 
@@ -348,10 +418,29 @@ class XCanvas {
   }
 
   setResizeHandler () {
-    window.addEventListener('resize', () => {
+    if (this._onResize) return;
+
+    this._onResize = () => {
       this.setDimensions();
       this.resizeCanvas();
-    }, true);
+    };
+    window.addEventListener('resize', this._onResize, true);
+  }
+
+  removeResizeHandler () {
+    if (!this._onResize) return;
+
+    window.removeEventListener('resize', this._onResize, true);
+    this._onResize = null;
+  }
+
+  removeWebGLContextLostHandler () {
+    if (this._webGLContextLostCanvas && this._webGLContextLostHandler) {
+      this._webGLContextLostCanvas.removeEventListener('webglcontextlost', this._webGLContextLostHandler, false);
+    }
+
+    this._webGLContextLostCanvas = null;
+    this._webGLContextLostHandler = null;
   }
 
   resizeCanvas (canvas, width, height) {
@@ -400,16 +489,48 @@ class XCanvas {
   listenForInput () {
     if (this.hasSetHandlers) return;
 
-    document.addEventListener("keydown", (evt) => this.onKeyDown(evt), false);
-    document.addEventListener("keyup", (evt) => this.onKeyUp(evt), false);
-    window.addEventListener("mousedown", (evt) => this.onMouseDown(evt));
-    window.addEventListener("mousemove", (evt) => this.onMouseMove(evt));
-    window.addEventListener("mouseup", (evt) => this.onMouseUp(evt));
-    window.addEventListener("wheel", (evt) => this.onMouseWheel(evt), { passive: false });
-    window.addEventListener("touchstart", (evt) => this.onTouchStart(evt), { passive: false });
-    window.addEventListener("touchmove", (evt) => this.onTouchMove(evt), { passive: false });
-    window.addEventListener("touchend", (evt) => this.onTouchEnd(evt), { passive: false });
-    window.addEventListener("touchcancel", (evt) => this.onTouchEnd(evt), { passive: false });
+    this._inputHandlers = {
+      keydown: (evt) => this.onKeyDown(evt),
+      keyup: (evt) => this.onKeyUp(evt),
+      mousedown: (evt) => this.onMouseDown(evt),
+      mousemove: (evt) => this.onMouseMove(evt),
+      mouseup: (evt) => this.onMouseUp(evt),
+      wheel: (evt) => this.onMouseWheel(evt),
+      touchstart: (evt) => this.onTouchStart(evt),
+      touchmove: (evt) => this.onTouchMove(evt),
+      touchend: (evt) => this.onTouchEnd(evt),
+      touchcancel: (evt) => this.onTouchEnd(evt)
+    };
+
+    document.addEventListener("keydown", this._inputHandlers.keydown, false);
+    document.addEventListener("keyup", this._inputHandlers.keyup, false);
+    window.addEventListener("mousedown", this._inputHandlers.mousedown);
+    window.addEventListener("mousemove", this._inputHandlers.mousemove);
+    window.addEventListener("mouseup", this._inputHandlers.mouseup);
+    window.addEventListener("wheel", this._inputHandlers.wheel, { passive: false });
+    window.addEventListener("touchstart", this._inputHandlers.touchstart, { passive: false });
+    window.addEventListener("touchmove", this._inputHandlers.touchmove, { passive: false });
+    window.addEventListener("touchend", this._inputHandlers.touchend, { passive: false });
+    window.addEventListener("touchcancel", this._inputHandlers.touchcancel, { passive: false });
+    this.hasSetHandlers = true;
+  }
+
+  removeInputListeners () {
+    if (!this._inputHandlers) return;
+
+    document.removeEventListener("keydown", this._inputHandlers.keydown, false);
+    document.removeEventListener("keyup", this._inputHandlers.keyup, false);
+    window.removeEventListener("mousedown", this._inputHandlers.mousedown);
+    window.removeEventListener("mousemove", this._inputHandlers.mousemove);
+    window.removeEventListener("mouseup", this._inputHandlers.mouseup);
+    window.removeEventListener("wheel", this._inputHandlers.wheel, { passive: false });
+    window.removeEventListener("touchstart", this._inputHandlers.touchstart, { passive: false });
+    window.removeEventListener("touchmove", this._inputHandlers.touchmove, { passive: false });
+    window.removeEventListener("touchend", this._inputHandlers.touchend, { passive: false });
+    window.removeEventListener("touchcancel", this._inputHandlers.touchcancel, { passive: false });
+
+    this._inputHandlers = null;
+    this.hasSetHandlers = false;
   }
 
   onKeyDown (evt) {
